@@ -27,6 +27,15 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json.sample
 
+# Per-developer AI tooling configs — keep them local, never commit
+.claude/
+.codex/
+.cursor/
+
+# Python bytecode (any surface)
+**/__pycache__/
+**/*.pyc
+
 coverage/
 .nyc_output/
 

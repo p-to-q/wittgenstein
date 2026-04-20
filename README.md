@@ -3,11 +3,21 @@
 **The modality harness for text-first models.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Moapacha/wittgenstein/ci.yml?branch=main&label=CI)](./.github/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Moapacha/wittgenstein?include_prereleases&label=release)](https://github.com/Moapacha/wittgenstein/releases)
+[![Status](https://img.shields.io/badge/status-early--stage-orange)](./docs/implementation-status.md)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.11-brightgreen)](./.nvmrc)
+[![Node](https://img.shields.io/badge/node-%3E%3D20.19-brightgreen)](./.nvmrc)
 [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D9.0-f69220)](./package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](./tsconfig.base.json)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](./polyglot-mini/requirements.txt)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](./CONTRIBUTING.md)
+
+> **🧪 Project status — early-stage, post-hackathon.** Wittgenstein is a prerelease
+> (`v0.1.0-alpha.2`) with a working Python surface, a production-shaped TypeScript
+> harness, and a few intentionally unfinished surfaces clearly flagged with ⚠️ or 🔴 in
+> [`docs/implementation-status.md`](docs/implementation-status.md). Breaking changes are
+> possible before `0.1.0`. **We are actively looking for early adopters and
+> contributors** — see [How to help](#how-to-help) below.
 
 > *Die Grenzen meiner Sprache bedeuten die Grenzen meiner Welt.* — Tractatus 5.6
 
@@ -161,6 +171,8 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 - [`docs/quickstart.md`](docs/quickstart.md) — 30 seconds to a real file
 - [`polyglot-mini/README.md`](polyglot-mini/README.md) — Python surface deep-dive
 - [`docs/extending.md`](docs/extending.md) — add a codec, train an adapter, plug in a provider
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — branch workflow, first-PR paths
+- [`SUPPORT.md`](SUPPORT.md) — where to ask what, how to file an effective issue
 
 ### For researchers
 - [`docs/research/vq-tokens-as-interface.md`](docs/research/vq-tokens-as-interface.md) — why discrete VQ tokens as the LLM–decoder bridge
@@ -212,6 +224,46 @@ latents and is waiting on a frozen VQ decoder bridge; video is a typed stub.
 
 Roadmap: [`ROADMAP.md`](ROADMAP.md). Changelog: [`CHANGELOG.md`](CHANGELOG.md).
 Security: [`SECURITY.md`](SECURITY.md).
+
+---
+
+## Experimental surfaces (⚠️ honest disclosure)
+
+These are intentionally unfinished. They're part of the current release so the contract
+is visible, but **do not depend on them in production** until the status matrix says
+✅ Ships.
+
+| Surface | State | What works today | What's missing |
+|---|---|---|---|
+| TS `codec-image` adapter + decoder | ⚠️ Partial | Scene JSON, placeholder latents, MLP loader, `renderSky` / `renderTerrain` primitives | Frozen VQ decoder bridge (LlamaGen / SEED); trained adapter weights |
+| TS `codec-video` | 🔴 Stub | Schema + typed interface | HyperFrames integration, MP4 encoder |
+| Benchmark quality scores | ⚠️ Proxy | Structural smoke checks, cost/latency timing | CLIPScore, Whisper WER, UTMOS, discriminative score runners |
+| `polyglot-mini` image code-as-painter sandbox | ⚠️ Research-grade | `subprocess` with 20 s timeout + safe globals | Kernel-level isolation for multi-tenant use (see [`SECURITY.md`](SECURITY.md)) |
+
+If you hit a rough edge in one of these, file an
+[Experimental feedback issue](.github/ISSUE_TEMPLATE/experimental-feedback.md) — that's
+the signal we most want right now.
+
+---
+
+## How to help
+
+Wittgenstein was open-sourced straight out of a hackathon and we want early adopters to
+land softly. Three paths, in order of effort:
+
+1. **Try the 30-second quickstart above and tell us how it felt.** Broken step? Confusing
+   docs? File a [`[q]` question](.github/ISSUE_TEMPLATE/question.md) or a docs PR — we
+   treat "should have been documented" as the same priority as a bug.
+2. **Pick a `good first issue` on [GitHub Issues](https://github.com/Moapacha/wittgenstein/issues).**
+   Labelled entries are scoped small. Docs, CI, and typings are all fair game.
+3. **Own a surface.** If you want to land the VQ decoder bridge, train a better adapter,
+   or port a codec, say so in an issue and we'll pair. See
+   [`docs/extending.md`](docs/extending.md) for the concrete recipes.
+
+Before sending a PR, skim [`CONTRIBUTING.md`](CONTRIBUTING.md) — the branch workflow is
+worth two minutes and prevents the usual fork-and-merge pain.
+
+Questions before you start? [`SUPPORT.md`](SUPPORT.md) shows where to ask what.
 
 ---
 

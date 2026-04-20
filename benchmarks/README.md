@@ -1,13 +1,20 @@
 # Benchmarks
 
+> ⚠️ **Experimental.** Today's quality numbers are **structural proxies**, not
+> research-grade metrics. They confirm the artifact exists, has the right shape, and was
+> produced deterministically — they do **not** measure visual, acoustic, or clinical
+> quality. Treat the Latency and Cost columns as trustworthy; treat Quality as a
+> smoke-test signal until Phase 4 of [`ROADMAP.md`](../ROADMAP.md) lands.
+
 Two levels, clearly separated:
 
-1. **Local smoke harness** — structural proxy checks that run in CI and take < 10 s. No API
-   key required in dry-run mode. Reproducible because every run uses a fixed seed and writes
-   a `RunManifest`.
-2. **Standard-metric targets** — research-grade FID, CLIPScore, WER, MOS, discriminative
-   score. Not yet running; gates are defined so the moment a real codec ships we know exactly
-   what to measure. Full definitions in [`docs/benchmark-standards.md`](../docs/benchmark-standards.md).
+1. **Local smoke harness** (today) — structural proxy checks that run in CI and take
+   < 10 s. No API key required in dry-run mode. Reproducible because every run uses a
+   fixed seed and writes a `RunManifest`.
+2. **Standard-metric targets** (planned) — research-grade FID, CLIPScore, WER, MOS,
+   discriminative score. Not yet running; gates are defined so the moment a real codec
+   ships we know exactly what to measure. Full definitions in
+   [`docs/benchmark-standards.md`](../docs/benchmark-standards.md).
 
 ---
 
