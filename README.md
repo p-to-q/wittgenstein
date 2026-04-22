@@ -63,6 +63,29 @@ for the full measurement protocol.
 
 ---
 
+## Showcase — 35 real artifacts you can open right now
+
+Numbers are cheap; files are not. The pack below was generated end-to-end through the
+harness — every artifact has a matching run manifest under `artifacts/runs/<run-id>/`.
+
+**One click per modality:**
+
+| Modality | Sample | Open |
+|---|---|---|
+| 🖼️ Image | `02-forest` | [`image/02-forest.png`](artifacts/showcase/workflow-examples/image/02-forest.png) |
+| 🎙️ TTS | `02-harness` | [`tts/02-harness.wav`](artifacts/showcase/workflow-examples/tts/02-harness.wav) |
+| 🎵 Music | `01-launch-minimal` | [`music/01-launch-minimal.wav`](artifacts/showcase/workflow-examples/music/01-launch-minimal.wav) |
+| 🌧️ Soundscape | `02-forest-morning` | [`soundscape/02-forest-morning.wav`](artifacts/showcase/workflow-examples/soundscape/02-forest-morning.wav) |
+| ❤️ Sensor / ECG | `05-clinical` | [`sensor/ecg/05-clinical.html`](artifacts/showcase/workflow-examples/sensor/ecg/05-clinical.html) |
+| 🌡️ Sensor / Temp | `02-greenhouse` | [`sensor/temperature/02-greenhouse.html`](artifacts/showcase/workflow-examples/sensor/temperature/02-greenhouse.html) |
+| 🎛️ Sensor / Gyro | `02-hover` | [`sensor/gyro/02-hover.html`](artifacts/showcase/workflow-examples/sensor/gyro/02-hover.html) |
+
+- **Full pack (5 per group, 35 artifacts):** [`artifacts/showcase/workflow-examples/`](artifacts/showcase/workflow-examples/)
+- **Hand-picked samples folder:** [`artifacts/showcase/workflow-examples/samples/`](artifacts/showcase/workflow-examples/samples/)
+- **Rendered gallery:** [`SHOWCASE.md`](SHOWCASE.md)
+
+---
+
 ## Architecture (Five Layers)
 
 ```
@@ -170,6 +193,7 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 - [`docs/hard-constraints.md`](docs/hard-constraints.md) — what will not change
 
 ### For hackers
+- [`SHOWCASE.md`](SHOWCASE.md) — 35 real artifacts across 7 modality groups, click to open
 - [`docs/quickstart.md`](docs/quickstart.md) — 30 seconds to a real file
 - [`polyglot-mini/README.md`](polyglot-mini/README.md) — Python surface deep-dive
 - [`docs/extending.md`](docs/extending.md) — add a codec, train an adapter, plug in a provider
