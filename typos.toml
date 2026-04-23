@@ -1,0 +1,32 @@
+[files]
+extend-exclude = [
+  "pnpm-lock.yaml",
+  "**/*.png",
+  "**/*.jpg",
+  "**/*.jpeg",
+  "**/*.webp",
+  "**/*.svg",
+  "**/*.pdf",
+  "**/*.wav",
+  "**/*.m4a",
+  "**/*.mp3",
+  "**/*.mp4",
+  "artifacts/**",
+]
+
+[default.extend-words]
+# Project / philosophy terms
+Wittgenstein = "Wittgenstein"
+Tractatus = "Tractatus"
+Kolmogorov = "Kolmogorov"
+Solomonoff = "Solomonoff"
+Sutskever = "Sutskever"
+LeCun = "LeCun"
+JEPA = "JEPA"
+VQ = "VQ"
+VQGAN = "VQGAN"
+VQVAE = "VQVAE"
+LlamaGen = "LlamaGen"
+MAGVIT = "MAGVIT"
+TiTok = "TiTok"
+

@@ -9,6 +9,13 @@ First PR? See CONTRIBUTING.md for the branch workflow and what we look for.
 
 <!-- 1–3 bullets: what changed, why it matters. -->
 
+## Scope / hygiene
+
+- [ ] Branch is focused on one change set (or the coupling is explained in the summary)
+- [ ] Worktree is clean for the files touched by this PR
+- [ ] No unrelated local experiments / artifacts were pulled into the diff
+- [ ] PR is reviewable in one sitting; if not, I explained why it stays bundled
+
 ## Type
 
 - [ ] Bug fix
@@ -31,6 +38,7 @@ First PR? See CONTRIBUTING.md for the branch workflow and what we look for.
 - [ ] `pnpm lint`
 - [ ] `pnpm typecheck`
 - [ ] `pnpm test`
+- [ ] CI check names / outcomes still make sense to a reviewer at a glance
 - [ ] Python: ran the affected `python3 -m polyglot.cli ...` path
 - [ ] Manifest still written under `artifacts/runs/<id>/` on both success and failure
 
