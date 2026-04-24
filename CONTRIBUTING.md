@@ -37,8 +37,17 @@ New contributors: pick one of these first.
 | **Medium** | `⚠️ Experimental feedback` issues in [`docs/implementation-status.md`](docs/implementation-status.md) | Add a benchmark case, write a codec doc page, add a new LLM provider adapter |
 | **Deep** | `🔴 Stub` rows in [`docs/implementation-status.md`](docs/implementation-status.md) | Wire a frozen VQ decoder into `codec-image`, port a codec from Python to TypeScript |
 
-For architectural proposals, draft a PR that updates both code and an ADR under
-[`docs/adrs/`](docs/adrs/). See `docs/adrs/README.md` for the template.
+For architectural proposals, the flow is **brief → RFC → ADR → code**. See
+[`docs/tracks.md`](docs/tracks.md) for the contract between the researcher and hacker
+tracks, and:
+
+- [`docs/research/briefs/`](docs/research/briefs/) — pressure-test a claim first
+  (four-station loop: Steelman / Red team / Kill criteria / Verdict).
+- [`docs/rfcs/`](docs/rfcs/) — propose a concrete design; template at
+  [`docs/rfcs/00_template.md`](docs/rfcs/00_template.md).
+- [`docs/adrs/`](docs/adrs/) — the ADR ratifies the RFC and becomes load-bearing.
+
+Code PRs land the migration the ADR already accepted, not a fresh design decision.
 
 ## Branch workflow (please follow this)
 
@@ -95,6 +104,15 @@ Wittgenstein explicitly mixes both. To keep users safe:
   fallback) and be clearly labelled in `docs/implementation-status.md`.
 - New experimental surfaces should land behind a `--experimental` flag or an env var and
   be documented with their known failure modes.
+
+## Two-hats review
+
+Every brief, RFC, ADR, and architectural PR gets two reviews before merge:
+
+1. **Researcher hat** — does this survive contact with 2024–2026 literature?
+2. **Hacker hat** — if an agent read this at 2 a.m., would it write the right code?
+
+If either hat dissents, the doc iterates. See [`docs/tracks.md`](docs/tracks.md).
 
 ## Review protocol
 

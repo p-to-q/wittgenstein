@@ -197,12 +197,44 @@ After merge, `main` should inherit four durable improvements:
 
 ---
 
-## 11. Immediate next moves after merge
+## 11. What shipped after this merge (P2 → P5)
 
-| Priority | Next move | Why |
-|---|---|---|
-| P2 | Write the research briefs named in `Promote` / `Revise` rows | turns belief into citable repo knowledge |
-| P2 | Reconcile `wittgenstein.wtf` against repo truth | website should stop drifting from code/doc state |
-| P2 | Land the codec-simplification RFC/ADR line | removes legacy request-level strategy scaffolding |
-| P2 | Upgrade benchmark docs from structural proxies toward true metrics | aligns repo claims with standard evaluation language |
+The P1 synthesis above set up four immediate next moves. All four have since landed as
+dated PRs and are now either merged or in review:
+
+| Phase | PR | Outputs | Status |
+|---|---|---|---|
+| P2a | [#7](https://github.com/wittgenstein-cli/wittgenstein/pull/7) | Briefs A (VQ/VLM lineage), B (Ilya↔LeCun, critical-path), C (horizon scan) | merged |
+| P2b | [#33](https://github.com/wittgenstein-cli/wittgenstein/pull/33) | Briefs D (CLI conventions), E (benchmarks v2), F (site reconciliation) | open |
+| P3 | [#34](https://github.com/wittgenstein-cli/wittgenstein/pull/34) | RFCs 0001 (Codec Protocol v2), 0002 (CLI ergonomics), 0003 (Naming: Loom/Transducer/Score/Handoff), 0004 (Site) | open |
+| P4 | [#35](https://github.com/wittgenstein-cli/wittgenstein/pull/35) | ADRs 0006 (Layered epistemology), 0007 (Path-C rejected), 0008 (Codec v2 adoption), 0009 (CLI v2), 0010 (Naming locked) | open |
+
+The critical-path verdict from Brief B — **Position (iii) Layered + (iv) Agnostic
+contract** — is now load-bearing via ADR-0006. Every downstream decision inherits from
+that stance.
+
+## 12. What is now permanent vs still open
+
+**Permanent (ADR-backed):**
+
+- Thesis: "the modality harness for text-first models"
+- L1–L5 architecture, decoder ≠ generator, no silent fallbacks, RunManifest spine
+- Layered epistemology (ADR-0006) — `Handoff = Text | Latent | Hybrid` sum type; only `Text` ships at v0.2
+- Path C rejected (ADR-0007) — no full multimodal retrain through v0.4
+- Codec Protocol v2 (ADR-0008) — kill date for pre-v2 surface is v0.3.0
+- CLI ergonomics v2 (ADR-0009) — NDJSON contract, two deliberate divergences (no REPL, no user-facing `--model`)
+- Naming locked (ADR-0010) — Loom / Transducer / Score / Handoff; "Parasoid" retires
+
+**Still open (returns in P6 — separate execution plan):**
+
+- Actual code port: sensor → audio → image per RFC-0001 §Migration
+- Benchmarks v2 bridge per Brief E's metric picks
+- Site rewrite per RFC-0004 (site-ops PR, separate repo)
+- Showcase regeneration against the Codec v2 surface once migrated
+
+## 13. Governance
+
+- `docs/tracks.md` — the contract between researcher and hacker tracks.
+- `docs/rfcs/README.md` + `docs/rfcs/00_template.md` — RFC process and template.
+- Two-hats review (Researcher + Hacker) is enforced on every brief, RFC, and ADR.
 
