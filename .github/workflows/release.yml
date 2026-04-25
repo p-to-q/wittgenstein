@@ -37,9 +37,14 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Pull the section between [VERSION] and the next top-level "## [" heading.
-          awk -v ver="[$VERSION]" '
-            $0 ~ "^## " ver { flag=1; next }
-            flag && /^## \[/ { exit }
+          # Uses index() literal-string match instead of regex so brackets in
+          # the version (e.g. "[0.2.0-alpha.1]") are not interpreted as a
+          # character class. This is the bug that bit v0.2.0-alpha.1's first
+          # publish — the regex "^## [0.2.0-alpha.1]" matched every `## [...]`
+          # heading because `[0.2-alpha1]` parsed as a char class.
+          awk -v marker="## [$VERSION]" '
+            index($0, marker) == 1 { flag=1; next }
+            flag && index($0, "## [") == 1 { exit }
             flag { print }
           ' CHANGELOG.md > .release-notes.md
           if [ ! -s .release-notes.md ]; then
