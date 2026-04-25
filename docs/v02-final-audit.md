@@ -192,6 +192,6 @@ Ordered, finite, and directly executable.
 
 ### Tier 4 — execution after doctrine lock
 
-13. Start `codec-v2-port.md` at `M0`, then `M1 image`, then `M2 audio`, in that order.
+13. Start `codec-v2-port.md` at `M0`, then `M1 image`, then `M2 audio`, in that order. The plan is fully drafted (per-package diff, golden parity contract, migration tests, rollback criteria) — see the doc's `## Pre-flight checklist` for the M0 unblock list.
 
 That is the full close-out list. Nothing else in this milestone should be treated as unresolved doctrine.
