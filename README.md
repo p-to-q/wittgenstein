@@ -63,14 +63,14 @@ Wittgenstein makes three architectural bets instead:
 
 ## Receipts (not claims)
 
-| What                                     | Number                     | How                                                    |
-| ---------------------------------------- | -------------------------- | ------------------------------------------------------ |
-| Image style MLP validation loss          | **0.7698 BCE**             | 781 COCO captions, 9 s on CPU, 600 epochs              |
-| Audio ambient classifier accuracy        | **5 / 5 spot checks**      | 369 examples, < 5 s on CPU, keyword + MLP hybrid       |
-| LLM token cost: scene JSON vs raw pixels | **~ 52,000× less**         | 60 tokens vs 1024×1024×3 pixel values                  |
-| Sensor expand latency                    | **< 2 ms**                 | Pure numpy, 250 Hz × 10 s ECG with operator spec       |
-| Loupe HTML dashboard size                | **~ 117 KB**               | Zero external dependencies, single self-contained file |
-| Full typecheck + lint                    | **10 / 10 packages green** | Strict TS, ESLint, pnpm workspaces                     |
+| What                                     | Number                                  | How                                                    |
+| ---------------------------------------- | --------------------------------------- | ------------------------------------------------------ |
+| Image style MLP validation loss          | <strong>0.7698 BCE</strong>             | 781 COCO captions, 9 s on CPU, 600 epochs              |
+| Audio ambient classifier accuracy        | <strong>5 / 5 spot checks</strong>      | 369 examples, < 5 s on CPU, keyword + MLP hybrid       |
+| LLM token cost: scene JSON vs raw pixels | <strong>~ 52,000× less</strong>         | 60 tokens vs 1024×1024×3 pixel values                  |
+| Sensor expand latency                    | <strong>&lt; 2 ms</strong>              | Pure numpy, 250 Hz × 10 s ECG with operator spec       |
+| Loupe HTML dashboard size                | <strong>~ 117 KB</strong>               | Zero external dependencies, single self-contained file |
+| Full typecheck + lint                    | <strong>10 / 10 packages green</strong> | Strict TS, ESLint, pnpm workspaces                     |
 
 Adapter training stats are from real runs; see [`docs/benchmark-standards.md`](docs/benchmark-standards.md)
 for the full measurement protocol.
