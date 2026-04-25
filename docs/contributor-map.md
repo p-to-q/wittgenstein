@@ -16,13 +16,14 @@ If you keep that frame, the repo reads cleanly.
 ## 2. Read this first
 
 1. `AGENTS.md`
-2. `docs/THESIS.md`
-3. `docs/tracks.md`
-4. `docs/inheritance-audit.md`
-5. `docs/rfcs/README.md`
-6. `docs/adrs/README.md`
-7. `docs/research/briefs/README.md`
-8. `docs/exec-plans/active/codec-v2-port.md`
+2. `docs/engineering-discipline.md`
+3. `docs/THESIS.md`
+4. `docs/tracks.md`
+5. `docs/inheritance-audit.md`
+6. `docs/rfcs/README.md`
+7. `docs/adrs/README.md`
+8. `docs/research/briefs/README.md`
+9. `docs/exec-plans/active/codec-v2-port.md`
 
 That order gets you from doctrine → review model → decisions → execution.
 
@@ -49,6 +50,7 @@ That order gets you from doctrine → review model → decisions → execution.
 - `packages/agent-contact-text/` — long-form context for humans and agents
 - `docs/research/briefs/` — research pressure tests
 - `docs/agent-guides/` — prompt-ready implementation guides for agents
+- `docs/engineering-discipline.md` — the sharp house style for reading before writing, minimal diffs, and evidence-backed validation
 
 ## 4. Two contributing lines
 
@@ -69,6 +71,7 @@ Typical work:
 Success criterion:
 
 - a new contributor can orient themselves without chat history.
+- they also know the repo's engineering tone before they touch code.
 
 ### Line B — image → audio execution
 
@@ -131,6 +134,8 @@ Every substantial PR gets two hats:
 - **Hacker hat:** can an agent implement or extend this without guessing?
 
 If either answer is no, the PR is not ready.
+
+The shortest companion to this review section is `docs/engineering-discipline.md`; it is the file that turns "be careful" into actual edit discipline.
 
 ## 7. What not to do
 

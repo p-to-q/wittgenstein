@@ -143,7 +143,7 @@ parameter spaces. They are tiny by design.
   If your adapter needs torch, it is probably doing too much work — consider moving the
   intelligence into the codec's renderer instead.
 - **Hashed bag-of-words embedding.** See `polyglot-mini/train/train.py::embed()`. Double-hash
-  + bigrams + L2 norm gets you dim 256–512 feature vectors with zero vocab to maintain.
+  - bigrams + L2 norm gets you dim 256–512 feature vectors with zero vocab to maintain.
 - **One-hop MLP.** Two to three hidden layers is enough. Adam with gradient clipping.
 - **Save as `.npz`.** Load via `np.load()`. No pickle, no custom serialisation.
 
@@ -250,11 +250,12 @@ A new codec is not done until these are updated:
 
 ## Where to look for precedent
 
-| You want to... | Read this first |
-|---|---|
-| Add a new codec in TS | `packages/codec-sensor/src/` (end-to-end real renderer, no external deps) |
-| Add a new codec in Python | `polyglot-mini/polyglot/sensor.py` (same codec, Python surface) |
-| Train a small adapter | `polyglot-mini/train/train_audio.py` (cleanest, smallest, fastest) |
-| Add an LLM provider | `polyglot-mini/polyglot/llm.py::_call_kimi_k2()` (stdlib urllib, no SDK) |
-| Add a sandbox boundary | `polyglot-mini/polyglot/sandbox.py` (subprocess with pre-injected globals) |
-| Shape a new IR schema | `packages/codec-sensor/src/schema.ts` (zod + preamble generator) |
+| You want to...                                            | Read this first                                                            |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Understand the repo's engineering standard before editing | `docs/engineering-discipline.md`                                           |
+| Add a new codec in TS                                     | `packages/codec-sensor/src/` (end-to-end real renderer, no external deps)  |
+| Add a new codec in Python                                 | `polyglot-mini/polyglot/sensor.py` (same codec, Python surface)            |
+| Train a small adapter                                     | `polyglot-mini/train/train_audio.py` (cleanest, smallest, fastest)         |
+| Add an LLM provider                                       | `polyglot-mini/polyglot/llm.py::_call_kimi_k2()` (stdlib urllib, no SDK)   |
+| Add a sandbox boundary                                    | `polyglot-mini/polyglot/sandbox.py` (subprocess with pre-injected globals) |
+| Shape a new IR schema                                     | `packages/codec-sensor/src/schema.ts` (zod + preamble generator)           |

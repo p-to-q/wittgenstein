@@ -207,6 +207,7 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 
 ### For maintainers and contributing agents
 
+- [`docs/engineering-discipline.md`](docs/engineering-discipline.md) — the sharp working standard for how to inspect, change, validate, and report in this repo
 - [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md) — the live P6 plan (M0 → M5b) for porting all codecs to Codec Protocol v2
 - [`docs/agent-guides/README.md`](docs/agent-guides/README.md) — index of prompt-ready execution briefs
 - [`docs/agent-guides/image-to-audio-port.md`](docs/agent-guides/image-to-audio-port.md) — cross-line context (M0–M2)
@@ -219,6 +220,7 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 
 - [`SHOWCASE.md`](SHOWCASE.md) — 35 real artifacts across 7 modality groups, click to open
 - [`docs/quickstart.md`](docs/quickstart.md) — 30 seconds to a real file
+- [`docs/engineering-discipline.md`](docs/engineering-discipline.md) — how to make sharp, minimal, evidence-backed changes without fighting the repo
 - [`polyglot-mini/README.md`](polyglot-mini/README.md) — Python surface deep-dive
 - [`docs/extending.md`](docs/extending.md) — add a codec, train an adapter, plug in a provider
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — branch workflow, first-PR paths

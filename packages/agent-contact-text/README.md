@@ -4,13 +4,13 @@ This package holds **extended narrative context** for coding agents and human op
 
 ## Canonical vs. extended
 
-| Tier | Where | Role |
-| --- | --- | --- |
-| **Primary** | [`AGENTS.md`](../../AGENTS.md), [`docs/architecture.md`](../../docs/architecture.md), [`docs/hard-constraints.md`](../../docs/hard-constraints.md) | Locked rules, repo map, where code must live |
-| **System of record** | [`docs/`](../../docs/) | ADRs, codec contracts, reproducibility, exec plans |
-| **Extended (this package)** | `00_INDEX.md` … `03_*.md` | Build book, execution mindset, research dossier—depth for agents that need project history and rationale |
+| Tier                        | Where                                                                                                                                                                                                                        | Role                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Primary**                 | [`AGENTS.md`](../../AGENTS.md), [`docs/engineering-discipline.md`](../../docs/engineering-discipline.md), [`docs/architecture.md`](../../docs/architecture.md), [`docs/hard-constraints.md`](../../docs/hard-constraints.md) | Locked rules, edit discipline, repo map, where code must live                                            |
+| **System of record**        | [`docs/`](../../docs/)                                                                                                                                                                                                       | ADRs, codec contracts, reproducibility, exec plans                                                       |
+| **Extended (this package)** | `00_INDEX.md` … `03_*.md`                                                                                                                                                                                                    | Build book, execution mindset, research dossier—depth for agents that need project history and rationale |
 
-When instructions conflict, **trust `AGENTS.md` and `docs/` first**.
+When instructions conflict, **trust `AGENTS.md`, `docs/engineering-discipline.md`, and `docs/` first**.
 
 ## Architecture (coding-agent view)
 
@@ -26,18 +26,19 @@ Wittgenstein is a **five-layer modality harness**: the LLM plans in text; the re
 
 ## Contents of this package
 
-| File | Purpose |
-| --- | --- |
-| [`00_INDEX.md`](./00_INDEX.md) | Delivery index / map of the reference set |
-| [`01_Build_Book.md`](./01_Build_Book.md) | Full build book (product and technical narrative) |
-| [`01_Build_Book.docx`](./01_Build_Book.docx) | Same as Word source (optional) |
-| [`02_AI_Execution_Context.md`](./02_AI_Execution_Context.md) | How agents should behave in this codebase day to day |
-| [`03_Research_Reference_Dossier.md`](./03_Research_Reference_Dossier.md) | Research-backed reference notes |
+| File                                                                     | Purpose                                              |
+| ------------------------------------------------------------------------ | ---------------------------------------------------- |
+| [`00_INDEX.md`](./00_INDEX.md)                                           | Delivery index / map of the reference set            |
+| [`01_Build_Book.md`](./01_Build_Book.md)                                 | Full build book (product and technical narrative)    |
+| [`01_Build_Book.docx`](./01_Build_Book.docx)                             | Same as Word source (optional)                       |
+| [`02_AI_Execution_Context.md`](./02_AI_Execution_Context.md)             | How agents should behave in this codebase day to day |
+| [`03_Research_Reference_Dossier.md`](./03_Research_Reference_Dossier.md) | Research-backed reference notes                      |
 
 Shorter mirrors of some reference material also exist under [`docs/references/`](../../docs/references/) for inline reading next to implementation docs; the **00–03 set here is the bundled “agent contact” corpus**.
 
 ## Suggested read order (agent)
 
 1. [`AGENTS.md`](../../AGENTS.md) — rules and repo map (short).
-2. [`docs/architecture.md`](../../docs/architecture.md) — layer table and dataflow.
-3. This package: `02_AI_Execution_Context.md` → `00_INDEX.md` → skim `01_*` / `03_*` as needed for depth.
+2. [`docs/engineering-discipline.md`](../../docs/engineering-discipline.md) — how to inspect, change, validate, and report here.
+3. [`docs/architecture.md`](../../docs/architecture.md) — layer table and dataflow.
+4. This package: `02_AI_Execution_Context.md` → `00_INDEX.md` → skim `01_*` / `03_*` as needed for depth.
