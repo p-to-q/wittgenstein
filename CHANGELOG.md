@@ -6,6 +6,82 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Doctrine lock for v0.2. No code changes; this cut is the **paper trail**
+that the next phase (P6 — codec-v2 port, M0→M5b) executes against.
+
+### Added — Foundational
+- `docs/THESIS.md` — smallest locked statement of the project
+- `docs/inheritance-audit.md` — keep / promote / revise / retire ledger
+- `docs/glossary.md` — locked vocabulary (Harness / Codec / Spec / IR /
+  Decoder / Adapter / Packaging) per ADR-0011
+- `docs/tracks.md` — Researcher / Hacker dual-track contract
+- `docs/contributor-map.md` — onboarding map for humans + agents
+- `docs/SYNTHESIS_v0.2.md` — end-of-phase rollup
+- `docs/v02-alignment-review.md`, `docs/v02-final-audit.md` — audit ledgers
+
+### Added — Research briefs (`docs/research/briefs/`)
+- `A_vq_vlm_lineage_audit.md` — VQ / VLM lineage 2026 refresh
+- `B_compression_vs_world_models.md` — Ilya ↔ LeCun position
+- `C_unproven_horizon.md` — v0.3 horizon scan
+- `D_cli_and_sdk_conventions.md` — CLI / SDK conventions audit
+- `E_benchmarks_v2.md` — per-modality quality benchmarks
+- `F_site_reconciliation.md` — site ↔ repo reconciliation
+- `G_image_network_clues.md` — image decoder / data / packaging
+  (M1 prerequisite, Draft v0.1)
+
+### Added — RFCs (`docs/rfcs/`)
+- `0001-codec-protocol-v2.md` — `Codec<Req, Art>.produce` primitive
+  (🟢 ratified by ADR-0008)
+- `0002-cli-ergonomics.md` — CLI v2 (🟢 ratified by ADR-0009)
+- `0003-naming-pass.md` — ⛔ superseded by RFC-0005
+- `0004-site-reconciliation.md` — site rewrite plan
+- `0005-naming-lock-v2.md` — naming v2 (🟢 ratified by ADR-0011)
+
+### Added — ADRs (`docs/adrs/`)
+- `0006-layered-epistemology.md` — verdict of brief B
+- `0007-path-c-rejected.md` — Chameleon-style retrain rejected through v0.4
+- `0008-codec-protocol-v2-adoption.md` — ratifies RFC-0001
+- `0009-cli-ergonomics-v2.md` — ratifies RFC-0002
+- `0010` — ⛔ superseded by ADR-0011
+- `0011-naming-locked.md` — naming v2 locked
+
+### Added — Execution
+- `docs/exec-plans/active/codec-v2-port.md` — live P6 plan, M0→M5b,
+  image-first execution order
+- `docs/agent-guides/` — prompt-ready execution briefs
+  (`image-to-audio-port.md`, `audio-port.md`, `sensor-port.md`)
+- `docs/exec-plans/archive/` — historical day-1 fragments with
+  subsumption notes
+
+### Added — Engineering discipline
+- `.claude/AGENT_PROMPT.md` — agent orientation (locked vocabulary,
+  read-before-write, escalation rules)
+- `docs/engineering-discipline.md` — working standards fused from
+  Jah-yee/cursor-rules, specialised for Wittgenstein
+
+### Changed
+- `AGENTS.md` — leads with `.claude/AGENT_PROMPT.md` and
+  `docs/engineering-discipline.md` before doctrine; locked-constraints
+  section refreshed against v0.2 vocabulary
+- `docs/hard-constraints.md` — rewritten from 9-line stub to canonical
+  v0.2 constraint pack (architecture / runtime / packages / process /
+  out-of-scope)
+- `docs/codecs/audio.md` — rewritten with per-route decoder rationale,
+  failure modes, honest risk statement
+- `docs/codecs/sensor.md` — rewritten as no-L4 confirmation case;
+  byte-for-byte parity required
+- `docs/codecs/video.md` — marked 🔴 stub awaiting post-v0.3 M-slot
+- `docs/index.md` — surfaces THESIS, briefs A–G, RFCs 0001–0005,
+  ADRs 0006–0011, agent-guides, codec-v2-port
+- `README.md` — doc-pack expanded with contributor-map, glossary,
+  tracks, agent-guides, RFCs, ADRs
+
+### Maintenance
+- Repo migrated to `wittgenstein-cli/wittgenstein` org;
+  changelog compare links updated accordingly
+- `.github/dependabot.yml` — github-actions updates grouped to reduce
+  PR noise
+
 ## [0.1.0-alpha.2] — 2026-04-20 — Early-adopter polish
 
 Second prerelease. No API surface changes; this cut is about making the project
@@ -109,6 +185,6 @@ video renderer remain intentionally incomplete.
 - Every run writes a manifest under `artifacts/runs/<id>/`
 - Shared contracts live in `@wittgenstein/schemas`; codec packages depend on schemas, not each other
 
-[Unreleased]: https://github.com/Moapacha/wittgenstein/compare/v0.1.0-alpha.2...HEAD
-[0.1.0-alpha.2]: https://github.com/Moapacha/wittgenstein/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
-[0.1.0-alpha.1]: https://github.com/Moapacha/wittgenstein/releases/tag/v0.1.0-alpha.1
+[Unreleased]: https://github.com/wittgenstein-cli/wittgenstein/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/wittgenstein-cli/wittgenstein/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
+[0.1.0-alpha.1]: https://github.com/wittgenstein-cli/wittgenstein/releases/tag/v0.1.0-alpha.1

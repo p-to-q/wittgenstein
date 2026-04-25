@@ -55,3 +55,8 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    groups:
+      github-actions:
+        update-types:
+          - "minor"
+          - "patch"
