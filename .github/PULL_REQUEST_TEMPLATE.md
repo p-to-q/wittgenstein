@@ -20,6 +20,7 @@ Reviewers will defer to that doc when something looks off.
 - [ ] Worktree is clean for the files touched by this PR
 - [ ] No unrelated local experiments / artifacts were pulled into the diff
 - [ ] PR is reviewable in one sitting; if not, I explained why it stays bundled
+- [ ] If this PR is doctrine-bearing (ADR / RFC / exec-plan / agent-guide / shared contract / codec-shape), it has a second independent reviewer; the author is not counting their own pass as ratification
 
 ## Type
 
