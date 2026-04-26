@@ -6,7 +6,7 @@ Audio is the second-priority modality after image. It ships three internal route
 
 ## Position
 
-Audio is a *layered* modality, not a single decoder. Each route picks its own L3:
+Audio is a _layered_ modality, not a single decoder. Each route picks its own L3:
 
 - `speech` — local TTS render (fast path) plus optional ambient layer.
 - `soundscape` — deterministic ambient texture render from a small operator library.
@@ -31,7 +31,7 @@ The model emits a structured `AudioPlan`, not raw samples or waveform descriptio
 - `timeline` — segment-level structure (start, end, intent)
 - `music` — chord progression, key, tempo, instrument hint
 
-The LLM does not emit raw audio, MIDI bytes, or sample arrays. It emits a *plan* that the per-route renderer turns into bytes.
+The LLM does not emit raw audio, MIDI bytes, or sample arrays. It emits a _plan_ that the per-route renderer turns into bytes.
 
 ## Render Path
 
@@ -51,23 +51,23 @@ The LLM does not emit raw audio, MIDI bytes, or sample arrays. It emits a *plan*
 
 - Tiny symbolic synth: chord progression → instrument-tagged note events → additive synthesis.
 - Optional ambient layer.
-- Not a music-generation model. Quality is *structurally correct*, not *aesthetically frontier*. The thesis surface is "the LLM plans music; the synth renders the plan."
+- Not a music-generation model. Quality is _structurally correct_, not _aesthetically frontier_. The thesis surface is "the LLM plans music; the synth renders the plan."
 
 ## Decoder Choices and Why
 
 The v0.2 demo path picks render libraries on three constraints, in order: **license-clean, on-device, deterministic.**
 
-| Route      | v0.2 default                           | Why this and not X                                                                                                                                            |
-| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| speech     | local Piper-class TTS                  | ElevenLabs / cloud TTS would violate "on-device deterministic." Whisper-trained TTS clones are heavier than the v0.2 surface needs.                           |
-| soundscape | deterministic operator-library render  | No external sample packs (license risk); no neural soundscape model (not deterministic in the ADR-0005 sense).                                                |
-| music      | symbolic synth (chord → note → sample) | MusicLM / Riffusion are generators in the ADR-0005 sense — out of scope. MIDI rendering against a frozen soundfont is in-scope and on the v0.3 upgrade path.  |
+| Route      | v0.2 default                           | Why this and not X                                                                                                                                           |
+| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| speech     | local Piper-class TTS                  | ElevenLabs / cloud TTS would violate "on-device deterministic." Whisper-trained TTS clones are heavier than the v0.2 surface needs.                          |
+| soundscape | deterministic operator-library render  | No external sample packs (license risk); no neural soundscape model (not deterministic in the ADR-0005 sense).                                               |
+| music      | symbolic synth (chord → note → sample) | MusicLM / Riffusion are generators in the ADR-0005 sense — out of scope. MIDI rendering against a frozen soundfont is in-scope and on the v0.3 upgrade path. |
 
 The v0.3+ upgrade path is named in `docs/exec-plans/active/codec-v2-port.md` M5b (audio benchmark bridge): UTMOS + Whisper-WER for speech, librosa spectral metrics for soundscape, LAION-CLAP for music.
 
 ## Adapter Role
 
-Audio does not have a trained L4 adapter at v0.2. The route renders take the AudioPlan directly. This is the same pattern as `codec-sensor`: when the LLM's structured output is *already* the renderer's input language, no L4 bridge is needed.
+Audio does not have a trained L4 adapter at v0.2. The route renders take the AudioPlan directly. This is the same pattern as `codec-sensor`: when the LLM's structured output is _already_ the renderer's input language, no L4 bridge is needed.
 
 If a future audio decoder (e.g. a frozen mel-spectrogram-to-waveform vocoder) requires a token-grid input, an L4 adapter slot is reserved in the codec's `adapt` stage. Until then `adapt` is a pass-through (`BaseCodec.passthrough`).
 
@@ -91,7 +91,11 @@ The current fast path emits 16-bit WAV. Sample rate and channel count are record
 
 ## Goldens
 
-`artifacts/showcase/workflow-examples/{tts,soundscape,music}/` are the v0.2 baseline. TTS bytes drift with the LLM, so structural parity (sample rate, channels, duration ±5%) is the gate; soundscape and music synthesis are deterministic and get byte-for-byte SHA-256 checks.
+`artifacts/showcase/workflow-examples/{tts,soundscape,music}/` are the preserved
+`v0.1.0-alpha.1` hackathon receipt pack, still used as the current regression corpus until
+the post-lock Codec v2 showcase refresh lands. TTS bytes drift with the LLM, so structural
+parity (sample rate, channels, duration ±5%) is the gate; soundscape and music synthesis
+are deterministic and get byte-for-byte SHA-256 checks.
 
 ## Benchmark Case
 
@@ -99,7 +103,7 @@ See `tts-launch` and `audio-music` in `benchmarks/cases.json`. Quality bridges l
 
 ## Honest Risk Statement
 
-Audio quality at v0.2 is *structurally honest*, not *aesthetically frontier*:
+Audio quality at v0.2 is _structurally honest_, not _aesthetically frontier_:
 
 - Speech intelligibility from a Piper-class TTS is good but not ElevenLabs-good.
 - Soundscape texture is recognizable but not field-recording-grade.

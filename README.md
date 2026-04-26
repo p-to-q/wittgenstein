@@ -240,7 +240,7 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 
 ### For hackers
 
-- [`SHOWCASE.md`](SHOWCASE.md) — 35 real artifacts across 7 modality groups, click to open
+- [`SHOWCASE.md`](SHOWCASE.md) — historical `v0.1.0-alpha.1` hackathon artifact gallery (35 files across 7 modality groups)
 - [`docs/quickstart.md`](docs/quickstart.md) — 30 seconds to a real file
 - [`docs/engineering-discipline.md`](docs/engineering-discipline.md) — how to make sharp, minimal, evidence-backed changes without fighting the repo
 - [`polyglot-mini/README.md`](polyglot-mini/README.md) — Python surface deep-dive

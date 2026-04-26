@@ -8,8 +8,8 @@ Sensor is the **confirmation case** in the codec-v2 port. It has no L4 adapter, 
 
 Sensor is the cleanest expression of the layered-IR thesis:
 
-- the LLM emits a structured *algorithm spec*, not raw sample arrays;
-- the runtime *deterministically* expands the spec into samples (operator composition);
+- the LLM emits a structured _algorithm spec_, not raw sample arrays;
+- the runtime _deterministically_ expands the spec into samples (operator composition);
 - there is no learned bridge, no frozen decoder weights, no inference-time noise.
 
 This is the L3-only path. It exists in the codec catalog to keep the harness honest: any protocol shape that requires every codec to carry an L4 adapter is over-fitted to image. Sensor stays the counter-example.
@@ -31,14 +31,14 @@ The LLM does not emit raw samples, NumPy arrays, or waveform binaries. It emits 
 
 The library is deliberately small. Adding an operator requires an RFC.
 
-| Operator      | Use                                    | Parameters                                |
-| ------------- | -------------------------------------- | ----------------------------------------- |
-| `oscillator`  | sine / square / triangle base waves    | `freqHz`, `amplitude`, `phase`            |
-| `noise`       | white / pink / brown noise overlay     | `kind`, `amplitude`                       |
-| `drift`       | low-frequency baseline drift           | `slope`, `period`                         |
-| `pulse`       | event-rate Poisson or fixed-period     | `rateHz`, `width`, `shape`                |
-| `step`        | discrete level changes                 | `levels`, `times`                         |
-| `ecgTemplate` | clinical-shape ECG cycle (P-QRS-T)     | `bpm`, `morphology`, `noiseFloor`         |
+| Operator      | Use                                 | Parameters                        |
+| ------------- | ----------------------------------- | --------------------------------- |
+| `oscillator`  | sine / square / triangle base waves | `freqHz`, `amplitude`, `phase`    |
+| `noise`       | white / pink / brown noise overlay  | `kind`, `amplitude`               |
+| `drift`       | low-frequency baseline drift        | `slope`, `period`                 |
+| `pulse`       | event-rate Poisson or fixed-period  | `rateHz`, `width`, `shape`        |
+| `step`        | discrete level changes              | `levels`, `times`                 |
+| `ecgTemplate` | clinical-shape ECG cycle (P-QRS-T)  | `bpm`, `morphology`, `noiseFloor` |
 
 The runtime composes operators by addition into a single sample buffer. Composition order is recorded in the manifest for replay.
 
@@ -54,13 +54,13 @@ Each renderer is a thin wrapper around the operator-expansion runtime; they exis
 
 ## Decoder Choices and Why
 
-Sensor's "decoder" is the operator-expansion runtime. The choices that matter are *which operators ship* and *which validation library backs them*:
+Sensor's "decoder" is the operator-expansion runtime. The choices that matter are _which operators ship_ and _which validation library backs them_:
 
-| Component               | v0.2 default                      | Why this and not X                                                                                                                                |
-| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Operator runtime        | in-repo deterministic expansion   | A NumPy/SciPy dependency would push the codec out of the Node-only runtime. The operators are simple enough to ship as TS.                       |
-| ECG morphology check    | NeuroKit2 (Python, M5b only)      | The check is a quality bridge, not a render dependency. Render stays Node; benchmark calls into Python via the same bridge pattern Brief E names. |
-| Sample export format    | JSON + CSV sidecar + HTML dashboard | JSON for programmatic consumers, CSV for spreadsheet replay, HTML "loupe" dashboard for visual inspection. No `.wav` / `.edf` at v0.2.            |
+| Component            | v0.2 default                        | Why this and not X                                                                                                                                |
+| -------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Operator runtime     | in-repo deterministic expansion     | A NumPy/SciPy dependency would push the codec out of the Node-only runtime. The operators are simple enough to ship as TS.                        |
+| ECG morphology check | NeuroKit2 (Python, M5b only)        | The check is a quality bridge, not a render dependency. Render stays Node; benchmark calls into Python via the same bridge pattern Brief E names. |
+| Sample export format | JSON + CSV sidecar + HTML dashboard | JSON for programmatic consumers, CSV for spreadsheet replay, HTML "loupe" dashboard for visual inspection. No `.wav` / `.edf` at v0.2.            |
 
 ## Adapter Role
 
@@ -94,7 +94,9 @@ All three are recorded in the manifest with their SHA-256 hashes.
 
 ## Goldens
 
-Sensor synthesis is **fully deterministic**. `artifacts/showcase/workflow-examples/sensor/` is the byte-for-byte baseline — any drift is a real regression. Sensor does not have an LLM-stage drift excuse.
+Sensor synthesis is **fully deterministic**. `artifacts/showcase/workflow-examples/sensor/`
+is the preserved `v0.1.0-alpha.1` hackathon receipt pack and, for now, the regression
+corpus — any drift is a real regression. Sensor does not have an LLM-stage drift excuse.
 
 ## Benchmark Case
 
