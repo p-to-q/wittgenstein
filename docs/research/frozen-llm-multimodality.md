@@ -1,5 +1,7 @@
 # Frozen LLM Multimodality
 
+**Type:** Long-form theory note.
+
 ## Core Argument
 
 A frozen text LLM paired with modality-specific codecs and small adapter heads is a better architecture for Wittgenstein's use case than an end-to-end trained multimodal giant. This is not a resource constraint — it is a principled design choice with implications for cost, reproducibility, debuggability, and modularity.
@@ -44,7 +46,7 @@ A frozen pipeline with a deterministic decoder produces identical output for ide
 
 ## References
 
-- Radford, A. et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." *ICML 2021* (CLIP).
-- Liu, H. et al. (2023). "Visual Instruction Tuning." *NeurIPS 2023* (LLaVA).
-- Li, J. et al. (2023). "BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models." *ICML 2023*.
-- Jia, C. et al. (2021). "Scaling Up Visual and Vision-Language Representation Learning With Noisy Text Supervision." *ICML 2021* (ALIGN).
+- Radford, A. et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." _ICML 2021_ (CLIP).
+- Liu, H. et al. (2023). "Visual Instruction Tuning." _NeurIPS 2023_ (LLaVA).
+- Li, J. et al. (2023). "BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models." _ICML 2023_.
+- Jia, C. et al. (2021). "Scaling Up Visual and Vision-Language Representation Learning With Noisy Text Supervision." _ICML 2021_ (ALIGN).

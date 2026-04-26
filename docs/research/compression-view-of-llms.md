@@ -1,5 +1,7 @@
 # Compression View of LLMs
 
+**Type:** Long-form theory note.
+
 ## Core Argument
 
 Language models are implicit neural compressors. Wittgenstein is architected around this fact: the LLM compresses intent into a compact symbolic IR, and the codec expands that IR into a real file. This is not a metaphor — it is an architectural decision with measurable cost consequences.
@@ -30,8 +32,8 @@ The compression view predicts this cost asymmetry exactly: keep the LLM doing wh
 
 ## References
 
-- Shannon, C.E. (1948). "A Mathematical Theory of Communication." *Bell System Technical Journal*.
+- Shannon, C.E. (1948). "A Mathematical Theory of Communication." _Bell System Technical Journal_.
 - Hutter, M. (2006). "The Human Knowledge Compression Prize." hutter1.net/prize.
-- Bellard, F. (2021). "NNCP v2: Lossless Data Compression with Transformer." *bellard.org/nncp*.
-- Brown, T. et al. (2020). "Language Models are Few-Shot Learners." *NeurIPS 2020*.
-- Deletang, G. et al. (2023). "Language Modeling Is Compression." *arXiv:2309.10668*.
+- Bellard, F. (2021). "NNCP v2: Lossless Data Compression with Transformer." _bellard.org/nncp_.
+- Brown, T. et al. (2020). "Language Models are Few-Shot Learners." _NeurIPS 2020_.
+- Deletang, G. et al. (2023). "Language Modeling Is Compression." _arXiv:2309.10668_.

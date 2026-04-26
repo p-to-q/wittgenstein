@@ -54,6 +54,7 @@ Read these two files before any task:
 
 - [`research/program.md`](research/program.md) — top-level research architecture / program map; how tracks, notes, briefs, RFCs, ADRs, and execution fit together
 - [`research/README.md`](research/README.md) — what counts as a research note, how notes differ from briefs, and how research promotes into decisions
+- [`research/research-system-audit-2026-04.md`](research/research-system-audit-2026-04.md) — audit memo on research surfaces, hypothesis-vs-decision drift, and branch hygiene recommendations
 - [`research/current-stage-scope-2026-04.md`](research/current-stage-scope-2026-04.md) — current-stage scope map; what this research round is and is not trying to cover
 - [`research/google-stack-object-study-2026-04.md`](research/google-stack-object-study-2026-04.md) — one object study inside that broader scope
 - [`research/compression-view-of-llms.md`](research/compression-view-of-llms.md)

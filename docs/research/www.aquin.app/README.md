@@ -1,5 +1,7 @@
 # www.aquin.app — clone bootstrap
 
+**Type:** Captured research artifact / extraction scratch space.
+
 ## Last capture
 
 - **URL:** [https://www.aquin.app/](https://www.aquin.app/)
@@ -16,13 +18,13 @@ Upstream: [CloveSVG/One-Click-Clone](https://github.com/CloveSVG/One-Click-Clone
 
 ## Artifacts captured here
 
-| File | Description |
-| --- | --- |
-| `index.raw.html` | First-byte HTML from `curl` (Next.js / Vercel shell + payload). |
-| `index.rendered.html` | DOM after `networkidle` + 3s wait via Playwright. |
-| `index.html` | Same as rendered DOM, with `href`/`src`/`url()` roots rewritten to `https://www.aquin.app/` so assets load when you open the file from **localhost** (run `npm run patch:localhost` after re-capturing). |
-| `screenshot.png` | Full-page screenshot (1440×900 viewport). |
-| `capture-page.mjs` | Re-run: `node capture-page.mjs` (requires `playwright` in this folder). |
+| File                  | Description                                                                                                                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.raw.html`      | First-byte HTML from `curl` (Next.js / Vercel shell + payload).                                                                                                                                          |
+| `index.rendered.html` | DOM after `networkidle` + 3s wait via Playwright.                                                                                                                                                        |
+| `index.html`          | Same as rendered DOM, with `href`/`src`/`url()` roots rewritten to `https://www.aquin.app/` so assets load when you open the file from **localhost** (run `npm run patch:localhost` after re-capturing). |
+| `screenshot.png`      | Full-page screenshot (1440×900 viewport).                                                                                                                                                                |
+| `capture-page.mjs`    | Re-run: `node capture-page.mjs` (requires `playwright` in this folder).                                                                                                                                  |
 
 ## Open on localhost
 

@@ -51,8 +51,16 @@ This includes:
 - engineering-borrow notes
 - future-watch notes
 
+In practice, the top-level note bucket now includes several recurring subtypes:
+
+- **scope note** — defines what the current research round is and is not trying to do
+- **object study** — studies one external lab, stack, framework, or runtime as an object
+- **theory note** — thesis-adjacent argument or conceptual framing
+- **reference sheet** — curated sources, references, or captures for later use
+
 Examples:
 
+- [`research-system-audit-2026-04.md`](research-system-audit-2026-04.md)
 - [`current-stage-scope-2026-04.md`](current-stage-scope-2026-04.md)
 - [`google-stack-object-study-2026-04.md`](google-stack-object-study-2026-04.md)
 - [`compression-view-of-llms.md`](compression-view-of-llms.md)
