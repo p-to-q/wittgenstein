@@ -27,6 +27,8 @@ If you keep that frame, the repo reads cleanly.
 
 That order gets you from doctrine → review model → decisions → execution.
 
+One extra rule now applies across all doctrine-bearing work: the author does not count as the sole reviewer. If a PR changes doctrine, exec plans, shared contracts, or codec-shape assumptions, it needs a second independent review pass before merge.
+
 ## 3. Repo shape
 
 ### System of record
@@ -132,6 +134,8 @@ Every substantial PR gets two hats:
 
 - **Researcher hat:** is the claim still consistent with the relevant brief / ADR?
 - **Hacker hat:** can an agent implement or extend this without guessing?
+
+And for doctrine-bearing PRs, those hats must be worn by at least two independent passes. The author can prepare and validate the PR, but should not count their own pass as the ratification step.
 
 If either answer is no, the PR is not ready.
 
