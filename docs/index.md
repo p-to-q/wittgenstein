@@ -48,6 +48,7 @@ Read these two files before any task:
 - [`research/briefs/E_benchmarks_v2.md`](research/briefs/E_benchmarks_v2.md) — per-modality quality benchmarks
 - [`research/briefs/F_site_reconciliation.md`](research/briefs/F_site_reconciliation.md) — site ↔ repo reconciliation
 - [`research/briefs/G_image_network_clues.md`](research/briefs/G_image_network_clues.md) — image decoder / data / packaging (M1 prerequisite)
+- [`research/briefs/H_codec_engineering_prior_art.md`](research/briefs/H_codec_engineering_prior_art.md) — codec protocol prior art; F1/F2 RFC-0001 amendments (M1A prerequisite)
 
 ## Long-form research notes (predate the briefs)
 
@@ -76,11 +77,13 @@ Read these two files before any task:
 - [`exec-plans/README.md`](exec-plans/README.md)
 - [`exec-plans/active/codec-v2-port.md`](exec-plans/active/codec-v2-port.md) — the live P6 plan (M0 → M5b)
 - [`exec-plans/archive/README.md`](exec-plans/archive/README.md) — historical day-1 fragments
+- [`reserve-paths.md`](reserve-paths.md) — design alternatives considered for a phase and shelved (📦 sealed, not on any active plan)
 
 ## Agent guides (prompt-ready execution briefs)
 
 - [`agent-guides/README.md`](agent-guides/README.md)
 - [`agent-guides/image-to-audio-port.md`](agent-guides/image-to-audio-port.md) — cross-line context (M0–M2)
+- [`agent-guides/image-port.md`](agent-guides/image-port.md) — image line, M1A
 - [`agent-guides/audio-port.md`](agent-guides/audio-port.md) — audio line, M2
 - [`agent-guides/sensor-port.md`](agent-guides/sensor-port.md) — sensor line, M3
 

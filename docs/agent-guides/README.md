@@ -17,18 +17,19 @@ Each guide is:
 
 ## Current guides
 
-| Guide                                                  | Phase | Owner-line                | Reads                                                                   |
-| ------------------------------------------------------ | ----- | ------------------------- | ----------------------------------------------------------------------- |
-| [`image-to-audio-port.md`](image-to-audio-port.md)     | M0–M2 | shared context            | doctrine + image+audio cross-line context (read first if new to repo)   |
-| [`audio-port.md`](audio-port.md)                       | M2    | audio contributor / agent | audio codec port, route collapse, soft-deprecation of `--route`         |
-| [`sensor-port.md`](sensor-port.md)                     | M3    | sensor contributor / agent | sensor codec port, byte-for-byte parity, no-L4 confirmation case        |
+| Guide                                              | Phase | Owner-line                 | Reads                                                                  |
+| -------------------------------------------------- | ----- | -------------------------- | ---------------------------------------------------------------------- |
+| [`image-to-audio-port.md`](image-to-audio-port.md) | M0–M2 | shared context             | doctrine + image+audio cross-line context (read first if new to repo)  |
+| [`image-port.md`](image-port.md)                   | M1A   | image contributor / agent  | image codec port, Brief H practices, F1 + F2 amendments, golden parity |
+| [`audio-port.md`](audio-port.md)                   | M2    | audio contributor / agent  | audio codec port, route collapse, soft-deprecation of `--route`        |
+| [`sensor-port.md`](sensor-port.md)                 | M3    | sensor contributor / agent | sensor codec port, byte-for-byte parity, no-L4 confirmation case       |
 
 ## How to pick one
 
 - **You are new to the repo:** start with `image-to-audio-port.md` for cross-line context, then move to your line's specific guide.
 - **You own the audio line:** `audio-port.md` is your execution brief; image-to-audio is supporting context.
 - **You own the sensor line:** `sensor-port.md` is your execution brief; read `audio-port.md` for the immediately-prior port pattern.
-- **You are the maintainer driving image (M1):** `image-to-audio-port.md` plus `docs/exec-plans/active/codec-v2-port.md` §M1 plus `docs/research/briefs/G_image_network_clues.md` for decoder rationale.
+- **You own the image line (M1A):** `image-port.md` is your execution brief; `image-to-audio-port.md` is supporting cross-line context; `docs/research/briefs/H_codec_engineering_prior_art.md` is your implementation checklist; `docs/research/briefs/G_image_network_clues.md` is decoder rationale.
 
 ## How to add a new guide
 

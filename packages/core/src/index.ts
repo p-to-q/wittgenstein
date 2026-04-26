@@ -17,3 +17,9 @@ export * from "./codecs/image.js";
 export * from "./codecs/audio.js";
 export * from "./codecs/video.js";
 export * from "./codecs/sensor.js";
+
+/**
+ * Codec protocol v2 (experimental, M0). Surfaced under a namespace to avoid
+ * shadowing the v1 names exported above. See `docs/rfcs/0001-codec-protocol-v2.md`.
+ */
+export * as codecV2 from "./codec/v2/index.js";
