@@ -50,6 +50,7 @@ Read these two files before any task:
 - [`research/briefs/F_site_reconciliation.md`](research/briefs/F_site_reconciliation.md) — site ↔ repo reconciliation
 - [`research/briefs/G_image_network_clues.md`](research/briefs/G_image_network_clues.md) — image decoder / data / packaging (M1 prerequisite)
 - [`research/briefs/H_codec_engineering_prior_art.md`](research/briefs/H_codec_engineering_prior_art.md) — codec protocol prior art; F1/F2 RFC-0001 amendments (M1A prerequisite)
+- [`research/briefs/J_audio_engineering_and_routes.md`](research/briefs/J_audio_engineering_and_routes.md) — M2 route shape, manifest rows, fixture strategy, and deprecation contract
 
 ## Long-form research notes (predate the briefs)
 
