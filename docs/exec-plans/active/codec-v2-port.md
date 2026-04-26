@@ -33,7 +33,7 @@ land as confirmations, not discoveries.
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M0    | Introduce `Codec<Req, Art>`, `IR`, `Route`, `HarnessCtx` types in `packages/schemas` behind an `@experimental` tag. No call-site change.                                                                                                                                                                                                                                   | Types land; `pnpm typecheck` green.                                                                                                                         |
 | M1    | Port `codec-image` (raster) first — only modality with both L4 adapter slot and non-trivial L5, so it stresses the protocol hardest. `codec-svg` and `codec-asciipng` are tracked as sibling follow-up ports, not internal image routes. Default pipeline stays one LLM round (schema-in-preamble). `--expand` flag opts into a round-1 expansion pass for A/B comparison. | Goldens preserve; manifest rows codec-authored; round-trip test ≤20 lines; Brief A's "LFQ-family discrete-token decoder" rename lands in ADR-0005 addendum. |
-| M2    | Port `codec-audio` (speech, soundscape, music) — eliminates the 80-line route copy-paste.                                                                                                                                                                                                                                                                                  | Goldens preserve; `AudioRequest.route` deprecated with warning.                                                                                             |
+| M2    | Port `codec-audio` (speech, soundscape, music) — collapses the remaining shared-mechanical route scaffolding without inventing a premature local framework.                                                                                                                                                                                                                | Goldens preserve; `AudioRequest.route` deprecated with warning.                                                                                             |
 | M3    | Port `codec-sensor` (ecg, gyro, temperature) — confirmation case (no L4), closes the modality sweep.                                                                                                                                                                                                                                                                       | Goldens preserve; `SensorRequest` surface unchanged from user side.                                                                                         |
 | M4    | Retire `harness.ts:123-172` modality branching + `:139-172` manifest overrides. Remove `AudioRequest.route`, `SvgRequest.source`, `AsciipngRequest.source`, `VideoRequest.inlineSvgs`.                                                                                                                                                                                     | Harness is modality-blind; `codec-video` (🔴 stub) awaits its own M-slot.                                                                                   |
 | M5a   | Land image benchmark bridge first (Brief E): VQAScore + CLIPScore fallback, wired into the default tier only.                                                                                                                                                                                                                                                              | Image metric runs locally; `quality_partial` invariant enforced.                                                                                            |
@@ -217,16 +217,19 @@ request and route logic until their follow-up ports land.
 
 ### M2 — Port `codec-audio`
 
-Audio's win is collapsing the 80-line route copy-paste. Three sub-modalities (speech,
-soundscape, music) each have their own route file in `codec-audio/src/routes/`.
+Audio's win is collapsing the remaining shared-mechanical route scaffolding. Three
+sub-modalities (speech, soundscape, music) each have their own route file in
+`codec-audio/src/routes/`, but the current code is already smaller than the first-pass
+audit assumed.
 
 **Files touched:**
 
 - `packages/codec-audio/src/codec.ts` — rewrite as `class AudioCodec extends BaseCodec<AudioRequest, AudioArtifact>`. The codec's `route()` method dispatches to the
   appropriate sub-route.
 - `packages/codec-audio/src/routes/{speech,soundscape,music}/index.ts` — refactor each into a
-  `Route` object that the codec composes; shared logic moves into a `BaseAudioRoute`.
-  The 80-line copy-paste collapses to ~20 lines per route.
+  `Route` object that the codec composes; shared-mechanical logic moves into helper
+  functions or a tiny shared module. A `BaseAudioRoute` is only justified if
+  post-port duplication still exceeds the accepted threshold.
 - `packages/codec-audio/src/runtime.ts` — manifest authorship moves into the codec's
   `package` stage.
 - `packages/core/src/codecs/audio.ts` — thin shim, same pattern as image.
@@ -246,8 +249,8 @@ soundscape, music) each have their own route file in `codec-audio/src/routes/`.
 
 **Migration tests:**
 
-- `packages/codec-audio/test/route-collapse.test.ts` — count lines in each route file;
-  fail if any spills past the 20-line round-trip budget.
+- `packages/codec-audio/test/route-collapse.test.ts` — assert that the port did not
+  leave obvious shared-mechanical scaffolding duplicated across sibling routes.
 - Standard parity tests against goldens.
 
 **Rollback criteria:**
@@ -258,7 +261,7 @@ soundscape, music) each have their own route file in `codec-audio/src/routes/`.
   pause deprecation and document the migration in `docs/agent-guides/`.
 
 **Gate:** goldens preserve; `AudioRequest.route` deprecated with warning; route files
-each ≤20 lines of codec-specific logic.
+read as thin route-specific declarations with shared-mechanical scaffolding collapsed.
 
 ---
 

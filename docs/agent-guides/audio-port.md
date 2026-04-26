@@ -4,7 +4,7 @@ This guide is for a contributor or coding agent picking up the **audio codec por
 
 It is deliberately narrow:
 
-- **in scope:** porting `codec-audio` to the v2 protocol shape; collapsing the route copy-paste; writing the audio benchmark bridge stub for M5b.
+- **in scope:** porting `codec-audio` to the v2 protocol shape; tightening the remaining shared-mechanical route logic; writing the audio benchmark bridge stub for M5b.
 - **out of scope:** image, sensor, video, site, CLI ergonomics, doctrine relitigation, picking a new TTS engine.
 
 Read `docs/agent-guides/image-to-audio-port.md` first for the cross-line context. This guide is the audio specialization.
@@ -15,7 +15,7 @@ Read `docs/agent-guides/image-to-audio-port.md` first for the cross-line context
 
 Port `codec-audio` from the v0.1 surface to the Codec v2 protocol shape ratified by ADR-0008, while:
 
-- collapsing the ~80-line route copy-paste across `speech / soundscape / music`;
+- collapsing the remaining shared-mechanical route duplication across `speech / soundscape / music`;
 - preserving every shipping artifact's structural manifest (sample rate, channels, duration);
 - moving manifest authorship into the codec's `package` stage;
 - soft-deprecating `AudioRequest.route` (one minor version of warning before hard-deprecation at M4).
@@ -39,30 +39,30 @@ You are not allowed to:
 
 If M1 image has already landed, also read its merged PR diff — your changes mirror its shape.
 
-## 3. The 80-line copy-paste
+## 3. The remaining shared route logic
 
-`packages/codec-audio/src/routes/{speech,soundscape,music}.ts` each carry their own copies of:
+`packages/codec-audio/src/routes/{speech,soundscape,music}.ts` are already smaller than the first-pass plan assumed, because `runtime.ts` now owns the real render primitives. What remains duplicated is the lighter-weight route-local scaffolding around those primitives:
 
-- LLM-prompt assembly,
-- AudioPlan parsing and zod validation,
-- ambient-layer mixing,
-- WAV writer,
-- manifest-row authorship.
+- duration / timing normalization,
+- ambient recommendation plumbing,
+- route-specific render invocation,
+- artifact finalization,
+- route-local metadata patching.
 
-The port's win is collapsing the shared bits into a `BaseAudioRoute` and leaving each route file at ≤20 lines of *route-specific* logic. If your final diff has any route file longer than ~20 lines of non-shared code, the collapse failed.
+The port's win is **not** inventing a new local framework. The win is moving the shared-mechanical bits into helper functions or a tiny shared module, while leaving each route file as a thin, readable declaration of route-specific behavior. If the port still leaves obvious duplicated scaffolding across siblings, the helper-first collapse failed. If helper extraction still leaves >30 lines of genuinely shared-mechanical duplication, only then should a `BaseAudioRoute` be reconsidered in a follow-up.
 
 ## 4. M2 deliverables
 
 In order:
 
 1. **`AudioCodec extends BaseCodec<AudioRequest, AudioArtifact>`** in `packages/codec-audio/src/codec.ts`. The codec's `route(req)` method dispatches to the appropriate sub-route.
-2. **`BaseAudioRoute`** carrying the shared LLM, parse, mix, and writer logic.
-3. **Three thin route files** (`speech.ts`, `soundscape.ts`, `music.ts`) each ≤20 lines.
+2. **Shared audio route helpers** carrying the mechanical pieces that do not belong in each route file independently.
+3. **Three thin route files** (`speech.ts`, `soundscape.ts`, `music.ts`) that read as route-specific logic first, with shared scaffolding pulled down into helpers where honest.
 4. **`package` stage authors manifest rows** — `route`, `seed`, `model_id`, `quality.structural` (sample rate, channels, duration), `quality.partial` if a metric is unavailable.
 5. **`AudioRequest.route` soft-warn deprecation** — emits a one-line `console.warn` pointing to the codec's new `route()` declaration.
 6. **`packages/core/src/codecs/audio.ts`** is now a thin shim that delegates to `AudioCodec.produce`. The audio branch in `packages/core/src/runtime/harness.ts` is deleted.
 7. **Migration tests** under `packages/codec-audio/test/`:
-   - `route-collapse.test.ts` — fails if any route file exceeds the line budget.
+   - `route-collapse.test.ts` — fails if helper extraction leaves obvious sibling duplication beyond the accepted threshold.
    - `parity-tts.test.ts` — TTS structural parity (sample rate, channels, duration ±5%) against the recorded golden manifest.
    - `parity-soundscape.test.ts` and `parity-music.test.ts` — byte-for-byte SHA-256 against goldens (deterministic synthesis).
 
@@ -101,7 +101,7 @@ If you find yourself writing manifest rows from anywhere outside the codec's `pa
 
 ### Hacker hat
 
-- Are the three route files ≤20 lines of route-specific logic?
+- Do the route files read as thin route-specific declarations, without obvious shared-mechanical scaffolding copied across siblings?
 - Is the harness still modality-blind for audio after the port?
 - Can the next codec (sensor, M3) be ported in the same shape using this PR's diff as a template?
 
@@ -119,7 +119,7 @@ If any answer is no, the gate is not met.
 > You are implementing the Wittgenstein v0.2 audio codec port (M2).
 > Stay inside the locked doctrine: three routes (speech / soundscape / music), no TTS-engine swap, no fourth route, decoder ≠ generator, manifest spine preserved, modality branching moves out of the harness.
 > Read `AGENTS.md`, `docs/THESIS.md`, `docs/codecs/audio.md`, `docs/exec-plans/active/codec-v2-port.md` §M2, and `docs/rfcs/0001-codec-protocol-v2.md` first.
-> Your task is to land M2: collapse the route copy-paste, move manifest authorship into the codec, soft-deprecate `AudioRequest.route`, and pass the three parity tests.
+> Your task is to land M2: collapse the remaining shared route scaffolding, move manifest authorship into the codec, soft-deprecate `AudioRequest.route`, and pass the three parity tests.
 > Do not relitigate doctrine. Do not introduce a music generator. Do not widen scope to image, sensor, or benchmarks-heavy work.
 > Prefer small diffs, structural parity over byte parity for LLM-driven outputs, and receipt-preserving behavior.
 
