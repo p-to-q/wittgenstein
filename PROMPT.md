@@ -87,9 +87,10 @@ In rough order of fan-out:
 - [`docs/research/briefs/`](docs/research/briefs/) — research lineage A–G
 - [`docs/rfcs/`](docs/rfcs/) and [`docs/adrs/`](docs/adrs/) — engineering decisions
 
-Running under **Claude Code** specifically? Layer
-[`.claude/AGENT_PROMPT.md`](.claude/AGENT_PROMPT.md) on top — Claude-specific
-working-rules and code-style overlay; does not restate what is above.
+Running under **Claude Code** specifically? If a local
+`.claude/AGENT_PROMPT.md` overlay exists in your workspace, layer it on top —
+Claude-specific working-rules and code-style overlay; it does not restate what
+is above.
 
 ---
 
