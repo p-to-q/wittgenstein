@@ -1,9 +1,9 @@
 # Codec v2 Port — P6 execution plan
 
 **Date opened:** 2026-04-25
-**Last amended:** 2026-04-25 (stub → full plan; per-package diff, golden contract, migration tests, rollback criteria)
+**Last amended:** 2026-04-26 (M0/M1 landed; status + file-path drift corrected for the live plan)
 **Feeds from:** ADR-0008 (Codec Protocol v2 adoption), ADR-0011 (naming v2), RFC-0001, Brief A (LFQ rename), Brief E (benchmarks v2 targets), `docs/v02-final-audit.md`
-**Status:** 🟡 Plan ready — awaiting M0 kickoff
+**Status:** 🟡 Active — M0 and M1 landed; M2 is the next execution line
 
 ## Purpose
 
@@ -109,20 +109,23 @@ A single dissent blocks the gate.
 
 **Files added:**
 
-- `packages/schemas/src/codec-v2.ts` — `Codec<Req, Art>`, `IR = Text | Latent | Hybrid`,
-  `Route`, `HarnessCtx`, `Artifact`, `BaseCodec` abstract class. Tagged `@experimental`.
-- `packages/schemas/src/index.ts` — re-export from `codec-v2.ts` under a single
-  `import { Codec } from "@wittgenstein/schemas/v2"` entry point.
+- `packages/schemas/src/codec/v2/*` — split protocol surface:
+  `codec.ts`, `base.ts`, `ctx.ts`, `ir.ts`, `sidecar.ts`, `warning.ts`,
+  `standard-schema.ts`, plus the barrel `index.ts`. Together they define
+  `Codec<Req, Art>`, `IR = Text | Latent | Hybrid`, `Route`, `HarnessCtx`,
+  `ManifestRow`, and the `BaseCodec` abstract class. Tagged `@experimental`.
+- `packages/schemas/src/index.ts` — re-exports the v2 surface as
+  `codecV2` from `./codec/v2/index.js`.
 
 **Files unchanged:** every codec, every harness file, every CLI surface.
 
 **Migration tests:**
 
 - `pnpm typecheck` green across the workspace.
-- New file `packages/schemas/test/codec-v2.contract.test.ts`: instantiates a no-op
-  `BaseCodec` subclass for each of the 7 modalities with a fake request and asserts the
-  type compiles. ≤20 lines per modality (this is RFC-0001's round-trip test, run as
-  type-only).
+- `packages/schemas/test/codec-v2.test.ts` — smoke-tests the v2 protocol surface
+  (`BaseCodec.produce`, warning folding, IR guards, `HarnessCtx.fork`).
+- `packages/schemas/test/contract.test.ts` — keeps the locked schema exports honest
+  (`Modality`, `RenderResultSchema`, `RunManifestSchema`).
 
 **Rollback criteria:** revert is one PR. No runtime code depends on the new types yet,
 so revert is safe at any time before M1.
@@ -221,7 +224,7 @@ soundscape, music) each have their own route file in `codec-audio/src/routes/`.
 
 - `packages/codec-audio/src/codec.ts` — rewrite as `class AudioCodec extends BaseCodec<AudioRequest, AudioArtifact>`. The codec's `route()` method dispatches to the
   appropriate sub-route.
-- `packages/codec-audio/src/routes/{speech,soundscape,music}.ts` — refactor each into a
+- `packages/codec-audio/src/routes/{speech,soundscape,music}/index.ts` — refactor each into a
   `Route` object that the codec composes; shared logic moves into a `BaseAudioRoute`.
   The 80-line copy-paste collapses to ~20 lines per route.
 - `packages/codec-audio/src/runtime.ts` — manifest authorship moves into the codec's
