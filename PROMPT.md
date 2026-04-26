@@ -84,13 +84,13 @@ In rough order of fan-out:
 - [`docs/codec-protocol.md`](docs/codec-protocol.md) — the `Codec<Req, Art>` contract
 - [`docs/contributor-map.md`](docs/contributor-map.md) — onboarding map (humans + agents)
 - [`docs/agent-guides/`](docs/agent-guides/) — per-port execution briefs (audio, sensor, image-to-audio)
-- [`docs/research/briefs/`](docs/research/briefs/) — research lineage A–G
+- [`docs/research/briefs/`](docs/research/briefs/) — research lineage A–H
 - [`docs/rfcs/`](docs/rfcs/) and [`docs/adrs/`](docs/adrs/) — engineering decisions
 
 Running under **Claude Code** specifically? If a local
-[`.claude/AGENT_PROMPT.md`](.claude/AGENT_PROMPT.md) overlay exists in your checkout,
-layer it on top — Claude-specific working-rules and code-style overlay; it does not
-restate what is above.
+`.claude/AGENT_PROMPT.md` overlay exists in your checkout, layer it on top —
+Claude-specific working-rules and code-style overlay; it does not restate what is
+above.
 
 ---
 

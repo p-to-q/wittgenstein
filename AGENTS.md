@@ -120,7 +120,7 @@ The RFC-0003 alternatives (Loom / Transducer / Score / Handoff) were rejected. U
 - `docs/exec-plans/active/` — live execution plans (M0 → M5b lives here)
 - `docs/agent-guides/` — per-port execution briefs (audio, sensor, image-to-audio)
 - `docs/rfcs/` and `docs/adrs/` — engineering decisions and ratified records
-- `docs/research/briefs/` — four-station research briefs (A–G)
+- `docs/research/briefs/` — four-station research briefs (A–H)
 
 ### Read Order — v0.2 supplement
 
