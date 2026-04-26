@@ -29,6 +29,8 @@ That order gets you from doctrine → review model → decisions → execution.
 
 One extra rule now applies across all doctrine-bearing work: the author does not count as the sole reviewer. If a PR changes doctrine, exec plans, shared contracts, or codec-shape assumptions, it needs a second independent review pass before merge.
 
+One more rule matters just as much: contributors are expected to bring agency, not just compliance. A plan, issue, or agent prompt defines the starting slice; it does not forbid you from correcting a stale assumption, widening to a tightly-coupled fix, or proposing a better engineering path when the evidence is strong.
+
 ## 3. Repo shape
 
 ### System of record
@@ -140,6 +142,23 @@ And for doctrine-bearing PRs, those hats must be worn by at least two independen
 If either answer is no, the PR is not ready.
 
 The shortest companion to this review section is `docs/engineering-discipline.md`; it is the file that turns "be careful" into actual edit discipline.
+
+## 6.5. How to use agency without breaking the repo
+
+Treat the repo as having three layers:
+
+- **Locked doctrine** — do not reopen casually
+- **Execution hypothesis** — challenge if the code, tests, or prior art contradict it
+- **Open exploration** — widen scope freely, but say what you are doing
+
+If you discover a better path while working, do not hide it. Name it:
+
+- `bug fix`
+- `drift correction`
+- `engineering improvement`
+- `doctrine challenge`
+
+The first three are often welcome inside the current task if they are tightly coupled and well justified. The last one must be surfaced through the normal decision chain rather than silently encoded in code or docs.
 
 ## 7. What not to do
 
