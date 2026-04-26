@@ -83,6 +83,14 @@ for the full measurement protocol.
 
 Numbers are cheap; files are not. The pack below was generated end-to-end through the
 harness — every artifact has a matching run manifest under `artifacts/runs/<run-id>/`.
+This showcase is a preserved snapshot from the `v0.1.0-alpha.1` hackathon phase: the
+first 35-file pack we used to prove the workflow could emit real artifacts across image,
+audio, and sensor routes.
+
+It is intentionally kept as a historical receipt, not a claim that every artifact already
+matches the post-lock `v0.2` architecture one-for-one. As the codec-v2 port, decoder
+contracts, and manifest spine continue to harden, this showcase pack will be refreshed
+with newer curated outputs rather than silently rewritten in place.
 
 **One click per modality (curated `samples/` picks):**
 
