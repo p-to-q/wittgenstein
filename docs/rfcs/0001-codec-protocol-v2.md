@@ -397,7 +397,98 @@ Concrete events that would force a revision or withdrawal of this RFC. If none f
 
 Any one of (1), (2), (3), or (5) triggers a rewrite or an amendment. (4) triggers a mitigation.
 
+## Addendum 2026-04-26 — Engineering prior-art findings (Brief H)
+
+> **Source:** [`docs/research/briefs/H_codec_engineering_prior_art.md`](../research/briefs/H_codec_engineering_prior_art.md)
+> §Findings touching RFC-0001 protocol surface.
+> **Status:** non-blocking; both findings land before M1A code so M2/M3
+> ports do not re-do the typing.
+
+Brief H surveyed eight production-validated TypeScript projects with shapes
+analogous to `Codec<Req, Art>`. Two findings touch this RFC's protocol
+surface and are adopted here. The eight implementation practices stay in
+Brief H + `docs/agent-guides/image-port.md` and do not amend this RFC.
+
+### F1 — Schema-library independence via Standard Schema
+
+The `Codec<Req, Art>` interface above is silent on which schema library
+authors use to validate `Req`. Implicit assumption is zod, which leaks
+implementation choice into the protocol. The MCP TypeScript SDK adopted
+[Standard Schema](https://standardschema.dev) (a 30-line interface that
+zod / valibot / arktype all implement) for exactly this reason.
+
+**Amendment.** A codec's request validator is typed as
+`StandardSchemaV1<unknown, Req>`, not `z.ZodType<Req>`. Zod stays the
+canonical implementation in this repo; the typing change is optionality,
+not migration.
+
+```ts
+// packages/core/src/codec/v2/codec.ts (amended)
+
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+
+export interface Codec<Req, Art> {
+  id: string;
+  modality: Modality;
+  routes: Route<Req>[];
+  schema: StandardSchemaV1<unknown, Req>; // was: ZodType<Req> in the implicit prior shape
+  produce(req: Req, ctx: HarnessCtx): Promise<Art>;
+  manifestRows(art: Art): ManifestRow[];
+}
+```
+
+### F2 — Typed `warnings` channel on `Art.metadata`
+
+The current `Art` shape has no place for "successful but degraded" results
+(palette quantization loss, sample-rate truncation, lossy compression).
+Vercel AI SDK's provider spec mandates `warnings: LanguageModelV1CallWarning[]`
+on every provider call for exactly this case — every degradation is a
+structured, declarative entry on the result rather than a silent transform.
+
+**Amendment.** Every codec's `Art.metadata` carries a typed
+`warnings: CodecWarning[]` field. Empty array is valid; missing array is not.
+
+```ts
+// packages/core/src/codec/v2/codec.ts (amended)
+
+export interface CodecWarning {
+  code: string; // codec-declared messageId; see Brief H Practice 3
+  message: string;
+  detail?: unknown;
+}
+
+// All ArtifactMetadata shapes (per-codec) extend:
+export interface BaseArtifactMetadata {
+  warnings: CodecWarning[];
+  // ... existing fields stay
+}
+```
+
+The manifest row writer reads `art.metadata.warnings` and writes them as a
+metadata sub-field. No new manifest row type is required.
+
+### Why these two and not the rest of Brief H
+
+The other six adopt-practices (output validation inside `produce`, sidecar,
+forkable ctx, messageId dictionary, lifecycle constants,
+`prepare(ctx) => handlers` factory) are **implementation conventions** that
+land in `BaseCodec` and per-codec definitions. They do not change the
+caller-visible interface above and therefore do not amend this RFC. They
+are operationalized in [`docs/agent-guides/image-port.md`](../agent-guides/image-port.md).
+
+### Kill criteria for this addendum
+
+If F1 (Standard Schema typing) creates measurable runtime overhead at M1A
+benchmarks (>1% of `produce` time), revert to `ZodType<Req>` and document
+the perf reason. If F2 produces uniformly-empty `warnings` arrays across
+the eval set after M3 (all ports landed), the channel was speculative;
+collapse it back into manifest-row metadata and remove the typed field.
+
+---
+
 ## Decision record
 
 - **Accepted by:** ADR-0008 (pending).
+- **Amended:** 2026-04-24 (one-vs-two-round LLM default; see §"One LLM call or two?").
+- **Amended:** 2026-04-26 (Brief H findings F1, F2; see addendum above).
 - **Superseded by:** — (populate if a future RFC replaces this).
