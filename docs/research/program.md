@@ -125,7 +125,8 @@ Typical materials:
 
 - `docs/research/briefs/D_cli_and_sdk_conventions.md`
 - `docs/rfcs/0002-cli-ergonomics.md`
-- `docs/research/google-stack-scope-2026-04.md`
+- `docs/research/current-stage-scope-2026-04.md`
+- `docs/research/google-stack-object-study-2026-04.md`
 
 Expected outcomes:
 
@@ -162,7 +163,8 @@ months, and which should be watched without being adopted yet?
 Typical materials:
 
 - `docs/research/briefs/C_unproven_horizon.md`
-- `docs/research/google-stack-scope-2026-04.md`
+- `docs/research/current-stage-scope-2026-04.md`
+- `docs/research/google-stack-object-study-2026-04.md`
 - future working notes and watchlists
 
 Expected outcomes:

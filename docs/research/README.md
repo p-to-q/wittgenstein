@@ -53,7 +53,8 @@ This includes:
 
 Examples:
 
-- [`google-stack-scope-2026-04.md`](google-stack-scope-2026-04.md)
+- [`current-stage-scope-2026-04.md`](current-stage-scope-2026-04.md)
+- [`google-stack-object-study-2026-04.md`](google-stack-object-study-2026-04.md)
 - [`compression-view-of-llms.md`](compression-view-of-llms.md)
 - [`frozen-llm-multimodality.md`](frozen-llm-multimodality.md)
 
