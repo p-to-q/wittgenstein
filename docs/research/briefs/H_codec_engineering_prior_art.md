@@ -351,13 +351,13 @@ goes back to the bench:
 **Land all 8 adopt practices and both protocol-surface findings (F1, F2) at
 M1A.** The deliverables split:
 
-- Practices 1, 4, 5, 6 → `packages/core/src/codec/v2/base.ts` (BaseCodec) and
-  `packages/core/src/codec/v2/codec.ts` (Codec interface).
-- Practice 2 → `packages/core/src/codec/v2/codec.ts` (CodecWarning type) +
+- Practices 1, 4, 5, 6 → `packages/schemas/src/codec/v2/base.ts` (BaseCodec) and
+  `packages/schemas/src/codec/v2/codec.ts` (Codec interface).
+- Practice 2 → `packages/schemas/src/codec/v2/codec.ts` (CodecWarning type) +
   ImageArtifact metadata in `packages/codec-image/src/types.ts`.
 - Practice 3 → per-codec `errors`/`warnings` dictionary in codec definitions.
-- Practice 7 → `packages/core/src/codec/v2/ctx.ts` (HarnessCtx fork helper).
-- Practice 8 → constants exported from `packages/core/src/codec/v2/index.ts`.
+- Practice 7 → `packages/schemas/src/codec/v2/ctx.ts` (HarnessCtx fork helper).
+- Practice 8 → constants exported from `packages/schemas/src/codec/v2/index.ts`.
 - Findings F1, F2 → RFC-0001 addendum (separate doc, lands first).
 
 The four reject practices land as a "we considered and refused" comment block

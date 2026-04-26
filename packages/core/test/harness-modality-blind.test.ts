@@ -7,10 +7,7 @@ const testDir = dirname(fileURLToPath(import.meta.url));
 
 describe("harness modality blindness", () => {
   it("does not branch on request.modality === image", async () => {
-    const source = await readFile(
-      resolve(testDir, "../src/runtime/harness.ts"),
-      "utf8",
-    );
+    const source = await readFile(resolve(testDir, "../src/runtime/harness.ts"), "utf8");
     expect(source.includes('request.modality === "image"')).toBe(false);
   });
 });
