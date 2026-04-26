@@ -52,6 +52,7 @@ Read these two files before any task:
 
 ## Long-form research notes (predate the briefs)
 
+- [`research/google-stack-scope-2026-04.md`](research/google-stack-scope-2026-04.md) — current-stage research scope plus the first Google / Gemini stack findings
 - [`research/compression-view-of-llms.md`](research/compression-view-of-llms.md)
 - [`research/frozen-llm-multimodality.md`](research/frozen-llm-multimodality.md)
 - [`research/neural-codec-references.md`](research/neural-codec-references.md)
