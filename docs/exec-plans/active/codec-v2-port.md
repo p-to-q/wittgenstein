@@ -137,6 +137,18 @@ modalities.
 This is the pressure test. Image is the only codec with a non-trivial L4 adapter and a
 non-trivial L5 packaging step, plus three internal routes (svg, ascii-png, raster).
 
+> **M1 splits into M1A (this row, protocol port) and M1B (L4 adapter training, separate
+> plan).** M1A executes the protocol port + landings the eight Brief H engineering
+> practices in their canonical homes. M1B is gated on its own forthcoming plan
+> (decoder selection, synthetic-pair data, training infra, eval, manifest contract for
+> trained weights). M1A does not block on M1B; the adapter slot ships as a stable
+> stub-hash with `quality.partial: { reason: "adapter-stub" }`.
+>
+> **Engineering practices for M1A:** see [`docs/agent-guides/image-port.md`](../../agent-guides/image-port.md)
+> (execution brief) and [`docs/research/briefs/H_codec_engineering_prior_art.md`](../../research/briefs/H_codec_engineering_prior_art.md)
+> (prior-art survey). RFC-0001 §Addendum 2026-04-26 (F1 Standard Schema typing,
+> F2 typed `warnings` channel) lands in the same PR as the protocol types.
+
 **Files touched:**
 
 - `packages/codec-image/src/codec.ts` — rewrite as `class ImageCodec extends BaseCodec<ImageRequest, ImageArtifact>`. Inherits `expand / adapt / decode / package` seams.
@@ -154,8 +166,8 @@ non-trivial L5 packaging step, plus three internal routes (svg, ascii-png, raste
   Modality branching for image is removed from `harness.ts` — image now flows through
   the generic dispatch path.
 - `packages/core/src/runtime/harness.ts:123-172` — image branch deleted; svg + ascii-png
-  + asciipng-minimax routes still branch in M1 (they're audio's territory in M2 sense
-  but image has internal routes too — those move into `ImageCodec.route()`).
+  - asciipng-minimax routes still branch in M1 (they're audio's territory in M2 sense
+    but image has internal routes too — those move into `ImageCodec.route()`).
 
 **Route-internal logic:** `ImageRequest.source` (`"raster" | "svg" | "asciipng"`) becomes
 a codec-internal `route` decision computed inside `ImageCodec.route(req)`. The request
@@ -327,7 +339,7 @@ the baseline metric values. Future drift is measured against these.
 **Migration tests:**
 
 - `packages/codec-image/test/quality-bridge.test.ts` — run the bridge on a fixed seed
-  + fixed prompt, assert metric value within ±5% of recorded baseline.
+  - fixed prompt, assert metric value within ±5% of recorded baseline.
 - `packages/codec-image/test/quality-partial.test.ts` — when the metric model is absent,
   assert `quality.partial` is written and the run does not silently succeed.
 
@@ -365,7 +377,8 @@ its `quality.partial` reason — do not block the whole phase on one bridge.
 
 ## Out of scope (explicit)
 
-- Two-round LLM default — the single-call `expand → decoder` pipeline stays the default. Two-round is opt-in via `--expand` and gated on Brief E showing a measured quality delta. See ADR-0008 §Decision amendment.
+- Two-round LLM default — the single-call `expand → decoder` pipeline stays the default. Two-round is opt-in via `--expand` and gated on Brief E showing a measured quality delta. See ADR-0008 §Decision amendment, and [`docs/reserve-paths.md`](../../reserve-paths.md) RP-001 for the sealed full two-round path.
+- Image-with-text composition at L5 — sealed as RP-002 in [`docs/reserve-paths.md`](../../reserve-paths.md). Not part of v0.2 image goals.
 - JEPA / `IR.Latent` implementation — gated on Brief B kill criterion 1 (JEPA multimodal parity by Q3 2026). Until then `Latent` stays uninhabited.
 - Site rewrite (RFC-0004) — tracked as a separate PR against the site repo.
 - CLI ergonomics port (RFC-0002 / ADR-0009) — adjacent execution plan, can parallelize with M2–M5.
@@ -376,14 +389,14 @@ its `quality.partial` reason — do not block the whole phase on one bridge.
 
 ## Risk register
 
-| Risk                                                                                  | Phase   | Mitigation                                                                                          |
-| ------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| Round-trip test spills past 20 lines on raster image                                  | M1      | Protocol shape is wrong; revert and reopen RFC-0001 §Interface.                                     |
-| LLM-stage drift swamps the parity test on TTS                                         | M2      | Pin model_id + seed; structural parity only for LLM-driven outputs; flag drift in PR body.          |
-| `harness.ts` cleanup breaks an undocumented downstream user                           | M4      | Soft-warn → hard-warn lifecycle catches it; demote one field, do not revert harness collapse.       |
-| VQAScore model unavailable at metric eval                                             | M5a     | `quality.partial` invariant; CLIPScore fallback documented in same PR.                              |
-| Brief G stays a stub when M1 begins                                                   | pre-M1  | Audit Tier 3 blocker — promote Brief G to draft before M1 kickoff. See `docs/v02-final-audit.md`.   |
-| Two-hats review becomes box-checking                                                  | every   | If both hats sign off but the next phase still surprises, treat the prior sign-off as a defect.     |
+| Risk                                                        | Phase  | Mitigation                                                                                        |
+| ----------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| Round-trip test spills past 20 lines on raster image        | M1     | Protocol shape is wrong; revert and reopen RFC-0001 §Interface.                                   |
+| LLM-stage drift swamps the parity test on TTS               | M2     | Pin model_id + seed; structural parity only for LLM-driven outputs; flag drift in PR body.        |
+| `harness.ts` cleanup breaks an undocumented downstream user | M4     | Soft-warn → hard-warn lifecycle catches it; demote one field, do not revert harness collapse.     |
+| VQAScore model unavailable at metric eval                   | M5a    | `quality.partial` invariant; CLIPScore fallback documented in same PR.                            |
+| Brief G stays a stub when M1 begins                         | pre-M1 | Audit Tier 3 blocker — promote Brief G to draft before M1 kickoff. See `docs/v02-final-audit.md`. |
+| Two-hats review becomes box-checking                        | every  | If both hats sign off but the next phase still surprises, treat the prior sign-off as a defect.   |
 
 ## Review
 
