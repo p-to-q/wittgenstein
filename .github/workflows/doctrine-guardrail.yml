@@ -1,0 +1,96 @@
+name: Doctrine guardrail
+
+# Gentle guardrail (per ADR-0014): when a PR touches a doctrine-bearing
+# surface, check that the PR body references an ADR or RFC. If not, post
+# a comment reminder. Does NOT block merge — this is a nudge, not a gate.
+#
+# The list of doctrine-bearing files mirrors ADR-0013 §1.
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guardrail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect doctrine touches
+        id: detect
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const doctrinePatterns = [
+              /^docs\/engineering-discipline\.md$/,
+              /^docs\/THESIS\.md$/,
+              /^docs\/architecture\.md$/,
+              /^docs\/hard-constraints\.md$/,
+              /^docs\/codec-protocol\.md$/,
+              /^docs\/reproducibility\.md$/,
+              /^docs\/labels\.md$/,
+              /^docs\/archive-policy\.md$/,
+              /^docs\/contributor-map\.md$/,
+              /^docs\/glossary\.md$/,
+              /^docs\/tracks\.md$/,
+              /^AGENTS\.md$/,
+              /^PROMPT\.md$/,
+              /^CONTRIBUTING\.md$/,
+              /^README\.md$/,
+              /^\.github\/CODEOWNERS$/,
+              /^\.github\/PULL_REQUEST_TEMPLATE\.md$/,
+              /^docs\/adrs\//,
+              /^docs\/rfcs\//,
+              /^docs\/exec-plans\/active\//,
+              /^docs\/agent-guides\//,
+              /^docs\/research\/briefs\//,
+              /^packages\/schemas\/src\/codec\/v2\//,
+            ];
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const touched = files
+              .map((f) => f.filename)
+              .filter((p) => doctrinePatterns.some((re) => re.test(p)));
+            const refRegex = /\b(ADR|RFC)[-\s]?\d{3,4}\b/i;
+            const body = (context.payload.pull_request.body || "") + "\n" +
+                         (context.payload.pull_request.title || "");
+            const hasRef = refRegex.test(body);
+            core.setOutput("touched", touched.length > 0 ? "yes" : "no");
+            core.setOutput("hasref", hasRef ? "yes" : "no");
+            core.setOutput("files", touched.slice(0, 5).join(", "));
+
+      - name: Post nudge comment if missing reference
+        if: steps.detect.outputs.touched == 'yes' && steps.detect.outputs.hasref == 'no'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = "<!-- doctrine-guardrail -->";
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            if (comments.some((c) => c.body && c.body.includes(marker))) {
+              return; // already nudged
+            }
+            const body = `${marker}\n` +
+              `### Doctrine guardrail (gentle nudge — does not block)\n\n` +
+              `This PR touches a doctrine-bearing surface (per ADR-0013 §1) but the PR body / title does not reference an ADR-XXXX or RFC-XXXX.\n\n` +
+              `Touched files (first 5): \`${{ steps.detect.outputs.files }}\`\n\n` +
+              `Per ADR-0014, doctrine changes should land via the **governance lane** \`(Governance Note →) ADR → inline summary\`. If this PR carries doctrine, please:\n\n` +
+              `- cite the ratifying ADR / RFC ID in the PR body, or\n` +
+              `- pair this PR with an ADR PR (and reference it here), or\n` +
+              `- if this is execution / drift correction (not doctrine), say so explicitly in the body.\n\n` +
+              `_This is an informational nudge. Merge is not blocked._`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

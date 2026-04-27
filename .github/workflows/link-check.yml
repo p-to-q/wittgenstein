@@ -1,0 +1,49 @@
+name: Markdown link check
+
+# Monthly link check across docs surfaces. Files an issue if broken
+# links are detected. Manual dispatch supported for one-off runs.
+#
+# Runs on the 1st of each month at 02:00 UTC. Off-hours, low-noise.
+
+on:
+  schedule:
+    - cron: "0 2 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run lychee link check
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-concurrency 4
+            --exclude-mail
+            --exclude-loopback
+            --accept 200..=299,403,429
+            'docs/**/*.md'
+            'README.md'
+            'AGENTS.md'
+            'PROMPT.md'
+            'CONTRIBUTING.md'
+            'CHANGELOG.md'
+          fail: false
+          format: markdown
+          output: ./lychee/out.md
+
+      - name: Open issue if broken
+        if: steps.lychee.outputs.exit_code != '0'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "[docs] monthly link check found broken links"
+          content-filepath: ./lychee/out.md
+          labels: documentation
