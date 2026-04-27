@@ -1,0 +1,40 @@
+# Path-based PR auto-labeler config (consumed by .github/workflows/labeler.yml).
+#
+# Aligns with docs/labels.md (ratified by ADR-0012). Each label below maps to
+# the body convention in that doc:
+#   - documentation       → any change under docs/, README, AGENTS, PROMPT, CONTRIBUTING
+#   - research-derived    → docs/research/briefs/* (must cite Brief letter in body)
+#   - adr-derived         → docs/adrs/* (must cite ADR ID in body)
+#   - rfc-derived         → docs/rfcs/* (must cite RFC ID in body)
+#   - refactor            → packages/* code-only changes that touch ≥3 files (heuristic)
+#
+# Auto-labeler does not assign type labels (bug / enhancement) — those reflect
+# author intent, not file paths. The PR template's checkbox row remains the
+# source of truth for type.
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "README.md"
+          - "AGENTS.md"
+          - "PROMPT.md"
+          - "CONTRIBUTING.md"
+          - "SHOWCASE.md"
+          - "SUPPORT.md"
+          - "CHANGELOG.md"
+
+research-derived:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/research/briefs/**"
+
+adr-derived:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/adrs/**"
+
+rfc-derived:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/rfcs/**"

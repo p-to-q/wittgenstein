@@ -2,7 +2,7 @@
 name: Experimental feedback
 about: Report findings on an ⚠️ Partial or 🔴 Stub component (see docs/implementation-status.md)
 title: "[experimental] "
-labels: experimental, feedback
+labels: bug
 assignees: ""
 ---
 

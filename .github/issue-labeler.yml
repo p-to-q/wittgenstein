@@ -1,0 +1,19 @@
+# Title-keyword issue auto-labeler config (consumed by .github/workflows/issue-labeler.yml).
+#
+# Pattern format: regex matched against issue title (case-insensitive).
+# Aligns with docs/labels.md (ratified by ADR-0012).
+#
+# Issue templates already auto-apply primary type labels via frontmatter
+# (bug / enhancement / question / discussion / etc.). This labeler covers
+# the case where a contributor opens a blank issue or imports from elsewhere.
+
+bug: '\[bug\]|^bug[:\s]'
+enhancement: '\[feat\]|\[enhancement\]'
+question: '\[q\]|\[question\]'
+documentation: '\[docs?\]|^docs?[:\s]'
+discussion: '\[discussion\]|^discussion[:\s]|协作规范|并行推进'
+horizon-spike: 'horizon[\s-]spike|H\d{1,2}\b'
+tracker: '^tracker[:\s]|\[tracker\]|watch[:\s]'
+research-derived: 'Brief\s+[A-Z]\b|brief-derived'
+adr-derived: 'ADR-?\d{3,4}'
+rfc-derived: 'RFC-?\d{3,4}'
