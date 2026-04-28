@@ -59,10 +59,10 @@ First:
 
 Then:
 
-- [ ] Integrate Coqui XTTS or Piper as local TTS engine (cross-platform)
-- [ ] Keep `say` fallback for zero-setup demos
-- [ ] Add UTMOS scoring to benchmark harness
-- [ ] Extend ambient categories and add a music route (symbolic → synth)
+- [ ] Integrate Kokoro-82M-family as the default speech decoder, with Piper-family fallback
+- [ ] Keep host TTS (`say` / platform speech) out of the canonical v0.3 fallback path
+- [ ] Add UTMOS + Whisper-WER scoring to the benchmark harness
+- [ ] Extend procedural soundscape categories and symbolic music quality without adding a neural music decoder
 
 ## Phase 3 — Video codec real
 
