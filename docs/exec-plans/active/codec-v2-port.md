@@ -225,7 +225,9 @@ audit assumed.
 The protocol target and the one-minor-version `AudioRequest.route` deprecation window
 are locked. The exact helper / route-collapse shape below remains the **current best
 engineering hypothesis** for M2, not a permanently ratified local framework choice.
-
+The speech decoder family and parity contract, however, are now ratified separately by
+ADR-0015: Kokoro-82M-family default, Piper-family fallback, CPU byte-parity, GPU
+structural-parity.
 **Files touched:**
 
 - `packages/codec-audio/src/codec.ts` — rewrite as `class AudioCodec extends BaseCodec<AudioRequest, AudioArtifact>`. The codec's `route()` method dispatches to the
@@ -247,9 +249,10 @@ engineering hypothesis** for M2, not a permanently ratified local framework choi
 **Goldens:**
 
 - `artifacts/showcase/workflow-examples/{tts,soundscape,music}/` — pinned at PR open.
-- TTS bytes are LLM-stage-driven; structural parity is enforced (sample rate, channels,
-  duration ±5%). Soundscape and music have deterministic synthesis paths where
-  applicable; those get byte-for-byte parity.
+- Speech uses the ratified Kokoro-82M-family default with Piper-family fallback. CPU runs
+  on the pinned deterministic backend get byte-parity; GPU runs get structural parity
+  (sample rate, channels, duration ±5%). Soundscape and music have deterministic
+  synthesis paths where applicable; those get byte-for-byte parity.
 
 **Migration tests:**
 

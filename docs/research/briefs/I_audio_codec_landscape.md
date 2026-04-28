@@ -1,7 +1,7 @@
 # Brief I — Audio codec landscape
 
 **Date:** 2026-04-27
-**Status:** 🟡 Draft v0.1
+**Status:** 🟢 Merged v0.1 (verdict ratified by ADR-0015)
 **Question:** Which open-weight TTS decoder family, audio tokenizer, soundscape stance, and music stance should Wittgenstein adopt at v0.3, given license, reproducibility, and quality constraints?
 **Feeds into:** ADR-0015 (audio decoder family), `docs/agent-guides/audio-port.md` amendment, `docs/exec-plans/active/codec-v2-port.md` §M2.
 **Companion:** Brief J (`J_audio_engineering_and_routes.md`) — engineering shape; Brief E (`E_benchmarks_v2.md`) — quality bar (UTMOS / WER / DNSMOS / CLAP).

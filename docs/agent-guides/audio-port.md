@@ -13,10 +13,9 @@ Read `docs/agent-guides/image-to-audio-port.md` first for the cross-line context
 
 ## 1. Mission
 
-The protocol target and deprecation window below are locked. The exact helper / route
-collapse shape is still an **execution hypothesis** for M2, not a ratified local
-framework decision.
-
+The protocol target, decoder-family choice, determinism contract, and deprecation window
+below are locked. The exact helper / route collapse shape is still an **execution
+hypothesis** for M2, not a ratified local framework decision.
 Port `codec-audio` from the v0.1 surface to the Codec v2 protocol shape ratified by ADR-0008, while:
 
 - collapsing the remaining shared-mechanical route duplication across `speech / soundscape / music`;
@@ -73,14 +72,15 @@ In order:
 6. **`packages/core/src/codecs/audio.ts`** is now a thin shim that delegates to `AudioCodec.produce`. The audio branch in `packages/core/src/runtime/harness.ts` is deleted.
 7. **Migration tests** under `packages/codec-audio/test/`:
    - `route-collapse.test.ts` — fails if helper extraction leaves obvious sibling duplication beyond the accepted threshold.
-   - `parity-tts.test.ts` — TTS structural parity (sample rate, channels, duration ±5%) against the recorded golden manifest.
+   - `parity-tts.test.ts` — CPU byte-parity on the pinned deterministic backend; GPU structural parity (sample rate, channels, duration ±5%) when a GPU path is exercised.
    - `parity-soundscape.test.ts` and `parity-music.test.ts` — byte-for-byte SHA-256 against goldens (deterministic synthesis).
 
 ## 5. Goldens and parity
 
 Pin the v0.1 baseline at PR-open in `packages/codec-audio/test/goldens.json`:
 
-- `artifacts/showcase/workflow-examples/tts/` — speech route. **Structural parity only** (LLM stage drift is in the loop).
+- `artifacts/showcase/workflow-examples/tts/` — speech route. **CPU byte-parity on the
+  pinned deterministic backend; GPU structural parity only**.
 - `artifacts/showcase/workflow-examples/soundscape/` — deterministic synthesis. **Byte-for-byte SHA-256**.
 - `artifacts/showcase/workflow-examples/music/` — deterministic synthesis. **Byte-for-byte SHA-256**.
 
@@ -105,9 +105,10 @@ If you find yourself writing manifest rows from anywhere outside the codec's `pa
 
 ### Researcher hat
 
-- Are the route picks still consistent with `docs/codecs/audio.md` and the
-  decoder-family ratification work, without quietly widening M2 into a decoder-choice
-  PR?
+- Are the route picks (Kokoro-82M-family speech decoder, deterministic operator-library
+  soundscape, symbolic-synth music, with Piper-family fallback for speech) still
+  consistent with `docs/codecs/audio.md` and ADR-0015, without quietly widening M2 into
+  a decoder-choice PR?
 - Does the port preserve the ADR-0005 boundary (decoder ≠ generator)? Specifically, no MusicLM-class generator slipping in via "convenience"?
 - Does Brief E's metric pick (UTMOS + WER for speech, librosa for soundscape, LAION-CLAP for music) survive without changes? If you modify them, M5b breaks.
 

@@ -4,18 +4,18 @@ First-pass research briefs produced under **Phase P2** of the v0.2 Restructuring
 
 ## Brief index
 
-| ID  | Title                                                                          | Question                                                                                                     | Status        |
-| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------- |
-| A   | [VQ / VLM lineage 2026 refresh](A_vq_vlm_lineage_audit.md)                     | Does the VQ-token / frozen-decoder path still look like the right bet in April 2026?                         | 🟡 Draft v0.1 |
-| B   | [Compression vs world models — Ilya ↔ LeCun](B_compression_vs_world_models.md) | Where does Wittgenstein stand on the Ilya/LeCun tension? _(critical-path brief)_                             | 🟡 Draft v0.1 |
-| C   | [Unproven-but-interesting horizon scan](C_unproven_horizon.md)                 | Which 6–8 unvalidated hypotheses should shape the 18-month roadmap?                                          | 🟡 Draft v0.1 |
-| D   | [CLI / SDK / harness conventions](D_cli_and_sdk_conventions.md)                | How do modern AI CLIs and SDKs look; where is Wittgenstein off the grid?                                     | 🟡 Draft v0.1 |
-| E   | [Per-modality quality benchmarks](E_benchmarks_v2.md)                          | What's the smallest set of real (non-structural) quality metrics per modality?                               | 🟡 Draft v0.1 |
-| F   | [Site ↔ repo reconciliation](F_site_reconciliation.md)                         | Which `wittgenstein.wtf` claims contradict v0.1.0-alpha.2?                                                   | 🟡 Draft v0.1 |
-| G   | [Image-network clues](G_image_network_clues.md)                                | Which decoder / data / packaging form ships for `codec-image` at exec-plan M1?                               | 🟡 Draft v0.1 |
-| H   | [Codec engineering prior art](H_codec_engineering_prior_art.md)                | Which production-validated TS projects share our `Codec<Req, Art>` shape, and what to copy at M1A?           | 🟡 Draft v0.1 |
-| I   | [Audio codec landscape](I_audio_codec_landscape.md)                            | Which open-weight TTS decoder, audio tokenizer, and soundscape/music stance should v0.3 audio adopt?         | 🟡 Draft v0.1 |
-| J   | [Audio engineering and routes](J_audio_engineering_and_routes.md)              | What is the smallest honest M2 engineering shape for audio routes, manifest rows, fixtures, and deprecation? | 🟡 Draft v0.1 |
+| ID  | Title                                                                          | Question                                                                                                     | Status                  |
+| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| A   | [VQ / VLM lineage 2026 refresh](A_vq_vlm_lineage_audit.md)                     | Does the VQ-token / frozen-decoder path still look like the right bet in April 2026?                         | 🟡 Draft v0.1           |
+| B   | [Compression vs world models — Ilya ↔ LeCun](B_compression_vs_world_models.md) | Where does Wittgenstein stand on the Ilya/LeCun tension? _(critical-path brief)_                             | 🟡 Draft v0.1           |
+| C   | [Unproven-but-interesting horizon scan](C_unproven_horizon.md)                 | Which 6–8 unvalidated hypotheses should shape the 18-month roadmap?                                          | 🟡 Draft v0.1           |
+| D   | [CLI / SDK / harness conventions](D_cli_and_sdk_conventions.md)                | How do modern AI CLIs and SDKs look; where is Wittgenstein off the grid?                                     | 🟡 Draft v0.1           |
+| E   | [Per-modality quality benchmarks](E_benchmarks_v2.md)                          | What's the smallest set of real (non-structural) quality metrics per modality?                               | 🟡 Draft v0.1           |
+| F   | [Site ↔ repo reconciliation](F_site_reconciliation.md)                         | Which `wittgenstein.wtf` claims contradict v0.1.0-alpha.2?                                                   | 🟡 Draft v0.1           |
+| G   | [Image-network clues](G_image_network_clues.md)                                | Which decoder / data / packaging form ships for `codec-image` at exec-plan M1?                               | 🟡 Draft v0.1           |
+| H   | [Codec engineering prior art](H_codec_engineering_prior_art.md)                | Which production-validated TS projects share our `Codec<Req, Art>` shape, and what to copy at M1A?           | 🟡 Draft v0.1           |
+| I   | [Audio codec landscape](I_audio_codec_landscape.md)                            | Which open-weight TTS decoder, audio tokenizer, and soundscape/music stance should v0.3 audio adopt?         | 🟢 Ratified by ADR-0015 |
+| J   | [Audio engineering and routes](J_audio_engineering_and_routes.md)              | What is the smallest honest M2 engineering shape for audio routes, manifest rows, fixtures, and deprecation? | 🟡 Draft v0.1           |
 
 ## Where briefs land (map)
 
@@ -51,7 +51,7 @@ Plus a dated header and a version tag (`v0.1`, `v0.2`, …) so iteration is visi
 
 ## Status legend
 
-- 🟢 Merged (verdict final, cited by an ADR)
+- 🟢 Ratified by ADR-NNNN (verdict final, cited by an ADR)
 - 🟡 Draft (first pass complete; invites review)
 - 🔴 Not started
 

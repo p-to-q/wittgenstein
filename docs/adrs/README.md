@@ -18,6 +18,7 @@ Architecture Decision Records capture decisions that should survive chat history
 - 0012 issue / PR label taxonomy (ratifies `docs/labels.md` introduced via PR #71)
 - 0013 independent ratification for doctrine-bearing PRs (ratifies the rule introduced via PR #75)
 - 0014 governance lane for meta-process doctrine — defines `(Governance Note →) ADR → inline summary` as the legal path for review / archive / labels / agency / surface-classification decisions
+- 0015 audio decoder family — ratifies Brief I (Kokoro-82M-family default, Piper fallback, no tokenizer at v0.3, procedural soundscape/music, CPU byte-parity / GPU structural-parity)
 
 ## Lanes
 
