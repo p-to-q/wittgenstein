@@ -1,11 +1,23 @@
 # M2 Implementation Design Memo (2026-04)
 
+**Classification:** implementation memo, non-doctrine surface  
 **Status:** implementation-facing research note  
 **Stage:** post-`#87`, post-`#88`, pre-M2 code execution  
 **Purpose:** remove remaining execution ambiguity before the audio port opens
 
 This memo is not a new doctrine surface. It translates the now-ratified audio decisions
 into a decision-complete implementation shape for M2.
+
+## Dependency note
+
+This memo assumes the following docs are merged first and should be read as subordinate
+to them:
+
+- `#87` — preflight drift cleanup and route-deprecation inventory
+- `#88` — `ADR-0015` ratification of the audio decoder family
+
+If either PR is still open, this memo should be treated as implementation preparation
+only, not as a source of standalone doctrine.
 
 Locked inputs:
 
