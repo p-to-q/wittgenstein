@@ -6,6 +6,141 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0-alpha.2] — 2026-04-29 — M2 preflight closure
+
+This prerelease marks the transition from the v0.2 doctrine lock into the
+edge of M2 implementation. It is **not** the audio port itself. Instead, it is
+the release where the repo becomes decision-complete enough to start the M2
+audio codec-v2 port without reopening decoder choice, route-deprecation policy,
+or migration framing mid-flight.
+
+In short: M0 and M1A have landed, the audio research layer is complete enough
+to ratify, and M2 is now staged as a three-slice implementation train.
+
+### Current stage
+
+- `M0` — codec protocol v2 foundation landed.
+- `M1A` — image codec-v2 raster port landed and closed out.
+- `M1B` — deferred until a usable LFQ-family decoder line is ready.
+- `M2` — audio port is at the **preflight-closed / implementation-ready**
+  boundary.
+- `M3+` — sensor, cleanup, and benchmark bridge phases remain queued.
+
+### Added — M2 audio research and ratification
+
+- `docs/research/briefs/I_audio_codec_landscape.md` — audio codec landscape
+  sweep. Verdict:
+  - speech default: `Kokoro-82M-family`
+  - fallback: `Piper-family`
+  - no audio tokenizer at the v0.3 harness boundary
+  - neural soundscape and neural music deferred beyond v0.3
+  - reproducibility contract split into CPU byte-parity and GPU structural
+    parity
+- `docs/research/briefs/J_audio_engineering_and_routes.md` — audio
+  engineering brief covering route shape, manifest fields, fixture strategy,
+  and route-deprecation policy.
+- `docs/research/briefs/M2-route-deprecation-inventory.md` — bounded caller
+  inventory for `AudioRequest.route`, CLI `--route`, and request-side
+  migration surfaces.
+- `docs/adrs/0015-audio-decoder-family.md` — ratifies the audio decoder
+  family so M2 no longer depends on a brief-only conclusion.
+- `docs/research/m2-implementation-design-2026-04.md` — implementation-facing
+  memo for M2 Slice A/B/C. It is explicitly non-doctrine and subordinate to the
+  ratified ADR and active execution plan.
+
+### Changed — canonical audio story
+
+- `docs/codecs/audio.md` now treats `Kokoro-82M-family` as the default speech
+  decoder and `Piper-family` as the fallback. The old Piper-centered wording is
+  no longer canonical.
+- `docs/agent-guides/audio-port.md` and
+  `docs/exec-plans/active/codec-v2-port.md` now separate locked decisions from
+  current best implementation hypotheses:
+  - helper extraction first
+  - thin route files
+  - `BaseAudioRoute` only as a follow-up if genuinely shared-mechanical
+    duplication remains above threshold
+  - `AudioRequest.route` keeps a one-minor-version soft-deprecation window
+- `ROADMAP.md` now reflects ADR-0015: no host-TTS fallback story, no neural
+  soundscape/music in v0.3, and audio quality targets based on UTMOS +
+  Whisper-WER rather than stale Coqui/Piper wording.
+
+### Added — M0 / M1A execution receipts
+
+- `packages/schemas/src/codec/v2/` — codec protocol v2 schema surface.
+- `packages/codec-image/src/codec.ts` and pipeline support — image codec-v2
+  port with codec-owned packaging, warning channel, and route/harness
+  alignment.
+- `packages/core/src/runtime/harness.ts` and registry updates — harness made
+  more modality-blind in preparation for the remaining codec-v2 ports.
+- Tests for codec-v2 contracts, image round-trip behavior, warning-channel
+  behavior, and harness modality-blindness.
+- `docs/research/briefs/H_codec_engineering_prior_art.md` and
+  `docs/reserve-paths.md` — engineering prior-art and sealed alternatives
+  used during M0/M1A execution.
+
+### Added — governance and collaboration hardening
+
+- `docs/labels.md` plus ADR-0012 — label taxonomy is now a documented repo
+  contract.
+- ADR-0013 — doctrine-bearing PRs require independent ratification; authors do
+  not self-review their own doctrine.
+- ADR-0014 — governance changes now use their own lane:
+  `(optional Governance Note) → ADR → inline summary`.
+- `docs/archive-policy.md` — preserves historical reasoning without keeping
+  old notes on the active decision path.
+- `docs/research/research-system-audit-2026-04.md` — local-first audit of the
+  research-note to brief/RFC/ADR conversion path.
+- First-contact docs (`README.md`, `PROMPT.md`, `AGENTS.md`,
+  `docs/contributor-map.md`) now point contributors toward the engineering and
+  governance lanes instead of burying process rules in chat history.
+
+### Added — automation and repo hygiene
+
+- Path-based PR labeling and issue-title labeling.
+- Doctrine guardrail workflow: PRs touching doctrine-bearing surfaces without
+  an ADR get a non-blocking reminder.
+- Monthly markdown link checker.
+- Additional issue templates for discussion, horizon spikes, trackers, and
+  governance notes.
+- `CODEOWNERS` coverage expanded to doctrine surfaces.
+- GitHub org links updated from the old `wittgenstein-cli` namespace to
+  `p-to-q`.
+
+### Fixed
+
+- Closed the M2 preflight drift where audio docs implied a settled
+  `BaseAudioRoute` shape before implementation evidence existed.
+- Closed the audio decoder-family gap: Brief I now feeds ADR-0015 instead of
+  remaining only a research verdict.
+- Removed stale `Coqui XTTS or Piper` / host-TTS fallback phrasing from
+  canonical roadmap guidance.
+- Preserved useful research signals from closed or superseded PRs in issues
+  instead of leaving them hidden in stale branches.
+
+### Not included
+
+- No M2 runtime implementation yet.
+- No fourth audio route.
+- No neural soundscape or neural music path in v0.3.
+- No audio tokenizer at the v0.3 harness boundary.
+- No hard removal of `AudioRequest.route` or CLI `--route`; M2 will introduce
+  compatibility warnings first.
+
+### Next
+
+The next implementation line is **M2 Slice A**:
+
+- make `AudioCodec` own route dispatch
+- thin the harness-side audio branch
+- keep public CLI behavior intact
+- defer helper collapse, manifest authorship, warnings, and parity tests to
+  later M2 slices
+
+Slice A should use ADR-0015 and
+`docs/research/m2-implementation-design-2026-04.md` as its controlling
+preflight surfaces.
+
 ## [0.2.0-alpha.1] — 2026-04-25 — v0.2 doctrine lock (pre-launch)
 
 Doctrine lock for v0.2. **No code changes** — this cut is the paper
@@ -14,6 +149,7 @@ against. Tagged as a pre-launch so contributors can reference a stable
 SHA for the doctrine surface while M0/M1 work begins on top of it.
 
 ### Added — Foundational
+
 - `docs/THESIS.md` — smallest locked statement of the project
 - `docs/inheritance-audit.md` — keep / promote / revise / retire ledger
 - `docs/glossary.md` — locked vocabulary (Harness / Codec / Spec / IR /
@@ -24,6 +160,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
 - `docs/v02-alignment-review.md`, `docs/v02-final-audit.md` — audit ledgers
 
 ### Added — Research briefs (`docs/research/briefs/`)
+
 - `A_vq_vlm_lineage_audit.md` — VQ / VLM lineage 2026 refresh
 - `B_compression_vs_world_models.md` — Ilya ↔ LeCun position
 - `C_unproven_horizon.md` — v0.3 horizon scan
@@ -34,6 +171,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
   (M1 prerequisite, Draft v0.1)
 
 ### Added — RFCs (`docs/rfcs/`)
+
 - `0001-codec-protocol-v2.md` — `Codec<Req, Art>.produce` primitive
   (🟢 ratified by ADR-0008)
 - `0002-cli-ergonomics.md` — CLI v2 (🟢 ratified by ADR-0009)
@@ -42,6 +180,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
 - `0005-naming-lock-v2.md` — naming v2 (🟢 ratified by ADR-0011)
 
 ### Added — ADRs (`docs/adrs/`)
+
 - `0006-layered-epistemology.md` — verdict of brief B
 - `0007-path-c-rejected.md` — Chameleon-style retrain rejected through v0.4
 - `0008-codec-protocol-v2-adoption.md` — ratifies RFC-0001
@@ -50,6 +189,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
 - `0011-naming-locked.md` — naming v2 locked
 
 ### Added — Execution
+
 - `docs/exec-plans/active/codec-v2-port.md` — live P6 plan, M0→M5b,
   image-first execution order
 - `docs/agent-guides/` — prompt-ready execution briefs
@@ -58,12 +198,14 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
   subsumption notes
 
 ### Added — Engineering discipline
+
 - `.claude/AGENT_PROMPT.md` — agent orientation (locked vocabulary,
   read-before-write, escalation rules)
 - `docs/engineering-discipline.md` — working standards fused from
   Jah-yee/cursor-rules, specialised for Wittgenstein
 
 ### Changed
+
 - `AGENTS.md` — leads with `.claude/AGENT_PROMPT.md` and
   `docs/engineering-discipline.md` before doctrine; locked-constraints
   section refreshed against v0.2 vocabulary
@@ -81,6 +223,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
   tracks, agent-guides, RFCs, ADRs
 
 ### Maintenance
+
 - Repo migrated to `p-to-q/wittgenstein` org;
   changelog compare links updated accordingly
 - `.github/dependabot.yml` — github-actions updates grouped to reduce
@@ -93,6 +236,7 @@ SHA for the doctrine surface while M0/M1 work begins on top of it.
   checks pass. Major-version bumps still require human review.
 
 ### Changed — CI hygiene
+
 - `.github/workflows/ci.yml` split into `verify-code` (full Node +
   Python suite) and `verify-docs` (prettier-only fast lane), gated by
   `dorny/paths-filter` so docs-only PRs no longer pay for the full
@@ -111,6 +255,7 @@ Second prerelease. No API surface changes; this cut is about making the project
 **legible and welcoming to early adopters and contributors** before we keep moving.
 
 ### Added
+
 - `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1 summary with project-specific notes
 - `SUPPORT.md` — where to ask what, expected response times, how to file an effective issue
 - `.github/ISSUE_TEMPLATE/question.md` — low-friction "how do I..." template
@@ -125,6 +270,7 @@ Second prerelease. No API surface changes; this cut is about making the project
   - Release and Status badges, plus PRs-welcome badge
 
 ### Changed
+
 - `README.md` — adds status banner, experimental-surfaces table, how-to-help section,
   docs-map entries for `CONTRIBUTING.md` and `SUPPORT.md`; badge set updated to include
   Release and Status; Node version badge corrected to 20.19
@@ -142,12 +288,14 @@ Second prerelease. No API surface changes; this cut is about making the project
   structural proxies, not research-grade metrics
 
 ### Fixed
+
 - Synced fork `origin/main` (Jah-yee) to `upstream/main` (Moapacha) — was 402 files behind
 - Deleted three merged / superseded remote branches on the fork:
   `chore/repo-root-wittgenstein`, `feat/foundation-framework`,
   `docs/root-docs-readme-changelog`
 
 ### Removed
+
 - `.claude/skills/site-clone/`, `.codex/skills/site-clone/`, `.cursor/commands/site-clone.md`
   — generic website-cloning skill files, unrelated to Wittgenstein
 - `Kimi_Agent_克隆 aquin/` (91 files, ~6.8 MB) — standalone Vite app unrelated to the project
@@ -158,6 +306,7 @@ Second prerelease. No API surface changes; this cut is about making the project
   added so these categories do not leak back
 
 ### Maintenance
+
 - Root `package.json` version bumped `0.0.0` → `0.1.0-alpha.2` to match the tag
 
 ## [0.1.0-alpha.1] — 2026-04-20 — Early Preview
@@ -168,6 +317,7 @@ runs, and exercise the core harness contracts, while the neural image decoder br
 video renderer remain intentionally incomplete.
 
 ### Added
+
 - TypeScript monorepo (`packages/*`) with pnpm workspaces, strict mode, project references
 - `@wittgenstein/schemas` — shared zod codec contract, `RunManifest`, `Modality`
 - `@wittgenstein/core` — harness runtime with routing, retry, budget, telemetry, manifest spine, seed control
@@ -190,6 +340,7 @@ video renderer remain intentionally incomplete.
 - Adapter training baselines: image style MLP (781 COCO examples, 9 s, val BCE 0.7698) and audio ambient classifier (369 examples, < 5 s)
 
 ### Changed
+
 - Root `README.md` — restructured for engineer / hacker / researcher readability; receipts table; two-surface positioning; extensibility section
 - `docs/benchmark-standards.md` — full measurement protocol, per-modality quality-proxy scoring breakdown, real measured baselines
 - Research notes (`compression-view-of-llms.md`, `frozen-llm-multimodality.md`, `neural-codec-references.md`) rewritten from stubs to full arguments with citations
@@ -199,16 +350,19 @@ video renderer remain intentionally incomplete.
 - `polyglot-mini/train/train.py` and `train_audio.py` — suppress numpy overflow / divide-by-zero RuntimeWarnings during training
 
 ### Fixed
+
 - Deleted stale merged branches `chore/repo-root-wittgenstein` and `feat/foundation-framework`
 - Removed pointless `.gitkeep` at repo root and empty legacy `train/` directory
 
 ### Locked
+
 - Image has exactly one path: `LLM → JSON scene → adapter → frozen decoder → PNG`
 - No diffusion generators, no SVG/HTML/Canvas fallbacks for image
 - Every run writes a manifest under `artifacts/runs/<id>/`
 - Shared contracts live in `@wittgenstein/schemas`; codec packages depend on schemas, not each other
 
-[Unreleased]: https://github.com/p-to-q/wittgenstein/compare/v0.2.0-alpha.1...HEAD
+[Unreleased]: https://github.com/p-to-q/wittgenstein/compare/v0.2.0-alpha.2...HEAD
+[0.2.0-alpha.2]: https://github.com/p-to-q/wittgenstein/compare/v0.2.0-alpha.1...v0.2.0-alpha.2
 [0.2.0-alpha.1]: https://github.com/p-to-q/wittgenstein/compare/v0.1.0-alpha.2...v0.2.0-alpha.1
 [0.1.0-alpha.2]: https://github.com/p-to-q/wittgenstein/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/p-to-q/wittgenstein/releases/tag/v0.1.0-alpha.1
