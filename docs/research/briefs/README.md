@@ -71,6 +71,7 @@ If either hat dissents, the brief iterates; otherwise the verdict lands in an AD
 - `docs/rfcs/` — engineering decisions that ratify brief verdicts
 - `docs/adrs/` — permanent record of accepted verdicts
 - `docs/agent-guides/` — prompt-ready recipes for phase-specific implementation work
+- `M2-route-deprecation-inventory.md` — bounded preflight inventory for `AudioRequest.route` / `--route` migration work before the M2 port opens
 
 If `docs/THESIS.md` and `docs/inheritance-audit.md` are not present in your checkout yet,
 merge PR #6 first, then treat this folder as Phase P2.

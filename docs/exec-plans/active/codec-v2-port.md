@@ -222,6 +222,10 @@ sub-modalities (speech, soundscape, music) each have their own route file in
 `codec-audio/src/routes/`, but the current code is already smaller than the first-pass
 audit assumed.
 
+The protocol target and the one-minor-version `AudioRequest.route` deprecation window
+are locked. The exact helper / route-collapse shape below remains the **current best
+engineering hypothesis** for M2, not a permanently ratified local framework choice.
+
 **Files touched:**
 
 - `packages/codec-audio/src/codec.ts` — rewrite as `class AudioCodec extends BaseCodec<AudioRequest, AudioArtifact>`. The codec's `route()` method dispatches to the

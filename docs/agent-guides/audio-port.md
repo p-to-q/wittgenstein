@@ -13,6 +13,10 @@ Read `docs/agent-guides/image-to-audio-port.md` first for the cross-line context
 
 ## 1. Mission
 
+The protocol target and deprecation window below are locked. The exact helper / route
+collapse shape is still an **execution hypothesis** for M2, not a ratified local
+framework decision.
+
 Port `codec-audio` from the v0.1 surface to the Codec v2 protocol shape ratified by ADR-0008, while:
 
 - collapsing the remaining shared-mechanical route duplication across `speech / soundscape / music`;
@@ -49,7 +53,13 @@ If M1 image has already landed, also read its merged PR diff — your changes mi
 - artifact finalization,
 - route-local metadata patching.
 
-The port's win is **not** inventing a new local framework. The win is moving the shared-mechanical bits into helper functions or a tiny shared module, while leaving each route file as a thin, readable declaration of route-specific behavior. If the port still leaves obvious duplicated scaffolding across siblings, the helper-first collapse failed. If helper extraction still leaves >30 lines of genuinely shared-mechanical duplication, only then should a `BaseAudioRoute` be reconsidered in a follow-up.
+The port's win is **not** inventing a new local framework. The win is moving the
+shared-mechanical bits into helper functions or a tiny shared module, while leaving
+each route file as a thin, readable declaration of route-specific behavior. If the
+port still leaves obvious duplicated scaffolding across siblings, the helper-first
+collapse failed. If helper extraction still leaves >30 lines of genuinely
+shared-mechanical duplication, only then should a `BaseAudioRoute` be reconsidered in
+a follow-up. It is not the assumed answer going into M2.
 
 ## 4. M2 deliverables
 
@@ -95,7 +105,9 @@ If you find yourself writing manifest rows from anywhere outside the codec's `pa
 
 ### Researcher hat
 
-- Are the route picks (Piper-class TTS, deterministic operator-library soundscape, symbolic-synth music) still consistent with `docs/codecs/audio.md`?
+- Are the route picks still consistent with `docs/codecs/audio.md` and the
+  decoder-family ratification work, without quietly widening M2 into a decoder-choice
+  PR?
 - Does the port preserve the ADR-0005 boundary (decoder ≠ generator)? Specifically, no MusicLM-class generator slipping in via "convenience"?
 - Does Brief E's metric pick (UTMOS + WER for speech, librosa for soundscape, LAION-CLAP for music) survive without changes? If you modify them, M5b breaks.
 
