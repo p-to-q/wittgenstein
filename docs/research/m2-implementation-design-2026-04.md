@@ -96,13 +96,12 @@ Do **not** introduce any of the following in M2:
 
 ### Threshold for future `BaseAudioRoute`
 
-Only open a follow-up for `BaseAudioRoute` if, after honest helper extraction:
+Only open a follow-up for `BaseAudioRoute` if helper extraction still leaves **>30
+lines of genuinely shared-mechanical duplication**.
 
-- at least **two** route files still duplicate the same route lifecycle,
-- the duplicated sequence is still **>30 lines** of shared-mechanical code per route,
-- and the duplication is not decoder-specific logic.
-
-If those three conditions are not all true, helper functions remain the correct answer.
+Decoder-specific logic does not count toward that threshold; if the repeated code is
+really speech fallback order, soundscape category handling, or music interpretation, it
+stays route-local. Otherwise helper functions remain the correct answer.
 
 ## 3. Speech runtime contract
 
@@ -114,8 +113,11 @@ The canonical M2 speech path is:
 - **fallback:** `Piper-family`
 
 The current `renderMacSpeech()` path is **not** part of the ratified v0.3 speech
-contract. It may remain temporarily as a legacy/demo fallback only if it is clearly
-outside the parity contract and never presented as the canonical decoder path.
+contract and must not be reachable from the codec's fallback path. Per ADR-0015
+Decision 1, when neither Kokoro nor Piper is available the codec returns
+`quality.partial.reason = "tts_engine_missing"`; it does not silently fall back to host
+TTS. `renderMacSpeech()` may stay in source as historical / demo-script code only if it
+cannot be invoked from `AudioCodec.decode`.
 
 ### Pinned deterministic backend
 
@@ -168,8 +170,7 @@ Recommended decoder identifiers:
 ## 4. Manifest / schema alignment
 
 The current v2 surface exposes `ManifestRow`, but `foldManifestRows()` still just splats
-flat keys into the one-object `RunManifest`. M2 should take the smallest clean step
-needed for audio:
+flat keys into the one-object `RunManifest`. Recommended in M2 implementation:
 
 - add an optional `audioRender` object to `RunManifestSchema`
 - keep the one-object manifest shape
