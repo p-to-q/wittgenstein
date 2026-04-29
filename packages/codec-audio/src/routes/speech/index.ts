@@ -1,14 +1,8 @@
 import { readFile } from "node:fs/promises";
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
 import type { AudioPlan } from "../../schema.js";
-import { recommendAmbient } from "../../ambient-adapter.js";
-import {
-  finalizeAudioArtifact,
-  generateAmbient,
-  mixTracks,
-  renderMacSpeech,
-  synthSpeech,
-} from "../../runtime.js";
+import { renderMacSpeech, synthSpeech } from "../../runtime.js";
+import { finalizeRouteRender, mixAmbientLayer, resolveAmbientCategory } from "../shared.js";
 
 export async function renderSpeechRoute(
   plan: AudioPlan,
@@ -17,32 +11,24 @@ export async function renderSpeechRoute(
 ): Promise<RenderResult> {
   const startedAt = Date.now();
   const durationSec = Math.max(2, inferSpeechDurationSec(plan.script));
-  const ambientRecommendation = recommendAmbient(plan.script);
-  const ambientCategory =
-    plan.ambient.category === "auto" ? ambientRecommendation.category : plan.ambient.category;
+  const ambientCategory = resolveAmbientCategory(plan, plan.script);
 
   let speechSamples = synthSpeech(plan.script, durationSec);
   if (options.allowHostTts === true && (await renderMacSpeech(plan.script, ctx.outPath))) {
     speechSamples = decodeWavToFloat32(await readFile(ctx.outPath));
   }
 
-  const ambientSamples = generateAmbient(ambientCategory, durationSec, ctx.seed);
-  const result = await finalizeAudioArtifact(
+  return finalizeRouteRender(
     ctx,
-    mixTracks([
-      { samples: speechSamples, gain: 1 },
-      { samples: ambientSamples, gain: plan.ambient.level },
-    ]),
     "speech",
+    mixAmbientLayer(speechSamples, {
+      category: ambientCategory,
+      durationSec,
+      level: plan.ambient.level,
+      seed: ctx.seed,
+    }),
+    startedAt,
   );
-
-  return {
-    ...result,
-    metadata: {
-      ...result.metadata,
-      durationMs: Date.now() - startedAt,
-    },
-  };
 }
 
 function inferSpeechDurationSec(script: string): number {

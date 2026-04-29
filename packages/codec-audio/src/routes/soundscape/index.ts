@@ -1,32 +1,18 @@
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
 import type { AudioPlan } from "../../schema.js";
-import { recommendAmbient } from "../../ambient-adapter.js";
-import { finalizeAudioArtifact, generateAmbient } from "../../runtime.js";
+import { generateAmbient } from "../../runtime.js";
+import { finalizeRouteRender, resolveAmbientCategory } from "../shared.js";
 
 export async function renderSoundscapeRoute(
   plan: AudioPlan,
   ctx: RenderCtx,
 ): Promise<RenderResult> {
   const startedAt = Date.now();
-  const ambientCategory =
-    plan.ambient.category === "auto"
-      ? recommendAmbient(`${plan.script} ${plan.music.motif}`).category
-      : plan.ambient.category;
-  const result = await finalizeAudioArtifact(
+  const ambientCategory = resolveAmbientCategory(plan, `${plan.script} ${plan.music.motif}`);
+  return finalizeRouteRender(
     ctx,
-    generateAmbient(
-      ambientCategory === "silence" ? "forest" : ambientCategory,
-      8,
-      ctx.seed,
-    ),
     "soundscape",
+    generateAmbient(ambientCategory === "silence" ? "forest" : ambientCategory, 8, ctx.seed),
+    startedAt,
   );
-
-  return {
-    ...result,
-    metadata: {
-      ...result.metadata,
-      durationMs: Date.now() - startedAt,
-    },
-  };
 }
