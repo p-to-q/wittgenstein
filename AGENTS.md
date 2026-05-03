@@ -129,7 +129,7 @@ The RFC-0003 alternatives (Loom / Transducer / Score / Handoff) were rejected. U
 - `docs/exec-plans/active/` — live execution plans (M0 → M5b lives here)
 - `docs/agent-guides/` — per-port execution briefs (audio, sensor, image-to-audio)
 - `docs/rfcs/` and `docs/adrs/` — engineering decisions and ratified records
-- `docs/research/briefs/` — four-station research briefs (A–H)
+- `docs/research/briefs/` — four-station research briefs (A–J; see `docs/research/briefs/README.md`)
 
 ### Read Order — v0.2 supplement
 
@@ -148,9 +148,20 @@ Then return to the original Read Order above for engineering discipline, codec p
 
 ### What's currently active
 
-- **Doctrine:** locked at v0.2.0-alpha.1; M2 preflight closure is cut at v0.2.0-alpha.2.
-- **Code:** Codec Protocol v2 port — sequenced **M0 image → M1 image refinement → M2 audio → M3 sensor → M4 video stub → M5a/b benchmarks**. M0 and M1A are landed; M2 audio is the active execution line.
+- **Doctrine:** locked at v0.2.0-alpha.1; M2 preflight closure cut at v0.2.0-alpha.2; governance lane introduced in ADRs 0012–0014 (see below).
+- **Code:** Codec Protocol v2 port — sequenced **M0 image → M1 image refinement → M2 audio → M3 sensor → M4 video stub → M5a/b benchmarks**. M0 and M1A are landed; M2 audio is the active execution line. M2 Slices A/B/C1/C2 are merged; C3 audio parity/golden work is in review; Kokoro/Piper backend wiring remains a follow-up, not an already-landed behavior.
 - **Out of scope until M5b:** new modalities, diffusion samplers, trained model weights, website rewrite, RFC-0003 renaming.
+
+### Two decision lanes (v0.2.0-alpha.2 governance addition)
+
+Operating-doc edits are now routed through two explicit lanes (introduced via ADR-0014):
+
+- **Engineering lane** — `Brief → RFC → ADR → exec-plan → code`. For codec / modality / protocol / runtime decisions. Canonical example: M1A landed via Brief A+G+H → RFC-0001 → ADR-0008 → exec-plan §M1 → PR #68.
+- **Governance lane** — `(optional Governance Note) → ADR → inline summary`. For review process, archive policy, label taxonomy, agency boundaries, surface classification.
+
+If you find yourself wanting to append a new section to `docs/engineering-discipline.md`, this file (`AGENTS.md`), `CONTRIBUTING.md`, `docs/labels.md`, or any other operating doc — **open an ADR first**. The inline summary is a pointer; the ADR is the doctrine. See ADR-0013 (independent ratification for doctrine PRs) and ADR-0014 (governance lane).
+
+This rule supersedes the unqualified "any task" framing earlier in this file. The earlier bullet "Put future architectural choices in ADRs instead of burying them in PR text" was correct but under-specified; the two lanes make the path explicit.
 
 ### Claude-specific style and working rules
 

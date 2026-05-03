@@ -6,31 +6,37 @@
 # independent ratification pass, not just self-review.
 #
 # Maintainer pair (per ADR-0013): @Jah-yee + @Moapacha.
-# Per-modality team handles are aspirational; if the team is not yet provisioned
-# in the org, the catchall pair still receives the review request.
+#
+# Per-modality team handles (@wittgenstein-image / -audio / -video / -sensor /
+# -core) were previously listed alongside the maintainer pair as aspirational
+# routing. Verified 2026-05-03 via `gh api orgs/p-to-q/teams` that no such
+# teams exist in the org; GitHub silently dropped those handles, so only the
+# maintainer pair was actually receiving review requests. Listing teams that
+# do not exist clutters CODEOWNERS validation without changing behavior.
+# Removed. When/if those teams are provisioned, re-add them in their own commit.
 
 # Default fallback — every PR auto-requests the maintainer pair.
 * @Jah-yee @Moapacha
 
 # ----- Code surfaces (per-modality, modality-team or fallback) -----
 
-/packages/core/src/runtime/ @Jah-yee @Moapacha @wittgenstein-core
-/packages/core/src/llm/ @Jah-yee @Moapacha @wittgenstein-core
-/packages/core/src/codecs/image.ts @Jah-yee @Moapacha @wittgenstein-image
-/packages/core/src/codecs/audio.ts @Jah-yee @Moapacha @wittgenstein-audio
-/packages/core/src/codecs/video.ts @Jah-yee @Moapacha @wittgenstein-video
-/packages/core/src/codecs/sensor.ts @Jah-yee @Moapacha @wittgenstein-sensor
-/packages/schemas/ @Jah-yee @Moapacha @wittgenstein-core
-/packages/sandbox/ @Jah-yee @Moapacha @wittgenstein-core
-/packages/codec-image/ @Jah-yee @Moapacha @wittgenstein-image
-/packages/codec-audio/ @Jah-yee @Moapacha @wittgenstein-audio
-/packages/codec-video/ @Jah-yee @Moapacha @wittgenstein-video
-/packages/codec-sensor/ @Jah-yee @Moapacha @wittgenstein-sensor
+/packages/core/src/runtime/ @Jah-yee @Moapacha
+/packages/core/src/llm/ @Jah-yee @Moapacha
+/packages/core/src/codecs/image.ts @Jah-yee @Moapacha
+/packages/core/src/codecs/audio.ts @Jah-yee @Moapacha
+/packages/core/src/codecs/video.ts @Jah-yee @Moapacha
+/packages/core/src/codecs/sensor.ts @Jah-yee @Moapacha
+/packages/schemas/ @Jah-yee @Moapacha
+/packages/sandbox/ @Jah-yee @Moapacha
+/packages/codec-image/ @Jah-yee @Moapacha
+/packages/codec-audio/ @Jah-yee @Moapacha
+/packages/codec-video/ @Jah-yee @Moapacha
+/packages/codec-sensor/ @Jah-yee @Moapacha
 /apps/site/ @Jah-yee @Moapacha
-/docs/codecs/image.md @Jah-yee @Moapacha @wittgenstein-image
-/docs/codecs/audio.md @Jah-yee @Moapacha @wittgenstein-audio
-/docs/codecs/video.md @Jah-yee @Moapacha @wittgenstein-video
-/docs/codecs/sensor.md @Jah-yee @Moapacha @wittgenstein-sensor
+/docs/codecs/image.md @Jah-yee @Moapacha
+/docs/codecs/audio.md @Jah-yee @Moapacha
+/docs/codecs/video.md @Jah-yee @Moapacha
+/docs/codecs/sensor.md @Jah-yee @Moapacha
 
 # ----- Doctrine surfaces (ADR-0013 §1) -----
 # These require independent ratification per ADR-0013. Always route to the

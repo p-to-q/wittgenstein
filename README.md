@@ -3,6 +3,22 @@
 # Wittgenstein
 
 **The modality harness for text-first LLMs.**
+Give a text LLM a prompt and Wittgenstein turns the structured plan into real files:
+`.png`, `.wav`, `.csv`, `.html`, or `.svg`, with run manifests that record the seed,
+artifact hash, and model I/O. No fused multimodal model is required for the local
+30-second sensor demo.
+
+```bash
+git clone https://github.com/p-to-q/wittgenstein.git && cd wittgenstein
+cd polyglot-mini && pip install -r requirements.txt
+python3 -m polyglot.cli sensor "ECG 72 bpm resting" --dry-run --out /tmp/ecg.json
+open /tmp/ecg.html   # macOS; or xdg-open on Linux
+```
+
+You get a real ECG dashboard (`~117 KB` self-contained HTML), a 2,500-sample CSV, and
+a manifest tying the artifact to a git SHA + seed. That is the smallest end-to-end
+shape. Image, audio, and SVG follow the same harness/codec/manifest contract, with
+different maturity levels called out in `docs/implementation-status.md`.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/p-to-q/wittgenstein/ci.yml?branch=main&label=CI)](./.github/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/p-to-q/wittgenstein?include_prereleases&label=release)](https://github.com/p-to-q/wittgenstein/releases)
@@ -21,13 +37,13 @@ of it can plan. Wittgenstein's response is to extend what the model can **expres
 files** — schemas, codec IR, latent codes — rather than what it can **say in tokens**. The
 expressive contract lives in code, not prompt copy.
 
-> **🧪 Project status — early-stage, doctrine-locked, pre-M2 implementation.**
+> **🧪 Project status — early-stage, doctrine-locked, M2 audio in progress.**
 > Wittgenstein is a prerelease (`v0.2.0-alpha.2`) with a working Python
 > surface, a production-shaped TypeScript harness, and a few intentionally
 > unfinished surfaces clearly flagged with ⚠️ or 🔴 in
 > [`docs/implementation-status.md`](docs/implementation-status.md). The v0.2
 > cut locks the thesis, vocabulary, and codec protocol (RFC-0001 / ADR-0008);
-> M0 and M1A have landed; M2 audio is the next implementation line against
+> M0 and M1A have landed; M2 audio is the active implementation line against
 > [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md).
 > Breaking changes are still possible before a stable release. **We are
 > actively looking for early adopters and contributors** — see
