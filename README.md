@@ -3,6 +3,16 @@
 # Wittgenstein
 
 **The modality harness for text-first LLMs.**
+Give a text LLM a prompt → get a real `.png`, `.wav`, `.csv`, or `.svg` back, with a checked-in run manifest you can replay bit-exactly. No diffusion samplers, no fused multimodal model, no API key required for a 30-second demo.
+
+```bash
+git clone https://github.com/p-to-q/wittgenstein.git && cd wittgenstein
+cd polyglot-mini && pip install -r requirements.txt
+python3 -m polyglot.cli sensor "ECG 72 bpm resting" --dry-run --out /tmp/ecg.json
+open /tmp/ecg.html   # macOS; or xdg-open on Linux
+```
+
+You get a real ECG dashboard (`~117 KB` self-contained HTML), a 2,500-sample CSV, and a manifest tying every byte to a git SHA + seed. That's the smallest end-to-end shape; image, TTS, soundscape, music, and SVG routes work the same way.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/p-to-q/wittgenstein/ci.yml?branch=main&label=CI)](./.github/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/p-to-q/wittgenstein?include_prereleases&label=release)](https://github.com/p-to-q/wittgenstein/releases)
