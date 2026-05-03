@@ -36,6 +36,8 @@ flowchart LR
   Code --> Runs["Artifacts + manifests\nartifacts/runs/<id>/"]
 ```
 
+For the full Brief / RFC / ADR / exec-plan lineage with engineering vs governance lane edges, see [`lineage.mermaid`](lineage.mermaid). GitHub renders it natively when opened.
+
 ## Brief shape (required)
 
 Every brief ships with the four-station loop as grep-able headings:

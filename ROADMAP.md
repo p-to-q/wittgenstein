@@ -3,12 +3,28 @@
 > **Status:** high-level release / product roadmap. For the active execution order and
 > migration gates, use `docs/exec-plans/active/codec-v2-port.md`.
 >
-> As of 2026-04-29:
+> As of 2026-05-04:
 >
 > - `M0` is landed
 > - `M1A` is landed (`PR #68`)
-> - `M2 audio` is the next execution line
+> - `M2 audio` is mid-execution (Slices A / B / C1 / D / C3 goldens merged; C2 backend wiring pending)
 > - `M1B image depth` is tracked separately as a follow-up line (`Issue #70`)
+
+## Vocabulary cross-reference
+
+This document is the **release-shaped** view (Phase = a v0.X release boundary). The codec-v2 port plan is the **execution-shaped** view (M-phase = a PR-sized boundary). They are two projections of the same plan.
+
+| Phase here              | Release | Maps to in `codec-v2-port.md`                         |
+| ----------------------- | ------- | ----------------------------------------------------- |
+| Phase 0 — Foundation    | v0.1    | (predates the M-phase scheme; M0 begins post-v0.2)    |
+| Phase 1 — Image real    | v0.3    | `M1A` (port) ✅ + `M1B` (adapter + frozen decoder) 🚧 |
+| Phase 2 — Audio v2      | v0.3    | `M2` (port + goldens + backend wiring) 🚧             |
+| Phase 3 — Video real    | v0.4    | `M4` (harness modality-blind cleanup) + future video  |
+| Phase 4 — Benchmarks    | v0.4    | `M5a` (image) + `M5b` (audio + video)                 |
+| Phase 5 — Distribution  | v0.4+   | (post-M5b; no M-phase yet)                            |
+| Phase 6 — Site / launch | v0.4+   | (post-M5b; tracked under RFC-0004)                    |
+
+If a Phase row and an M-phase row appear to disagree (status, scope, target release), the **execution view wins** — `docs/exec-plans/active/codec-v2-port.md` is the live source of truth and this document gets a follow-up commit. Tracked: Issue #119.
 
 Wittgenstein is built in phases. Each phase is self-contained and shippable — the repo
 should be useful (and honest) at every phase boundary, not only at the end.

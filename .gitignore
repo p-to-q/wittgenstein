@@ -60,3 +60,7 @@ polyglot-mini/**/*.pyc
 
 # Optional: large trained weights (uncomment if you do not want npz in repo)
 # polyglot-mini/train/adapter.npz
+
+# Mac Finder duplicate suffix patterns
+* copy*
+*\ copy*
