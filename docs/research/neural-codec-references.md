@@ -1,5 +1,9 @@
 # Neural Codec References
 
+> **Status:** Reference sheet (annotated bibliography; not active execution guidance, not ratified doctrine).
+> Use to look up papers cited from briefs / ADRs (e.g. Brief A — VQ/VLM lineage; ADR-0005). Do not treat any single citation here as load-bearing on its own; new doctrine still routes through `Brief → RFC → ADR` (ADR-0014 §2).
+> _Tracker: #91 (research taxonomy reclassification pass)._
+
 Annotated reference sheet for the image path's theoretical foundation. Organized by theme in the order the ideas build on each other.
 
 ---

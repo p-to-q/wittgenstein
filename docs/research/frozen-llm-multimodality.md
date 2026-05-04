@@ -1,5 +1,9 @@
 # Frozen LLM Multimodality
 
+> **Status:** Theory note (background reading; not active execution guidance, not ratified doctrine).
+> Cited from briefs (e.g. Brief G — image-network clues) that route ratifying decisions through `Brief → RFC → ADR`. Do not promote prose from this page directly into operating docs; new doctrine derived here must follow the lane (ADR-0014 §2).
+> _Tracker: #91 (research taxonomy reclassification pass)._
+
 ## Core Argument
 
 A frozen text LLM paired with modality-specific codecs and small adapter heads is a better architecture for Wittgenstein's use case than an end-to-end trained multimodal giant. This is not a resource constraint — it is a principled design choice with implications for cost, reproducibility, debuggability, and modularity.
