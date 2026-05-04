@@ -1,7 +1,8 @@
 %% Brief → RFC → ADR → exec-plan → code lineage DAG.
+%% Canonical raw form. The same content is embedded as a rendered ```mermaid
+%% block in docs/research/briefs/README.md — keep the two in sync.
 %% Source of truth for the relationships between research briefs (A–J),
 %% RFCs (0001–0005), ADRs (0001–0017), and execution plans.
-%% Tracked by Issue #111 / docs/research/briefs/README.md.
 
 flowchart LR
     %% ----- Briefs -----
@@ -43,7 +44,7 @@ flowchart LR
     M1A["exec §M1A<br/>image port (PR #68)"]
     M2["exec §M2<br/>audio port (PRs #93–96, #121)"]
     M3["exec §M3<br/>sensor port (planned)"]
-    Goldens["fixtures/golden/<br/>(sensor planned, audio C3 ✅)"]
+    Goldens["fixtures/golden/<br/>(sensor ✅, audio C3 ✅)"]
     Code["packages/* code"]
 
     %% ----- Engineering lane -----

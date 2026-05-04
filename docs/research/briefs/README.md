@@ -19,24 +19,106 @@ First-pass research briefs produced under **Phase P2** of the v0.2 Restructuring
 
 ## Where briefs land (map)
 
+The full Brief → RFC → ADR → exec-plan → code lineage with explicit engineering vs governance lanes (per ADR-0014). When adding a new brief / RFC / ADR / exec-plan, edit [`lineage.mermaid`](lineage.mermaid) first (it is the canonical raw form for tooling) and then sync this embed.
+
 ```mermaid
 flowchart LR
-  A["Brief A: VQ / VLM lineage"] -->|updates decoder vocabulary| ADR["ADR(s): decoder ≠ generator, image path"]
-  B["Brief B: Ilya ↔ LeCun stance"] -->|pins stance + kill criteria| ADR
-  C["Brief C: horizon hypotheses"] -->|prices bets| RFC["RFC(s): protocol + IR boundaries"]
-  D["Brief D: CLI/SDK conventions"] -->|aligns UX surface| RFC
-  E["Brief E: benchmarks v2"] -->|defines metrics| RFC
-  F["Brief F: site↔repo diff"] -->|reconciles public narrative| RFC
-  H["Brief H: codec engineering prior art"] -->|amends protocol typing + warnings| RFC
-  I["Brief I: audio codec landscape"] -->|pins M2 decoder family + reproducibility verdict| ADR
-  J["Brief J: audio engineering + routes"] -->|pins M2 route/manifest/deprecation shape| Code
+    %% ----- Briefs -----
+    A["Brief A<br/>VQ / VLM lineage"]
+    B["Brief B<br/>Compression vs world models"]
+    C["Brief C<br/>Horizon hypotheses"]
+    D["Brief D<br/>CLI / SDK conventions"]
+    E["Brief E<br/>Per-modality benchmarks v2"]
+    F["Brief F<br/>Site reconciliation"]
+    G["Brief G<br/>Image-network clues"]
+    H["Brief H<br/>Codec engineering prior art"]
+    I["Brief I<br/>Audio codec landscape"]
+    J["Brief J<br/>Audio engineering & routes"]
+    Audit["Audit memo<br/>2026-04-27 + 2026-05-03"]
 
-  RFC --> Code["Code changes\npackages/*, docs/*"]
-  ADR --> Code
-  Code --> Runs["Artifacts + manifests\nartifacts/runs/<id>/"]
+    %% ----- RFCs -----
+    RFC1["RFC-0001<br/>Codec Protocol v2"]
+    RFC2["RFC-0002<br/>CLI ergonomics"]
+    RFC3["RFC-0003<br/>Naming (rejected)"]
+    RFC4["RFC-0004<br/>Site reconciliation"]
+    RFC5["RFC-0005<br/>Naming v2"]
+
+    %% ----- ADRs -----
+    ADR5["ADR-0005<br/>Decoder ≠ generator"]
+    ADR6["ADR-0006<br/>Layered epistemology"]
+    ADR7["ADR-0007<br/>Path C rejected"]
+    ADR8["ADR-0008<br/>Codec v2 adoption"]
+    ADR9["ADR-0009<br/>CLI v2"]
+    ADR10["ADR-0010<br/>Naming v1 (superseded)"]
+    ADR11["ADR-0011<br/>Naming v2 locked"]
+    ADR12["ADR-0012<br/>Label taxonomy"]
+    ADR13["ADR-0013<br/>Independent ratification"]
+    ADR14["ADR-0014<br/>Governance lane"]
+    ADR15["ADR-0015<br/>Audio decoder family"]
+    ADR16(["ADR-0016<br/>Untrusted code (planned)"])
+    ADR17(["ADR-0017<br/>Test-ratio thresholds (planned)"])
+
+    %% ----- Execution + code -----
+    M1A["exec §M1A<br/>image port (PR #68)"]
+    M2["exec §M2<br/>audio port (PRs #93–96, #121)"]
+    M3["exec §M3<br/>sensor port (planned)"]
+    Goldens["fixtures/golden/<br/>(sensor ✅, audio C3 ✅)"]
+    Code["packages/* code"]
+
+    %% ----- Engineering lane -----
+    A -->|VQ lineage refresh| ADR5
+    A -->|LFQ-family naming| RFC1
+    G -->|image clues| RFC1
+    H -->|engineering prior art| RFC1
+    RFC1 ==> ADR8
+    ADR8 ==> M1A
+    M1A ==> Code
+    M1A -->|first golden surface| Goldens
+
+    I -->|TTS decoder verdict| ADR15
+    J -->|route shape + manifest| M2
+    ADR15 ==> M2
+    M2 ==> Code
+    M2 -->|three-route fixtures| Goldens
+
+    B -.->|stance grounding| ADR6
+    B -.->|Path C rejection| ADR7
+
+    D --> RFC2
+    RFC2 ==> ADR9
+    F --> RFC4
+
+    C -.->|H9 patch-grid| RFC1
+    C -.->|H10 long-code| M1A
+    E -.->|UTMOS / WER bar| I
+    E -.->|UTMOS / WER bar| J
+
+    RFC3 -.x|rejected| ADR10
+    RFC5 ==> ADR11
+    ADR10 -.->|superseded by| ADR11
+
+    %% ----- Governance lane (ADR-0014 introduces the pattern) -----
+    Audit ==> ADR12
+    Audit ==> ADR13
+    Audit ==> ADR14
+    ADR14 -->|governs future| ADR16
+    ADR14 -->|governs future| ADR17
+
+    %% ----- Style -----
+    classDef brief fill:#e8f4ff,stroke:#3178c6,color:#000
+    classDef rfc fill:#fff5e6,stroke:#d97706,color:#000
+    classDef adr fill:#e6ffe6,stroke:#16a34a,color:#000
+    classDef adrPlanned fill:#f3f4f6,stroke:#6b7280,color:#000,stroke-dasharray: 5 5
+    classDef exec fill:#fce7f3,stroke:#be185d,color:#000
+    classDef code fill:#f5f5f5,stroke:#000,color:#000
+
+    class A,B,C,D,E,F,G,H,I,J,Audit brief
+    class RFC1,RFC2,RFC3,RFC4,RFC5 rfc
+    class ADR5,ADR6,ADR7,ADR8,ADR9,ADR10,ADR11,ADR12,ADR13,ADR14,ADR15 adr
+    class ADR16,ADR17 adrPlanned
+    class M1A,M2,M3 exec
+    class Goldens,Code code
 ```
-
-For the full Brief / RFC / ADR / exec-plan lineage with engineering vs governance lane edges, see [`lineage.mermaid`](lineage.mermaid). GitHub renders it natively when opened.
 
 ## Brief shape (required)
 

@@ -45,6 +45,7 @@ For doctrine-bearing PRs, also remember the review rule now locked in `engineeri
 
 - [`research/program.md`](research/program.md) — top-level research program map: engineering-borrow review, model/literature review, and pre-M2 closure status
 - [`research/briefs/README.md`](research/briefs/README.md) — index, status legend, four-station methodology
+- [`research/briefs/lineage.mermaid`](research/briefs/lineage.mermaid) — Brief → RFC → ADR → exec-plan → code DAG (engineering + governance lanes)
 - [`research/briefs/A_vq_vlm_lineage_audit.md`](research/briefs/A_vq_vlm_lineage_audit.md) — VQ / VLM lineage 2026 refresh
 - [`research/briefs/B_compression_vs_world_models.md`](research/briefs/B_compression_vs_world_models.md) — Ilya ↔ LeCun stance (critical-path)
 - [`research/briefs/C_unproven_horizon.md`](research/briefs/C_unproven_horizon.md) — horizon scan (v0.3 roadmap input)
