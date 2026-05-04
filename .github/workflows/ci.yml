@@ -85,6 +85,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Lint deps
+        run: pnpm lint:deps
+
       - name: Typecheck
         run: pnpm typecheck
 

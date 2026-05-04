@@ -17,6 +17,7 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
+    "lint:deps": "node scripts/check-codec-boundaries.mjs",
     "test": "pnpm -r test",
     "test:golden": "pnpm --filter @wittgenstein/codec-sensor run test:golden",
     "launch:check": "pnpm typecheck && pnpm --filter @wittgenstein/codec-audio test && pnpm --filter @wittgenstein/codec-sensor test",
