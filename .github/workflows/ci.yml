@@ -191,12 +191,21 @@ jobs:
         uses: reviewdog/action-actionlint@v1
 
       - name: Dependency review (PR)
-        # Gates PRs that introduce HIGH or CRITICAL severity advisories, or
-        # GPL-3.0 / AGPL-3.0 dependencies (Apache-2.0 incompatibility per
-        # the audit memo § supply-chain). Existing tree is not re-scanned;
-        # this only blocks NEW vulnerable / GPL deps from being added.
+        # Configures dependency-review for HIGH-or-CRITICAL severity gating
+        # and GPL-3.0 / AGPL-3.0 license denial (Apache-2.0 incompatibility
+        # per the audit memo § supply-chain). Existing tree is not re-scanned;
+        # only NEW deps introduced by a PR are checked.
+        #
+        # `continue-on-error: true` is kept for now because the action
+        # requires GitHub's Dependency graph to be enabled in
+        # Settings → Security & analysis. Until a maintainer flips that
+        # toggle, the action returns "Dependency review is not supported
+        # on this repository" and we don't want that to block merge.
+        # Once dep-graph is enabled, REMOVE this line to make the gate real.
+        # Tracking: Issue #107.
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
           deny-licenses: GPL-3.0, AGPL-3.0
