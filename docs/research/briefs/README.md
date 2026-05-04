@@ -16,6 +16,7 @@ First-pass research briefs produced under **Phase P2** of the v0.2 Restructuring
 | H   | [Codec engineering prior art](H_codec_engineering_prior_art.md)                | Which production-validated TS projects share our `Codec<Req, Art>` shape, and what to copy at M1A?           | 🟡 Draft v0.1           |
 | I   | [Audio codec landscape](I_audio_codec_landscape.md)                            | Which open-weight TTS decoder, audio tokenizer, and soundscape/music stance should v0.3 audio adopt?         | 🟢 Ratified by ADR-0015 |
 | J   | [Audio engineering and routes](J_audio_engineering_and_routes.md)              | What is the smallest honest M2 engineering shape for audio routes, manifest rows, fixtures, and deprecation? | 🟡 Draft v0.1           |
+| K   | [Orchestration prior art](K_orchestration_prior_art.md)                        | Which 2026 orchestration / harness primitives (Symphony / Trellis / Anthropic) should Wittgenstein adopt?    | 🟡 Draft v0.1           |
 
 ## Where briefs land (map)
 
