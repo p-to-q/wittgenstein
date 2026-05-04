@@ -108,7 +108,10 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -r polyglot-mini/requirements.txt
 
       - name: Python compile
-        run: python -m compileall polyglot-mini/polyglot
+        run: python -m compileall polyglot-mini/polyglot polyglot-mini/train
+
+      - name: Python unit tests (polyglot-mini/train)
+        run: python -m unittest discover -s polyglot-mini/train -p 'test_*.py' -v
 
       - name: Python smoke (sensor + image + platform-aware tts)
         env:

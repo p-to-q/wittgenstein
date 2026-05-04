@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "generatedBy": "polyglot-mini/train/build_dataset_coco.py",
+  "generatedAt": "2026-05-04T13:26:40.742377+00:00",
+  "gitSha": "4fe9143139cb46b999c0b0e3c5014c0725ea6e5e",
+  "karpathyInput": {
+    "path": null,
+    "sha256": null
+  },
+  "seed": null,
+  "nRequested": null,
+  "nWritten": 781,
+  "output": {
+    "path": "data.jsonl",
+    "sha256": "eda25aae549918f942c73b8c6519639c26edbf7d82a7221fceda1f3829248f54"
+  },
+  "promptsSha256": "b5a7e352e2d4d66404055c040df9bc7280850dbb9eb806ec93db82f15f93a19f",
+  "note": "Backfill: data.jsonl was written before manifest emission landed (Issue #114). The original sampling seed and -n value were not recorded in the v0.1 sampling pass; both fields are null. Future runs of build_dataset_coco.py will emit a manifest with both populated."
+}
