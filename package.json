@@ -11,7 +11,8 @@
   "packageManager": "pnpm@9.12.0",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "!apps/wittgenstein-kimi"
   ],
   "scripts": {
     "build": "pnpm -r build",
@@ -38,7 +39,7 @@
     "smoke:cli": "pnpm --filter @wittgenstein/cli run smoke",
     "dev:site": "pnpm --filter @wittgenstein-site dev",
     "dev:presentation": "pnpm --filter @wittgenstein/presentation dev",
-    "dev:wittgenstein-kimi": "pnpm --filter @wittgenstein/wittgenstein-kimi-deck dev"
+    "dev:wittgenstein-kimi": "cd apps/wittgenstein-kimi && pnpm dev"
   },
   "pnpm": {
     "overrides": {

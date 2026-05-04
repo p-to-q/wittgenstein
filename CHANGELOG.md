@@ -6,6 +6,15 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Isolated `apps/wittgenstein-kimi` from the root `pnpm` workspace (Issue #112).
+  The Kimi-flavored agent demo (~7,400 LOC of React / Radix / Vite) now carries
+  its own `pnpm-lock.yaml` under `apps/wittgenstein-kimi/`, so its 70+ transitive
+  deps no longer enter the core supply-chain audit surface. `vercel.json` and the
+  `dev:wittgenstein-kimi` root script switched to direct path-based commands.
+  Dependabot gets a separate monthly directory entry for the kimi workspace.
+
 ### Fixed
 
 - Aligned top-level onboarding/status docs with the `v0.2.0-alpha.2` pre-M2
