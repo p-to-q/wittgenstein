@@ -42,9 +42,9 @@ That means the repo reaches "all checks green" from scratch in roughly 40 second
 
 The key evidence is in the CLI entrypoint shape:
 
-- [packages/cli/bin/wittgenstein.js](/Users/dujiayi/Desktop/Wittgenstein/packages/cli/bin/wittgenstein.js:1) detects a workspace checkout via `pnpm-workspace.yaml` and, in that case, runs the source entrypoint with `node --import tsx .../src/index.ts`.
-- [packages/cli/src/index.ts](/Users/dujiayi/Desktop/Wittgenstein/packages/cli/src/index.ts:1) exports `createProgram()` and `runCli()` but does **not** invoke `runCli()` at module top level.
-- The built file at [packages/cli/dist/index.js](/Users/dujiayi/Desktop/Wittgenstein/packages/cli/dist/index.js:1) has the same shape.
+- [`packages/cli/bin/wittgenstein.js`](../../packages/cli/bin/wittgenstein.js) detects a workspace checkout via `pnpm-workspace.yaml` and, in that case, runs the source entrypoint with `node --import tsx .../src/index.ts`.
+- [`packages/cli/src/index.ts`](../../packages/cli/src/index.ts) exports `createProgram()` and `runCli()` but does **not** invoke `runCli()` at module top level.
+- The built file at `packages/cli/dist/index.js` (gitignored; produced by `pnpm build`) has the same shape.
 
 As a result, workspace CLI invocations and the package smoke script:
 
