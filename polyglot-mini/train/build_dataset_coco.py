@@ -147,6 +147,17 @@ def build(karpathy_path: str, out_path: str, n_images: int, workers: int, seed: 
                 print(f"PROGRESS {written}/{len(urls)} ({rate:.1f}/s)", flush=True)
     print(f"DONE wrote={written} out={out_path}", flush=True)
 
+    from data_manifest import build_manifest, write_manifest
+    manifest_path = os.path.join(os.path.dirname(out_path) or ".", "data_manifest.json")
+    manifest = build_manifest(
+        output_path=out_path,
+        seed=seed,
+        n_requested=n_images,
+        karpathy_input_path=karpathy_path,
+    )
+    write_manifest(manifest, manifest_path)
+    print(f"DONE manifest={manifest_path}", flush=True)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
