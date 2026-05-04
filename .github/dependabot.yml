@@ -17,8 +17,13 @@
 version: 2
 updates:
   # ---------------------------------------------------------------------------
-  # npm — root monorepo (packages/*, apps/*)
+  # npm — root monorepo (packages/*, apps/* excluding apps/wittgenstein-kimi)
   # ---------------------------------------------------------------------------
+  # apps/wittgenstein-kimi is intentionally excluded from the root pnpm
+  # workspace (Issue #112) — its 70+ React / Radix / Vite transitive deps
+  # were entering the core supply-chain audit surface unnecessarily. It
+  # carries its own pnpm-lock.yaml and its own Dependabot directory entry
+  # below.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -92,6 +97,36 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
+  # npm — apps/wittgenstein-kimi (isolated demo workspace, Issue #112)
+  # ---------------------------------------------------------------------------
+  # The Kimi-flavored agent demo is NOT a member of the root pnpm
+  # workspace; it lives at apps/wittgenstein-kimi/ with its own
+  # pnpm-lock.yaml. Conservative cadence on purpose: the deck is demo-grade
+  # UI, so minor / major framework upgrades belong in their own deliberate
+  # PR rather than weekly Dependabot churn. Security advisories still
+  # bypass the ignore rules below.
+  - package-ecosystem: "npm"
+    directory: "/apps/wittgenstein-kimi"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)(kimi-deck)"
+      include: "scope"
+    groups:
+      kimi-deck-patch:
+        update-types:
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   # ---------------------------------------------------------------------------
   # pip — polyglot-mini (research-grade Python)

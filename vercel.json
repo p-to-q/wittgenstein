@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @wittgenstein/wittgenstein-kimi-deck run build && rm -rf _vercel-kimi-out && cp -R apps/wittgenstein-kimi/dist _vercel-kimi-out",
+  "installCommand": "pnpm install --frozen-lockfile && cd apps/wittgenstein-kimi && pnpm install --frozen-lockfile",
+  "buildCommand": "cd apps/wittgenstein-kimi && pnpm run build && cd ../.. && rm -rf _vercel-kimi-out && cp -R apps/wittgenstein-kimi/dist _vercel-kimi-out",
   "outputDirectory": "_vercel-kimi-out",
   "cleanUrls": true
 }
