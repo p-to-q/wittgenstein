@@ -84,28 +84,21 @@ Wittgenstein makes three architectural bets instead:
 
 ## Receipts (not claims)
 
-Every row below is byte-reproducible from a clean checkout. Run the command in the **Verify** column and you will get the same numbers, or the build will fail. Single-run hackathon-phase metrics (training loss, manual spot checks, illustrative ratios) live in [Demos](#demos--illustrative-not-benchmarks) below, clearly labeled as not-a-benchmark.
+Three byte-precise CI gates. Every row is reproducible from a clean checkout via the command in the **Verify** column, and CI fails if any of them drifts. Single-run hackathon-phase numbers (training loss, manual spot checks, illustrative ratios) used to live here; they are not receipts and have been removed in favor of these three.
 
-| What                                      | Number                                         | Verify                                                                                                                                                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Sensor goldens (ECG / temperature / gyro) | <strong>3 / 3 byte-for-byte</strong>           | `pnpm test:golden` against [`fixtures/golden/sensor/manifest.json`](fixtures/golden/sensor/manifest.json) (SHA-256 pinned per signal; CI-gated)                                                                                            |
-| Codec independence                        | <strong>6 / 6 packages clean</strong>          | `pnpm lint:deps` runs [`scripts/check-codec-boundaries.mjs`](scripts/check-codec-boundaries.mjs) — fails if any `packages/codec-X/` imports `packages/codec-Y/` (CI-gated)                                                                 |
-| Self-contained loupe HTML dashboard       | <strong>~ 117 KB</strong>                      | Run the [Quickstart](#quickstart-30-seconds-no-api-key) below, then `wc -c /tmp/ecg.html` (zero external CDN deps; single self-contained file)                                                                                             |
-| Workspace gates from a clean checkout     | <strong>typecheck + lint + test green</strong> | `git clone … && pnpm install && pnpm typecheck && pnpm lint && pnpm test` — the 2026-05-04 fresh-clone run is logged in [`docs/research/2026-05-04-cold-checkout-verification.md`](docs/research/2026-05-04-cold-checkout-verification.md) |
+| What                                       | Number                                                  | Verify (CI gate)                                                                                                                                                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sensor parity (ECG / temperature / gyro)   | <strong>3 / 3 routes byte-for-byte</strong>             | `pnpm test:golden` against [`fixtures/golden/sensor/manifest.json`](fixtures/golden/sensor/manifest.json) (SHA-256 pinned per signal; landed in [PR #125](https://github.com/p-to-q/wittgenstein/pull/125))                                                         |
+| Audio parity (speech / soundscape / music) | <strong>3 / 3 routes byte + structural</strong>         | `pnpm --filter @wittgenstein/codec-audio test` exercises [`packages/codec-audio/test/parity.test.ts`](packages/codec-audio/test/parity.test.ts) (procedural backend SHA-256 pinned; landed in [PR #121](https://github.com/p-to-q/wittgenstein/pull/121))           |
+| Training-data lock                         | <strong>SHA-256 over selection + output sealed</strong> | `python -m unittest discover -s polyglot-mini/train` against [`polyglot-mini/train/data_manifest.json`](polyglot-mini/train/data_manifest.json) (caption-set hash + `data.jsonl` hash pinned; landed in [PR #130](https://github.com/p-to-q/wittgenstein/pull/130)) |
 
 The receipt set is intentionally narrow. Adding a row requires a script + a CI gate, not a number in a slide.
 
-## Demos — illustrative, not benchmarks
+### Engineering
 
-These are single-run snapshots from hackathon-phase work. They demonstrate that the pipelines produce real outputs but are **not** statistical claims — no holdout sets, no cross-validation, no baselines. Treat them as evidence that the path runs end-to-end, not as quality measurements.
-
-| What                          | Number                       | Provenance                                                                                                                                                                                         |
-| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image style MLP training loss | 0.7698 BCE                   | Single training run, 600 epochs, 781 COCO captions; no holdout split. Reproduce: `cd polyglot-mini && python3 train/train.py`                                                                      |
-| Audio ambient classifier      | 5 / 5 manual spot checks     | 5 hand-picked prompts logged in [`docs/benchmark-standards.md`](docs/benchmark-standards.md) §"Audio ambient classifier baseline"; no confusion matrix, no cross-validation, no held-out test set. |
-| Sensor expand latency         | sub-2 ms on a single machine | Pure numpy expand of a 250 Hz × 10 s ECG operator spec; no baseline (e.g. pandas → resample → matplotlib) is measured against it.                                                                  |
-
-The full hackathon-phase artifact pack (35 outputs) lives in [Showcase](#showcase--35-real-artifacts-you-can-open-right-now) below.
+- Workspace gates from a clean checkout: `pnpm install && pnpm typecheck && pnpm lint && pnpm test` — 10 / 10 packages green. Verified 2026-05-04 in [`docs/research/2026-05-04-cold-checkout-verification.md`](docs/research/2026-05-04-cold-checkout-verification.md).
+- Codec independence: `pnpm lint:deps` enforces no cross-codec imports across 6 codec packages ([PR #126](https://github.com/p-to-q/wittgenstein/pull/126)).
+- Self-contained loupe HTML dashboard: ~ 117 KB, zero external CDN dependencies (run the [Quickstart](#quickstart-30-seconds-no-api-key) below, then `wc -c /tmp/ecg.html`).
 
 ---
 
