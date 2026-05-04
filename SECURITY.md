@@ -35,6 +35,14 @@ If you deploy Wittgenstein in an adversarial environment, run it inside a contai
 `firejail`-style profile. The current sandbox is adequate for local development and
 research; it is not adequate for multi-tenant production.
 
+The research-vs-production boundary is locked in
+[`docs/adrs/0016-untrusted-code-execution-boundary.md`](docs/adrs/0016-untrusted-code-execution-boundary.md).
+The production-path entrypoint is `@wittgenstein/sandbox` (`packages/sandbox/`);
+engaging the painter path in any environment that meets ADR-0016 §Decision 1's
+"production" criteria must hard-error through that entrypoint rather than silently
+fall back to the research-grade subprocess sandbox. Implementing the production
+sandbox against `nsjail` / `bubblewrap` / Pyodide-WASM is its own engineering line.
+
 ## Reproducibility and the manifest spine
 
 Every run writes `artifacts/runs/<id>/manifest.json` with:

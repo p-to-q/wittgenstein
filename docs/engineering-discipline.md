@@ -143,6 +143,10 @@ Maintain established functionality unless change is explicitly needed. Select st
 
 Manifests and run records are not overhead — they are the evidence that reproducibility holds.
 
+### Untrusted-code execution boundary
+
+The `polyglot-mini` painter sandbox (`subprocess + 20 s timeout + safe globals`) is **research-grade only**. ADR-0016 locks this boundary: any environment that runs painter code on behalf of another user, sits on shared infrastructure, is exposed to the public internet, or processes prompts outside the operator's trust boundary must engage the painter path through `@wittgenstein/sandbox` (`packages/sandbox/`), which today throws `NotImplementedError` and is intentionally designed to **hard-error rather than silently fall back** to the research-grade subprocess. Production implementation against `nsjail` / `bubblewrap` / Pyodide-WASM is its own engineering line. See [ADR-0016](adrs/0016-untrusted-code-execution-boundary.md) for the full doctrine and `SECURITY.md` for the operator-facing summary.
+
 ## Code Style and Readability
 
 ### Clarity first
