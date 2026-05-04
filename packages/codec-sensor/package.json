@@ -10,8 +10,10 @@
   },
   "scripts": {
     "typecheck": "tsc -b",
-    "lint": "eslint src test --ext .ts",
+    "lint": "eslint src test scripts --ext .ts",
     "test": "vitest run",
+    "test:golden": "vitest run test/golden.test.ts",
+    "golden:update": "tsx scripts/write-goldens.ts",
     "build": "tsc"
   },
   "dependencies": {
