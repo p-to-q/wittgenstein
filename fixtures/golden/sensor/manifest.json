@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "generatedBy": "packages/codec-sensor/scripts/write-goldens.ts",
+  "entries": [
+    {
+      "signal": "ecg",
+      "seed": 7,
+      "sampleRateHz": 120,
+      "durationSec": 3,
+      "fixture": "ecg.csv",
+      "artifactSha256": "bb2a5e5d4fcc94e0ba44dc82679c9fe04aac9494fc0d81372a67c39931f4cee3"
+    },
+    {
+      "signal": "temperature",
+      "seed": 7,
+      "sampleRateHz": 10,
+      "durationSec": 12,
+      "fixture": "temperature.csv",
+      "artifactSha256": "a0d03042ac1d113c4765b6066e8dc3e82525ceab47bf8985d9088b65c7c6f537"
+    },
+    {
+      "signal": "gyro",
+      "seed": 7,
+      "sampleRateHz": 50,
+      "durationSec": 4,
+      "fixture": "gyro.csv",
+      "artifactSha256": "86074f303a4441d9851e44e814458a9a17ba79e37b32ff30491214410a1932fc"
+    }
+  ]
+}

@@ -18,6 +18,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "test:golden": "pnpm --filter @wittgenstein/codec-sensor run test:golden",
     "launch:check": "pnpm typecheck && pnpm --filter @wittgenstein/codec-audio test && pnpm --filter @wittgenstein/codec-sensor test",
     "benchmark": "node --import tsx benchmarks/harness.ts",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",

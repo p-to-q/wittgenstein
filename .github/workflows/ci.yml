@@ -91,6 +91,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Golden tests
+        run: pnpm test:golden
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
