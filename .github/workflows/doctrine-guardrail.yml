@@ -5,6 +5,17 @@ name: Doctrine guardrail
 # a comment reminder. Does NOT block merge — this is a nudge, not a gate.
 #
 # The list of doctrine-bearing files mirrors ADR-0013 §1.
+#
+# SECURITY (locked — do NOT remove without an ADR amendment):
+# This workflow uses `pull_request_target` so it can post comments on PRs
+# from forks. That means it runs with REPO permissions and the GITHUB_TOKEN
+# can write to issues/PRs. NEVER add `actions/checkout` with
+# `ref: ${{ github.event.pull_request.head.ref }}` here — that pattern
+# checks out untrusted PR code into a privileged context (token leak via
+# arbitrary scripts in the PR). All steps in this workflow must operate
+# on PR metadata only (titles, bodies, file lists from the API), never on
+# PR file CONTENTS. See: https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+# Tracking: Issue #107.
 
 on:
   pull_request_target:

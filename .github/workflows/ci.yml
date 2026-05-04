@@ -191,6 +191,12 @@ jobs:
         uses: reviewdog/action-actionlint@v1
 
       - name: Dependency review (PR)
+        # Gates PRs that introduce HIGH or CRITICAL severity advisories, or
+        # GPL-3.0 / AGPL-3.0 dependencies (Apache-2.0 incompatibility per
+        # the audit memo § supply-chain). Existing tree is not re-scanned;
+        # this only blocks NEW vulnerable / GPL deps from being added.
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
-        continue-on-error: true
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0

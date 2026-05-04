@@ -35,6 +35,10 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          # security-extended runs the standard security suite plus
+          # higher-precision queries; recommended by the audit (§3.2)
+          # over the default suite for a doctrine-locked codebase.
+          queries: security-extended
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4
