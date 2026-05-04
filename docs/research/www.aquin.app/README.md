@@ -1,5 +1,9 @@
 # www.aquin.app — clone bootstrap
 
+> **Status:** Captured research artifact (site-clone snapshot; evidence preserved as-is, not active execution guidance, not ratified doctrine).
+> Captured via the `site-clone` skill on the date below. Re-running the capture replaces these files; treat them as a frozen snapshot rather than a live source.
+> _Tracker: #91 (research taxonomy reclassification pass)._
+
 ## Last capture
 
 - **URL:** [https://www.aquin.app/](https://www.aquin.app/)

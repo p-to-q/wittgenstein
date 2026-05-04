@@ -1,5 +1,9 @@
 # VQ Tokens as the LLM–Decoder Interface
 
+> **Status:** Theory note (background reading; not active execution guidance, not ratified doctrine).
+> Cited from briefs (e.g. Brief A — VQ/VLM lineage) and ADR-0005 (decoder-not-generator). Ratifying decisions route through `Brief → RFC → ADR`; do not promote prose from this page directly into operating docs (ADR-0014 §2).
+> _Tracker: #91 (research taxonomy reclassification pass)._
+
 ## The Interface Problem
 
 When a text LLM is asked to produce an image, something has to cross the boundary between

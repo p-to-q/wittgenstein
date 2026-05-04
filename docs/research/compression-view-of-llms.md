@@ -1,5 +1,9 @@
 # Compression View of LLMs
 
+> **Status:** Theory note (background reading; not active execution guidance, not ratified doctrine).
+> Cited from briefs (e.g. Brief A — VQ/VLM lineage) that route ratifying decisions through `Brief → RFC → ADR`. Do not promote prose from this page directly into operating docs; new doctrine derived here must follow the lane (ADR-0014 §2).
+> _Tracker: #91 (research taxonomy reclassification pass)._
+
 ## Core Argument
 
 Language models are implicit neural compressors. Wittgenstein is architected around this fact: the LLM compresses intent into a compact symbolic IR, and the codec expands that IR into a real file. This is not a metaphor — it is an architectural decision with measurable cost consequences.
