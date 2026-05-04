@@ -84,17 +84,28 @@ Wittgenstein makes three architectural bets instead:
 
 ## Receipts (not claims)
 
-| What                                     | Number                                  | How                                                    |
-| ---------------------------------------- | --------------------------------------- | ------------------------------------------------------ |
-| Image style MLP validation loss          | <strong>0.7698 BCE</strong>             | 781 COCO captions, 9 s on CPU, 600 epochs              |
-| Audio ambient classifier accuracy        | <strong>5 / 5 spot checks</strong>      | 369 examples, < 5 s on CPU, keyword + MLP hybrid       |
-| LLM token cost: scene JSON vs raw pixels | <strong>~ 52,000× less</strong>         | 60 tokens vs 1024×1024×3 pixel values                  |
-| Sensor expand latency                    | <strong>&lt; 2 ms</strong>              | Pure numpy, 250 Hz × 10 s ECG with operator spec       |
-| Loupe HTML dashboard size                | <strong>~ 117 KB</strong>               | Zero external dependencies, single self-contained file |
-| Full typecheck + lint                    | <strong>10 / 10 packages green</strong> | Strict TS, ESLint, pnpm workspaces                     |
+Every row below is byte-reproducible from a clean checkout. Run the command in the **Verify** column and you will get the same numbers, or the build will fail. Single-run hackathon-phase metrics (training loss, manual spot checks, illustrative ratios) live in [Demos](#demos--illustrative-not-benchmarks) below, clearly labeled as not-a-benchmark.
 
-Adapter training stats are from real runs; see [`docs/benchmark-standards.md`](docs/benchmark-standards.md)
-for the full measurement protocol.
+| What                                      | Number                                         | Verify                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Sensor goldens (ECG / temperature / gyro) | <strong>3 / 3 byte-for-byte</strong>           | `pnpm test:golden` against [`fixtures/golden/sensor/manifest.json`](fixtures/golden/sensor/manifest.json) (SHA-256 pinned per signal; CI-gated)                                                                                            |
+| Codec independence                        | <strong>6 / 6 packages clean</strong>          | `pnpm lint:deps` runs [`scripts/check-codec-boundaries.mjs`](scripts/check-codec-boundaries.mjs) — fails if any `packages/codec-X/` imports `packages/codec-Y/` (CI-gated)                                                                 |
+| Self-contained loupe HTML dashboard       | <strong>~ 117 KB</strong>                      | Run the [Quickstart](#quickstart-30-seconds-no-api-key) below, then `wc -c /tmp/ecg.html` (zero external CDN deps; single self-contained file)                                                                                             |
+| Workspace gates from a clean checkout     | <strong>typecheck + lint + test green</strong> | `git clone … && pnpm install && pnpm typecheck && pnpm lint && pnpm test` — the 2026-05-04 fresh-clone run is logged in [`docs/research/2026-05-04-cold-checkout-verification.md`](docs/research/2026-05-04-cold-checkout-verification.md) |
+
+The receipt set is intentionally narrow. Adding a row requires a script + a CI gate, not a number in a slide.
+
+## Demos — illustrative, not benchmarks
+
+These are single-run snapshots from hackathon-phase work. They demonstrate that the pipelines produce real outputs but are **not** statistical claims — no holdout sets, no cross-validation, no baselines. Treat them as evidence that the path runs end-to-end, not as quality measurements.
+
+| What                          | Number                       | Provenance                                                                                                                                                                                         |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image style MLP training loss | 0.7698 BCE                   | Single training run, 600 epochs, 781 COCO captions; no holdout split. Reproduce: `cd polyglot-mini && python3 train/train.py`                                                                      |
+| Audio ambient classifier      | 5 / 5 manual spot checks     | 5 hand-picked prompts logged in [`docs/benchmark-standards.md`](docs/benchmark-standards.md) §"Audio ambient classifier baseline"; no confusion matrix, no cross-validation, no held-out test set. |
+| Sensor expand latency         | sub-2 ms on a single machine | Pure numpy expand of a 250 Hz × 10 s ECG operator spec; no baseline (e.g. pandas → resample → matplotlib) is measured against it.                                                                  |
+
+The full hackathon-phase artifact pack (35 outputs) lives in [Showcase](#showcase--35-real-artifacts-you-can-open-right-now) below.
 
 ---
 
