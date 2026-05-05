@@ -1,0 +1,11 @@
+{
+  "repoId": "onnx-community/Kokoro-82M-ONNX",
+  "revision": "f46687f7e41512228ae953af24a11b2640ea0f22",
+  "weightsFilename": "onnx/model.onnx",
+  "weightsSha256": "53a71ac22a70778d57162e4f92eafc62852d9e04a4460b20638d2424796e6037",
+  "voicesFilename": "voices/af_bella.bin",
+  "voicesSha256": "38e12d4b9b31a751282ab9154fb083dad3df3a749772687cde7873da107160fa",
+  "voiceDefault": "af_bella",
+  "dtype": "fp32",
+  "kokoroJsVersion": "1.2.1"
+}
