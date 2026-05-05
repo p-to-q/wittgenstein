@@ -21,7 +21,7 @@ export interface AudioArtifactMetadata extends codecV2.BaseArtifactMetadata {
       readonly determinismClass: "byte-parity" | "structural-parity";
     };
     readonly partial: {
-      readonly reason: "procedural-runtime";
+      readonly reason: "procedural-runtime" | "kokoro-cross-platform-pending";
     };
   };
   readonly audioRender: AudioRenderManifest;

@@ -14,6 +14,7 @@ import { renderSoundscapeRoute } from "./routes/soundscape/index.js";
 import { renderMusicRoute } from "./routes/music/index.js";
 import type { AudioArtifact, AudioRoute } from "./types.js";
 import { AUDIO_SAMPLE_RATE } from "./runtime.js";
+import { getKokoroDecoder } from "./decoders/kokoro/index.js";
 
 interface AudioCodecLlmService {
   readonly provider: string;
@@ -105,10 +106,14 @@ function hashBytes(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function wavDurationSec(bytes: Uint8Array): number {
+function wavDurationSec(bytes: Uint8Array, sampleRateHz: number): number {
   const pcm16BytesPerFrame = 2;
   const dataBytes = Math.max(0, bytes.byteLength - 44);
-  return dataBytes / (AUDIO_SAMPLE_RATE * pcm16BytesPerFrame);
+  return dataBytes / (sampleRateHz * pcm16BytesPerFrame);
+}
+
+function isKokoroBackendRequested(): boolean {
+  return process.env.WITTGENSTEIN_AUDIO_BACKEND === "kokoro";
 }
 
 function asServices(services: codecV2.HarnessCtx["services"]): AudioCodecServices {
@@ -285,28 +290,70 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
     const payload = asAudioPlanPayload(ir);
     const startedAt = ctx.clock.now();
     const renderCtx = this.createRenderCtx(ctx);
-    const result =
-      payload.plan.route === "speech"
-        ? await renderSpeechRoute(payload.plan, renderCtx, { allowHostTts: false })
-        : payload.plan.route === "soundscape"
-          ? await renderSoundscapeRoute(payload.plan, renderCtx)
-          : await renderMusicRoute(payload.plan, renderCtx);
-    const bytes = await readFile(result.artifactPath);
     const route = payload.plan.route;
-    const decoderHash = hashString("procedural-audio-runtime");
+
+    const kokoroRequested = isKokoroBackendRequested();
+    const kokoroEngaged = kokoroRequested && route === "speech";
+
+    if (kokoroRequested && !kokoroEngaged) {
+      ctx.sidecar.warnings.push({
+        code: "audio/kokoro-backend-not-applicable",
+        message: `WITTGENSTEIN_AUDIO_BACKEND=kokoro is set but route=${route}; Kokoro is TTS-only at v0.3, this route falls through to the procedural runtime.`,
+        detail: { route },
+        phase: codecV2.CodecPhase.Decode,
+      });
+    }
+
+    let artifactPath: string;
+    let sampleRateHz: number;
+    let decoderId: string;
+    let determinismClass: "byte-parity" | "structural-parity";
+    let partialReason: "procedural-runtime" | "kokoro-cross-platform-pending";
+    let slot: "Kokoro-82M-family-decoder" | "procedural-audio-runtime";
+
+    if (kokoroEngaged) {
+      const kokoro = await getKokoroDecoder();
+      const result = await kokoro.synthesize(
+        payload.plan.script,
+        kokoro.manifest.voiceDefault,
+        ctx.outPath,
+      );
+      artifactPath = ctx.outPath;
+      sampleRateHz = result.sampleRate;
+      decoderId = kokoro.decoderId;
+      determinismClass = "structural-parity";
+      partialReason = "kokoro-cross-platform-pending";
+      slot = "Kokoro-82M-family-decoder";
+    } else {
+      const result =
+        route === "speech"
+          ? await renderSpeechRoute(payload.plan, renderCtx, { allowHostTts: false })
+          : route === "soundscape"
+            ? await renderSoundscapeRoute(payload.plan, renderCtx)
+            : await renderMusicRoute(payload.plan, renderCtx);
+      artifactPath = result.artifactPath;
+      sampleRateHz = AUDIO_SAMPLE_RATE;
+      decoderId = "procedural-audio-runtime";
+      determinismClass = "byte-parity";
+      partialReason = "procedural-runtime";
+      slot = "procedural-audio-runtime";
+    }
+
+    const bytes = await readFile(artifactPath);
+    const decoderHash = hashString(decoderId);
     const audioRender = {
-      sampleRateHz: AUDIO_SAMPLE_RATE,
+      sampleRateHz,
       channels: 1,
-      durationSec: wavDurationSec(bytes),
+      durationSec: wavDurationSec(bytes, sampleRateHz),
       container: "wav" as const,
       bitDepth: 16,
-      determinismClass: "byte-parity" as const,
-      decoderId: "procedural-audio-runtime",
+      determinismClass,
+      decoderId,
       decoderHash,
     };
 
     return {
-      outPath: result.artifactPath,
+      outPath: artifactPath,
       bytes,
       mime: "audio/wav",
       metadata: {
@@ -327,14 +374,14 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
             determinismClass: audioRender.determinismClass,
           },
           partial: {
-            reason: "procedural-runtime",
+            reason: partialReason,
           },
         },
         audioRender,
         decoderHash: {
           value: decoderHash,
           frozen: true,
-          slot: "procedural-audio-runtime",
+          slot,
         },
         artifactSha256: hashBytes(bytes),
       },
