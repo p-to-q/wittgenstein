@@ -4,6 +4,8 @@ Audio is the second-priority modality after image. It ships three internal route
 
 `LLM -> structured AudioPlan JSON -> per-route render -> WAV bytes -> manifest`
 
+> **Implementation status (v0.3 in flight, 2026-05-05).** The doctrine below — Kokoro-82M-family default for speech, Piper-family fallback, byte-parity on the pinned CPU backend — is the **ratified target** (ADR-0015). Code-wise, the speech route currently ships `procedural-audio-runtime` as the **default** decoder; **Kokoro-82M is opt-in** via `WITTGENSTEIN_AUDIO_BACKEND=kokoro` (M2 Slice C2, Issue #116). The default flip from procedural to Kokoro is gated on Slice E (#118) cross-platform determinism verification. Until Slice E lands, `audioRender.decoderId` in the manifest is the source of truth for which backend actually ran on a given run; the doctrine and the code converge at the v0.3 cut, not before.
+
 ## Position
 
 Audio is a _layered_ modality, not a single decoder. Each route picks its own L3:
