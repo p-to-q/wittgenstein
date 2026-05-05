@@ -113,17 +113,52 @@ interface WavMeta {
 }
 
 function readWavMeta(bytes: Uint8Array): WavMeta {
-  if (bytes.byteLength < 44) {
+  if (bytes.byteLength < 12) {
     throw new Error(`WAV header too short (${bytes.byteLength} bytes)`);
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const channels = view.getUint16(22, true);
-  const sampleRateHz = view.getUint32(24, true);
-  const bitDepth = view.getUint16(34, true);
-  const dataBytes = Math.max(0, bytes.byteLength - 44);
+  if (ascii(bytes, 0, 4) !== "RIFF" || ascii(bytes, 8, 4) !== "WAVE") {
+    throw new Error("Expected RIFF/WAVE audio artifact");
+  }
+
+  let channels = 0;
+  let sampleRateHz = 0;
+  let bitDepth = 0;
+  let dataBytes = 0;
+
+  for (let offset = 12; offset + 8 <= bytes.byteLength; ) {
+    const chunkId = ascii(bytes, offset, 4);
+    const chunkSize = view.getUint32(offset + 4, true);
+    const chunkStart = offset + 8;
+    if (chunkStart + chunkSize > bytes.byteLength) {
+      throw new Error(`WAV chunk ${chunkId} exceeds artifact length`);
+    }
+
+    if (chunkId === "fmt ") {
+      if (chunkSize < 16) {
+        throw new Error("WAV fmt chunk too short");
+      }
+      channels = view.getUint16(chunkStart + 2, true);
+      sampleRateHz = view.getUint32(chunkStart + 4, true);
+      bitDepth = view.getUint16(chunkStart + 14, true);
+    } else if (chunkId === "data") {
+      dataBytes = chunkSize;
+    }
+
+    offset = chunkStart + chunkSize + (chunkSize % 2);
+  }
+
+  if (!channels || !sampleRateHz || !bitDepth || !dataBytes) {
+    throw new Error("WAV artifact missing fmt or data chunk");
+  }
+
   const bytesPerFrame = (bitDepth / 8) * channels;
   const durationSec = bytesPerFrame > 0 ? dataBytes / (sampleRateHz * bytesPerFrame) : 0;
   return { sampleRateHz, channels, bitDepth, durationSec };
+}
+
+function ascii(bytes: Uint8Array, offset: number, length: number): string {
+  return String.fromCharCode(...bytes.subarray(offset, offset + length));
 }
 
 function isKokoroBackendRequested(): boolean {
@@ -153,9 +188,7 @@ function inferIntentRoute(prompt: string): AudioRoute {
   const normalized = prompt.toLowerCase();
 
   if (
-    /\b(music|soundtrack|score|melody|song|cue|theme|pulse|beat|chord|motif)\b/.test(
-      normalized,
-    )
+    /\b(music|soundtrack|score|melody|song|cue|theme|pulse|beat|chord|motif)\b/.test(normalized)
   ) {
     return "music";
   }
@@ -326,11 +359,7 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
 
     if (kokoroEngaged) {
       const kokoro = await getKokoroDecoder();
-      await kokoro.synthesize(
-        payload.plan.script,
-        kokoro.manifest.voiceDefault,
-        ctx.outPath,
-      );
+      await kokoro.synthesize(payload.plan.script, kokoro.manifest.voiceDefault, ctx.outPath);
       artifactPath = ctx.outPath;
       decoderId = kokoro.decoderId;
       determinismClass = "structural-parity";

@@ -14,13 +14,16 @@ import { audioCodec } from "../src/index.js";
  * `<repo>/node_modules/.pnpm/@huggingface+transformers@<v>/node_modules/@huggingface/transformers/.cache/onnx-community/Kokoro-82M-ONNX/`)
  * — subsequent runs are sub-second. To opt in:
  *
- *   pnpm --filter @wittgenstein/codec-audio test
+ *   WITTGENSTEIN_KOKORO_TEST=1 pnpm --filter @wittgenstein/codec-audio test
  *
  * This is the single-machine version of Brief I §H I.7. The cross-platform
  * sweep is M2 Slice E (#118), not this file.
  */
 
-const SHOULD_SKIP = process.env.CI === "true" || process.env.CI === "1";
+const SHOULD_SKIP =
+  process.env.CI === "true" ||
+  process.env.CI === "1" ||
+  process.env.WITTGENSTEIN_KOKORO_TEST !== "1";
 
 describe.skipIf(SHOULD_SKIP)(
   "@wittgenstein/codec-audio Kokoro determinism (local-only, opt-in via cached weights)",
