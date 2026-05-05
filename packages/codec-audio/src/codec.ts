@@ -13,7 +13,6 @@ import { renderSpeechRoute } from "./routes/speech/index.js";
 import { renderSoundscapeRoute } from "./routes/soundscape/index.js";
 import { renderMusicRoute } from "./routes/music/index.js";
 import type { AudioArtifact, AudioRoute } from "./types.js";
-import { AUDIO_SAMPLE_RATE } from "./runtime.js";
 import { getKokoroDecoder } from "./decoders/kokoro/index.js";
 
 interface AudioCodecLlmService {
@@ -106,10 +105,25 @@ function hashBytes(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function wavDurationSec(bytes: Uint8Array, sampleRateHz: number): number {
-  const pcm16BytesPerFrame = 2;
+interface WavMeta {
+  readonly sampleRateHz: number;
+  readonly channels: number;
+  readonly bitDepth: number;
+  readonly durationSec: number;
+}
+
+function readWavMeta(bytes: Uint8Array): WavMeta {
+  if (bytes.byteLength < 44) {
+    throw new Error(`WAV header too short (${bytes.byteLength} bytes)`);
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const channels = view.getUint16(22, true);
+  const sampleRateHz = view.getUint32(24, true);
+  const bitDepth = view.getUint16(34, true);
   const dataBytes = Math.max(0, bytes.byteLength - 44);
-  return dataBytes / (sampleRateHz * pcm16BytesPerFrame);
+  const bytesPerFrame = (bitDepth / 8) * channels;
+  const durationSec = bytesPerFrame > 0 ? dataBytes / (sampleRateHz * bytesPerFrame) : 0;
+  return { sampleRateHz, channels, bitDepth, durationSec };
 }
 
 function isKokoroBackendRequested(): boolean {
@@ -305,7 +319,6 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
     }
 
     let artifactPath: string;
-    let sampleRateHz: number;
     let decoderId: string;
     let determinismClass: "byte-parity" | "structural-parity";
     let partialReason: "procedural-runtime" | "kokoro-cross-platform-pending";
@@ -313,13 +326,12 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
 
     if (kokoroEngaged) {
       const kokoro = await getKokoroDecoder();
-      const result = await kokoro.synthesize(
+      await kokoro.synthesize(
         payload.plan.script,
         kokoro.manifest.voiceDefault,
         ctx.outPath,
       );
       artifactPath = ctx.outPath;
-      sampleRateHz = result.sampleRate;
       decoderId = kokoro.decoderId;
       determinismClass = "structural-parity";
       partialReason = "kokoro-cross-platform-pending";
@@ -332,7 +344,6 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
             ? await renderSoundscapeRoute(payload.plan, renderCtx)
             : await renderMusicRoute(payload.plan, renderCtx);
       artifactPath = result.artifactPath;
-      sampleRateHz = AUDIO_SAMPLE_RATE;
       decoderId = "procedural-audio-runtime";
       determinismClass = "byte-parity";
       partialReason = "procedural-runtime";
@@ -340,13 +351,14 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
     }
 
     const bytes = await readFile(artifactPath);
+    const wavMeta = readWavMeta(bytes);
     const decoderHash = hashString(decoderId);
     const audioRender = {
-      sampleRateHz,
-      channels: 1,
-      durationSec: wavDurationSec(bytes, sampleRateHz),
+      sampleRateHz: wavMeta.sampleRateHz,
+      channels: wavMeta.channels,
+      durationSec: wavMeta.durationSec,
       container: "wav" as const,
-      bitDepth: 16,
+      bitDepth: wavMeta.bitDepth,
       determinismClass,
       decoderId,
       decoderHash,

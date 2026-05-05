@@ -15,8 +15,10 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@huggingface/transformers": "3.8.1",
     "@wittgenstein/schemas": "workspace:*",
     "kokoro-js": "1.2.1",
+    "undici": "^7.0.0",
     "zod": "^3.23.8"
   }
 }
