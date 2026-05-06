@@ -59,6 +59,8 @@ jobs:
               /^docs\/agent-guides\//,
               /^docs\/research\/briefs\//,
               /^packages\/schemas\/src\/codec\/v2\//,
+              /^packages\/schemas\/src\/manifest\.ts$/,
+              /^packages\/schemas\/src\/modality\.ts$/,
             ];
             const { data: files } = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
