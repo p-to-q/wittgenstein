@@ -1,0 +1,85 @@
+name: Kokoro Sweep (Linux)
+
+# Independent Linux/Docker Kokoro sweep audit (Issue #164).
+# This is the second receipt the M2 Slice E sweep verdict (#118) needs:
+# the macOS arm64 receipt is in artifacts/, this one runs on ubuntu-latest
+# x86_64 to test cross-platform byte-determinism per Brief I §H I.7.
+#
+# Manually triggered — do not auto-run on every push. Each run downloads
+# the Kokoro-82M weights (~80 MB) from HuggingFace; we cache them across
+# runs so reruns are cheap.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "Number of sweep runs (default 3 — sweep asserts byte-identical SHA across all)"
+        required: false
+        default: "3"
+      seed:
+        description: "Seed override (default 7 — matches sweep script default; do not change unless reproducing a specific issue)"
+        required: false
+        default: "7"
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: Linux x86_64 Kokoro sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Kokoro weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-kokoro-${{ hashFiles('packages/codec-audio/src/decoders/kokoro/index.ts') }}
+          restore-keys: |
+            hf-kokoro-
+
+      - name: Run sweep
+        run: |
+          mkdir -p artifacts/tmp
+          pnpm sweep:audio-kokoro -- \
+            --runs "${{ inputs.runs }}" \
+            --out artifacts/tmp/kokoro-sweep-linux.json
+
+      - name: Summarize receipt
+        if: always()
+        run: |
+          if [ -f artifacts/tmp/kokoro-sweep-linux.json ]; then
+            echo "## Kokoro sweep receipt (Linux)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            jq '{ok, platform, packageVersions, backend, seed, runsRequested, uniqueArtifactShaCount, runs: [.runs[] | {index, artifactSha256}]}' \
+              artifacts/tmp/kokoro-sweep-linux.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sweep produced no receipt — check the run log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-sweep-linux
+          path: artifacts/tmp/kokoro-sweep-linux.json
+          if-no-files-found: warn
+          retention-days: 90
