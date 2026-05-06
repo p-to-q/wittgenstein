@@ -1,4 +1,6 @@
+import { llm as llmSchemas } from "@wittgenstein/schemas";
 import type { LlmConfig } from "@wittgenstein/schemas";
+import { WittgensteinError } from "../runtime/errors.js";
 import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "./adapter.js";
 
 const DEFAULT_BASE_URLS: Record<string, string> = {
@@ -56,19 +58,44 @@ export class OpenAICompatibleLlmAdapter implements LlmAdapter {
       );
     }
 
-    const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
+    const rawJson: unknown = await response.json();
+    const parsed =
+      llmSchemas.OpenAIChatCompletionResponseSchema.safeParse(rawJson);
+    if (!parsed.success) {
+      throw new WittgensteinError(
+        "LLM_PROTOCOL_ERROR",
+        `OpenAI-compatible (${this.config.provider}) response did not match the expected Chat Completions API shape.`,
+        {
+          details: {
+            vendor: this.config.provider,
+            issues: parsed.error.issues.map((issue) => ({
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          },
+        },
+      );
+    }
+
+    // `min(1)` on the schema guarantees at least one choice, but the array
+    // element type is still `T | undefined` per TS noUncheckedIndexedAccess.
+    const firstChoice = parsed.data.choices[0];
+    if (firstChoice === undefined) {
+      throw new WittgensteinError(
+        "LLM_PROTOCOL_ERROR",
+        `OpenAI-compatible (${this.config.provider}) response choices array was unexpectedly empty after schema parse.`,
+        { details: { vendor: this.config.provider } },
+      );
+    }
 
     return {
-      text: json.choices?.[0]?.message?.content ?? "{}",
+      text: firstChoice.message.content,
       tokens: {
-        input: json.usage?.prompt_tokens ?? 0,
-        output: json.usage?.completion_tokens ?? 0,
+        input: parsed.data.usage.prompt_tokens,
+        output: parsed.data.usage.completion_tokens,
       },
       costUsd: 0,
-      raw: json,
+      raw: parsed.data,
     };
   }
 }

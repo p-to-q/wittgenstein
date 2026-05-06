@@ -1,4 +1,6 @@
+import { llm as llmSchemas } from "@wittgenstein/schemas";
 import type { LlmConfig } from "@wittgenstein/schemas";
+import { WittgensteinError } from "../runtime/errors.js";
 import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "./adapter.js";
 
 export class AnthropicLlmAdapter implements LlmAdapter {
@@ -46,19 +48,43 @@ export class AnthropicLlmAdapter implements LlmAdapter {
       );
     }
 
-    const json = (await response.json()) as {
-      content?: Array<{ text?: string }>;
-      usage?: { input_tokens?: number; output_tokens?: number };
-    };
+    const rawJson: unknown = await response.json();
+    const parsed = llmSchemas.AnthropicMessagesResponseSchema.safeParse(rawJson);
+    if (!parsed.success) {
+      throw new WittgensteinError(
+        "LLM_PROTOCOL_ERROR",
+        `Anthropic response did not match the expected Messages API shape.`,
+        {
+          details: {
+            vendor: "anthropic",
+            issues: parsed.error.issues.map((issue) => ({
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          },
+        },
+      );
+    }
+
+    // `min(1)` on the schema guarantees at least one block, but the array
+    // element type is still `T | undefined` per TS noUncheckedIndexedAccess.
+    const firstBlock = parsed.data.content[0];
+    if (firstBlock === undefined) {
+      throw new WittgensteinError(
+        "LLM_PROTOCOL_ERROR",
+        `Anthropic response content array was unexpectedly empty after schema parse.`,
+        { details: { vendor: "anthropic" } },
+      );
+    }
 
     return {
-      text: json.content?.[0]?.text ?? "{}",
+      text: firstBlock.text ?? "{}",
       tokens: {
-        input: json.usage?.input_tokens ?? 0,
-        output: json.usage?.output_tokens ?? 0,
+        input: parsed.data.usage.input_tokens,
+        output: parsed.data.usage.output_tokens,
       },
       costUsd: 0,
-      raw: json,
+      raw: parsed.data,
     };
   }
 }
