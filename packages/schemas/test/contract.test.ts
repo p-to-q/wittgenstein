@@ -178,4 +178,97 @@ describe("@wittgenstein/schemas", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("accepts costUsd: null when paired with a non-computed reason", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-cost-null",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image",
+      args: ["test"],
+      seed: 7,
+      codec: "image",
+      llmProvider: "anthropic",
+      llmModel: "claude-future-2030",
+      llmTokens: { input: 500, output: 250 },
+      costUsd: null,
+      costUsdReason: "unknown-model",
+      promptRaw: "test",
+      promptExpanded: null,
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "deadbeef",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects costUsd: null without a costUsdReason (Issue #182)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-cost-null-bare",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image",
+      args: ["test"],
+      seed: 7,
+      codec: "image",
+      llmProvider: "anthropic",
+      llmModel: "claude-future-2030",
+      llmTokens: { input: 500, output: 250 },
+      costUsd: null,
+      // costUsdReason intentionally omitted
+      promptRaw: "test",
+      promptExpanded: null,
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "deadbeef",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects costUsd: null with costUsdReason: "computed" (contradiction)', () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-cost-null-contradiction",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image",
+      args: ["test"],
+      seed: 7,
+      codec: "image",
+      llmProvider: "anthropic",
+      llmModel: "claude-future-2030",
+      llmTokens: { input: 500, output: 250 },
+      costUsd: null,
+      costUsdReason: "computed",
+      promptRaw: "test",
+      promptExpanded: null,
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "deadbeef",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
 });

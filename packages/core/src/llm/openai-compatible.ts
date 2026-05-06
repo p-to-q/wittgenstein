@@ -2,6 +2,7 @@ import { llm as llmSchemas } from "@wittgenstein/schemas";
 import type { LlmConfig } from "@wittgenstein/schemas";
 import { WittgensteinError } from "../runtime/errors.js";
 import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "./adapter.js";
+import { priceModel } from "./pricing.js";
 
 const DEFAULT_BASE_URLS: Record<string, string> = {
   "openai-compatible": "https://api.openai.com/v1",
@@ -88,13 +89,17 @@ export class OpenAICompatibleLlmAdapter implements LlmAdapter {
       );
     }
 
+    const tokens = {
+      input: parsed.data.usage.prompt_tokens,
+      output: parsed.data.usage.completion_tokens,
+    };
+    const { costUsd, costUsdReason } = priceModel(this.config.provider, request.model, tokens);
+
     return {
       text: firstChoice.message.content,
-      tokens: {
-        input: parsed.data.usage.prompt_tokens,
-        output: parsed.data.usage.completion_tokens,
-      },
-      costUsd: 0,
+      tokens,
+      costUsd,
+      costUsdReason,
       raw: parsed.data,
     };
   }

@@ -2,6 +2,7 @@ import { llm as llmSchemas } from "@wittgenstein/schemas";
 import type { LlmConfig } from "@wittgenstein/schemas";
 import { WittgensteinError } from "../runtime/errors.js";
 import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "./adapter.js";
+import { priceModel } from "./pricing.js";
 
 export class AnthropicLlmAdapter implements LlmAdapter {
   public readonly provider = "anthropic";
@@ -71,13 +72,17 @@ export class AnthropicLlmAdapter implements LlmAdapter {
       );
     }
 
+    const tokens = {
+      input: parsed.data.usage.input_tokens,
+      output: parsed.data.usage.output_tokens,
+    };
+    const { costUsd, costUsdReason } = priceModel("anthropic", request.model, tokens);
+
     return {
       text: firstBlock.text,
-      tokens: {
-        input: parsed.data.usage.input_tokens,
-        output: parsed.data.usage.output_tokens,
-      },
-      costUsd: 0,
+      tokens,
+      costUsd,
+      costUsdReason,
       raw: parsed.data,
     };
   }

@@ -75,6 +75,7 @@ export async function generateAsciipngFromMinimax(
     text: JSON.stringify(ir),
     tokens: gen.tokens,
     costUsd: gen.costUsd,
+    costUsdReason: gen.costUsdReason,
     raw: { minimax: true, minimaxRawChars: gen.text.length },
   };
 }

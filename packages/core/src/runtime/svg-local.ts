@@ -7,6 +7,7 @@ export function buildSvgLocalGeneration(request: SvgRequest): LlmGenerationResul
     text: JSON.stringify({ svg }),
     tokens: { input: 0, output: 0 },
     costUsd: 0,
+    costUsdReason: "computed",
     raw: { svgLocal: true as const },
   };
 }

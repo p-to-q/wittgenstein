@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type {
+  CostUsdReason,
   WittgensteinRequest,
   RenderCtx,
   RenderResult,
@@ -111,6 +112,7 @@ export class Wittgenstein {
         output: 0,
       },
       costUsd: 0,
+      costUsdReason: "computed",
       promptRaw: request.prompt,
       promptExpanded,
       llmOutputRaw: null,
@@ -161,7 +163,8 @@ export class Wittgenstein {
             codec: string;
             route?: string;
             llmTokens?: { input: number; output: number };
-            costUsd?: number;
+            costUsd?: number | null;
+            costUsdReason?: CostUsdReason;
             durationMs?: number;
             seed?: number | null;
             promptExpanded?: string | null;
@@ -181,7 +184,12 @@ export class Wittgenstein {
         manifest.llmOutputRaw = artMeta.llmOutputRaw ?? null;
         manifest.llmOutputParsed = artMeta.llmOutputParsed ?? null;
         manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
-        manifest.costUsd = artMeta.costUsd ?? manifest.costUsd;
+        if (artMeta.costUsd !== undefined) {
+          manifest.costUsd = artMeta.costUsd;
+        }
+        if (artMeta.costUsdReason !== undefined) {
+          manifest.costUsdReason = artMeta.costUsdReason;
+        }
         manifest.artifactPath = produced.outPath;
         manifest.artifactSha256 = artMeta.artifactSha256 ?? null;
         foldManifestRows(manifest, codec.manifestRows(art));
@@ -256,11 +264,15 @@ export class Wittgenstein {
           }
         }
 
-        budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd);
+        budget.consume(
+          generation.tokens.input + generation.tokens.output,
+          generation.costUsd ?? 0,
+        );
 
         manifest.llmOutputRaw = generation.text;
         manifest.llmTokens = generation.tokens;
         manifest.costUsd = generation.costUsd;
+        manifest.costUsdReason = generation.costUsdReason;
         await telemetry.writeText("llm-output.txt", generation.text);
 
         const parsed = v1Codec.parse(generation.text);
@@ -291,6 +303,9 @@ export class Wittgenstein {
         manifest.durationMs = Date.now() - startedAt.getTime();
         manifest.llmTokens = rendered.metadata.llmTokens;
         manifest.costUsd = rendered.metadata.costUsd;
+        if (rendered.metadata.costUsdReason !== undefined) {
+          manifest.costUsdReason = rendered.metadata.costUsdReason;
+        }
       }
     } catch (caughtError) {
       error = serializeError(caughtError);
@@ -421,7 +436,8 @@ function toRenderResult(
       codec: string;
       route?: string;
       llmTokens?: { input: number; output: number };
-      costUsd?: number;
+      costUsd?: number | null;
+      costUsdReason?: CostUsdReason;
       durationMs?: number;
       seed?: number | null;
     };
@@ -478,6 +494,7 @@ function buildAsciiPngGeneration(request: WittgensteinRequest): LlmGenerationRes
     text: JSON.stringify(ir),
     tokens: { input: 0, output: 0 },
     costUsd: 0,
+    costUsdReason: "computed",
     raw: { asciiPngLocal: true },
   };
 }
@@ -522,6 +539,7 @@ function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResu
         output: 0,
       },
       costUsd: 0,
+      costUsdReason: "computed",
       raw: {
         dryRun: true,
       },
@@ -535,6 +553,7 @@ function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResu
       output: 0,
     },
     costUsd: 0,
+    costUsdReason: "computed",
     raw: {
       dryRun: true,
     },

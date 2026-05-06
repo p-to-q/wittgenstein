@@ -25,6 +25,8 @@ export interface RenderCtx {
   };
 }
 
+import type { CostUsdReason } from "./manifest.js";
+
 export interface RenderResult {
   artifactPath: string;
   mimeType: string;
@@ -34,6 +36,8 @@ export interface RenderResult {
     route?: string;
     llmTokens: { input: number; output: number };
     costUsd: number;
+    /** Optional rationale aligned with `RunManifest.costUsdReason` (Issue #182). */
+    costUsdReason?: CostUsdReason;
     durationMs: number;
     seed: number | null;
   };
@@ -51,6 +55,7 @@ export const RenderResultSchema = z.object({
       output: z.number().int().nonnegative(),
     }),
     costUsd: z.number().nonnegative(),
+    costUsdReason: z.enum(["computed", "unknown-model", "missing-usage"]).optional(),
     durationMs: z.number().nonnegative(),
     seed: z.number().int().nullable(),
   }),

@@ -37,6 +37,7 @@ export async function generateSvgFromEngine(
       text: payload.text,
       tokens: { input: 0, output: 0 },
       costUsd: 0,
+      costUsdReason: "computed",
       raw: { svgEngine: true, url },
     };
   } catch (error) {

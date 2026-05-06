@@ -12,13 +12,21 @@ export interface LlmGenerationRequest {
   responseFormat?: "json" | "text";
 }
 
+import type { CostUsdReason } from "./pricing.js";
+
 export interface LlmGenerationResult {
   text: string;
   tokens: {
     input: number;
     output: number;
   };
-  costUsd: number;
+  /**
+   * Computed cost in USD. `null` when the model is unpriced (`costUsdReason: "unknown-model"`)
+   * or when the vendor did not return token usage (`costUsdReason: "missing-usage"`).
+   * Manifest receipts preserve `null` rather than silently substituting zero (Issue #182).
+   */
+  costUsd: number | null;
+  costUsdReason: CostUsdReason;
   raw?: unknown;
 }
 

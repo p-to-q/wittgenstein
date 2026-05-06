@@ -13,6 +13,8 @@ export const AudioRenderManifestSchema = z.object({
 
 const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
 
+const CostUsdReasonSchema = z.enum(["computed", "unknown-model", "missing-usage"]);
+
 export const RunManifestSchema = z
   .object({
     runId: z.string(),
@@ -35,7 +37,14 @@ export const RunManifestSchema = z
       input: z.number().int().nonnegative(),
       output: z.number().int().nonnegative(),
     }),
-    costUsd: z.number().nonnegative(),
+    /**
+     * USD cost computed from `costUsd = priceModel(llmProvider, llmModel, llmTokens)`.
+     * `null` only when `costUsdReason` is `"unknown-model"` or `"missing-usage"` —
+     * never silently zero (Issue #182).
+     */
+    costUsd: z.number().nonnegative().nullable(),
+    /** Why `costUsd` is what it is — required so manifests cannot fudge zeros. */
+    costUsdReason: CostUsdReasonSchema.optional(),
 
     promptRaw: z.string(),
     promptExpanded: z.string().nullable(),
@@ -99,7 +108,23 @@ export const RunManifestSchema = z
         });
       }
     }
+
+    if (manifest.costUsd === null && manifest.costUsdReason === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["costUsdReason"],
+        message: "costUsd === null requires a costUsdReason (unknown-model or missing-usage).",
+      });
+    }
+    if (manifest.costUsd === null && manifest.costUsdReason === "computed") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["costUsdReason"],
+        message: 'costUsd === null cannot have costUsdReason = "computed".',
+      });
+    }
   });
 
 export type AudioRenderManifest = z.infer<typeof AudioRenderManifestSchema>;
 export type RunManifest = z.infer<typeof RunManifestSchema>;
+export type CostUsdReason = z.infer<typeof CostUsdReasonSchema>;
