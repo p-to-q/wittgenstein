@@ -157,7 +157,7 @@ async function verifyCachedAssetIntegrity(
   ]);
 
   if (actualWeights !== KOKORO_MANIFEST.weightsSha256) {
-    throw new Error(
+    throw integrityError(
       `Kokoro weights SHA-256 mismatch at ${weightsPath}: expected ${KOKORO_MANIFEST.weightsSha256}, got ${actualWeights}. ` +
         `kokoro-js@${KOKORO_MANIFEST.kokoroJsVersion} does not pass \`revision\` through to transformers.js, so this check is the only catch for HuggingFace ${KOKORO_MANIFEST.repoId} 'main' drift away from commit ${KOKORO_MANIFEST.revision}. ` +
         `If main has moved intentionally, update manifest.json's revision + weightsSha256.`,
@@ -165,11 +165,24 @@ async function verifyCachedAssetIntegrity(
   }
 
   if (actualVoices !== KOKORO_MANIFEST.voicesSha256) {
-    throw new Error(
+    throw integrityError(
       `Kokoro voice file SHA-256 mismatch at ${voicesPath}: expected ${KOKORO_MANIFEST.voicesSha256}, got ${actualVoices}. ` +
         `kokoro-js bundles voice files in its npm package, so a mismatch here implies a corrupted \`node_modules\` or a kokoro-js version drift not reflected in pnpm-lock.`,
     );
   }
+}
+
+// Mirrors @wittgenstein/core's serializeError() duck-type contract:
+// an Error-shaped object with a string `code` is recognized and the
+// code is preserved in the run manifest. Codec packages do not import
+// @wittgenstein/core (boundary kept clean per scripts/check-codec-
+// boundaries.mjs). When/if error classes move to @wittgenstein/schemas
+// per the #170 architectural follow-up, this helper goes away.
+function integrityError(message: string): Error & { code: string } {
+  return Object.assign(new Error(message), {
+    name: "WittgensteinError",
+    code: "INTEGRITY_MISMATCH",
+  });
 }
 
 function resolveBundledVoicePath(): string {
