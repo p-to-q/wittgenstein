@@ -122,6 +122,106 @@ describe("@wittgenstein/codec-image", () => {
     expect(badCoarse.ok).toBe(false);
   });
 
+  it("rejects empty seedCode tokens array", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        seedCode: {
+          family: "vqvae",
+          mode: "prefix",
+          tokens: [],
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects empty coarseVq tokens array", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        coarseVq: {
+          schemaVersion: "witt.image.coarse-vq/v0.1",
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          tokenGrid: [4, 4],
+          tokens: [],
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects providerLatents with tokenGrid area mismatch", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        providerLatents: {
+          schemaVersion: "witt.image.latents/v0.1",
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          tokenGrid: [4, 4],
+          tokens: [1, 2, 3], // 3 tokens for a 16-cell grid
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects unknown image-code mode values", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        mode: "weird-mode-not-in-enum",
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects unknown seedCode.mode values", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        seedCode: {
+          family: "vqvae",
+          mode: "not-a-known-mode",
+          tokens: [1, 2, 3, 4],
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts legacy semantic-only input as the compatibility fallback", () => {
+    // Pre-VSC scene shape: top-level intent / subject / composition / lighting / style / constraints,
+    // no nested `semantic`, no `seedCode`, no `coarseVq`. Should still parse and normalize to
+    // mode: "semantic-only".
+    const result = imageCodec.parse(
+      JSON.stringify({
+        intent: "Forest path at golden hour",
+        subject: "forest path",
+        composition: {
+          framing: "wide shot",
+          camera: "natural",
+          depthPlan: ["foreground", "midground", "background"],
+        },
+        lighting: { mood: "warm", key: "golden" },
+        style: {
+          references: ["landscape photography"],
+          palette: ["amber", "moss", "umber"],
+        },
+        constraints: { mustHave: ["natural light"], negative: [] },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.mode).toBe("semantic-only");
+      expect(result.value.seedCode).toBeUndefined();
+      expect(result.value.coarseVq).toBeUndefined();
+      expect(result.value.providerLatents).toBeUndefined();
+      const receipt = imageCodeReceipt(result.value);
+      expect(receipt.path).toBe("semantic-fallback");
+      expect(receipt.semanticSource).toBe("legacy-top-level");
+    }
+  });
+
   it("renders placeholder latents into a PNG artifact", async () => {
     const parsed = imageCodec.parse("{}");
     expect(parsed.ok).toBe(true);
