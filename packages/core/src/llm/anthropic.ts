@@ -8,15 +8,11 @@ export class AnthropicLlmAdapter implements LlmAdapter {
 
   public constructor(private readonly config: LlmConfig) {}
 
-  public async generate(
-    request: LlmGenerationRequest,
-  ): Promise<LlmGenerationResult> {
+  public async generate(request: LlmGenerationRequest): Promise<LlmGenerationResult> {
     const apiKey = process.env[this.config.apiKeyEnv];
 
     if (!apiKey) {
-      throw new Error(
-        `Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`,
-      );
+      throw new Error(`Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`);
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -43,9 +39,7 @@ export class AnthropicLlmAdapter implements LlmAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(
-        `Anthropic request failed with ${response.status}: ${await response.text()}`,
-      );
+      throw new Error(`Anthropic request failed with ${response.status}: ${await response.text()}`);
     }
 
     const rawJson: unknown = await response.json();
@@ -78,7 +72,7 @@ export class AnthropicLlmAdapter implements LlmAdapter {
     }
 
     return {
-      text: firstBlock.text ?? "{}",
+      text: firstBlock.text,
       tokens: {
         input: parsed.data.usage.input_tokens,
         output: parsed.data.usage.output_tokens,

@@ -84,11 +84,23 @@ describe("AnthropicLlmAdapter zod boundary", () => {
     });
   });
 
+  it("throws LLM_PROTOCOL_ERROR on missing text block content", async () => {
+    installFetchStub(() =>
+      Promise.resolve(
+        jsonResponse({
+          content: [{ type: "tool_use" }],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+      ),
+    );
+    await expect(adapter.generate(baseRequest)).rejects.toMatchObject({
+      code: "LLM_PROTOCOL_ERROR",
+    });
+  });
+
   it("throws LLM_PROTOCOL_ERROR on completely malformed JSON", async () => {
     installFetchStub(() => Promise.resolve(jsonResponse({ random: "garbage" })));
-    await expect(adapter.generate(baseRequest)).rejects.toBeInstanceOf(
-      WittgensteinError,
-    );
+    await expect(adapter.generate(baseRequest)).rejects.toBeInstanceOf(WittgensteinError);
   });
 });
 
@@ -143,8 +155,6 @@ describe("OpenAICompatibleLlmAdapter zod boundary", () => {
 
   it("throws LLM_PROTOCOL_ERROR on completely malformed JSON", async () => {
     installFetchStub(() => Promise.resolve(jsonResponse({ random: "garbage" })));
-    await expect(adapter.generate(baseRequest)).rejects.toBeInstanceOf(
-      WittgensteinError,
-    );
+    await expect(adapter.generate(baseRequest)).rejects.toBeInstanceOf(WittgensteinError);
   });
 });

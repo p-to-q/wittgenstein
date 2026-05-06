@@ -17,7 +17,7 @@ export const AnthropicMessagesResponseSchema = z
         z
           .object({
             type: z.string().optional(),
-            text: z.string().optional(),
+            text: z.string(),
           })
           .passthrough(),
       )
@@ -29,6 +29,4 @@ export const AnthropicMessagesResponseSchema = z
   })
   .passthrough();
 
-export type AnthropicMessagesResponse = z.infer<
-  typeof AnthropicMessagesResponseSchema
->;
+export type AnthropicMessagesResponse = z.infer<typeof AnthropicMessagesResponseSchema>;
