@@ -55,6 +55,13 @@ export const RunManifestSchema = z
     artifactSha256: z.string().nullable(),
     audioRender: AudioRenderManifestSchema.optional(),
 
+    /**
+     * Optional codec-internal path identifier preserved from
+     * `RenderResult.metadata.renderPath` so the manifest distinguishes
+     * which decoder / renderer actually fired (Issue #223).
+     */
+    renderPath: z.string().optional(),
+
     startedAt: z.string(),
     durationMs: z.number().nonnegative(),
     ok: z.boolean(),

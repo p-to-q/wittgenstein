@@ -44,13 +44,13 @@ export async function renderSignalBundle(
   );
   await writeFile(csvPath, toCsv(rows));
 
-  const htmlReady = await renderLoupeDashboard(csvPath, htmlPath, spec);
-  const artifactPath = htmlReady ? htmlPath : jsonPath;
+  const dashboardOutcome = await renderLoupeDashboard(csvPath, htmlPath, spec);
+  const artifactPath = dashboardOutcome.htmlReady ? htmlPath : jsonPath;
   const info = await stat(artifactPath);
 
   return {
     artifactPath,
-    mimeType: htmlReady ? "text/html" : "application/json",
+    mimeType: dashboardOutcome.htmlReady ? "text/html" : "application/json",
     bytes: info.size,
     metadata: {
       codec: "sensor:procedural+loupesidecar",
@@ -59,9 +59,12 @@ export async function renderSignalBundle(
       costUsd: 0,
       durationMs: Date.now() - startedAt,
       seed: ctx.seed,
+      renderPath: dashboardOutcome.renderPath,
     },
   };
 }
+
+export type SensorRenderPath = "loupe-script" | "loupe-cli" | "fallback-static-html";
 
 export function makeEcgSignal(
   sampleRateHz: number,
@@ -233,7 +236,7 @@ async function renderLoupeDashboard(
   csvPath: string,
   htmlPath: string,
   spec: SensorSignalSpec,
-): Promise<boolean> {
+): Promise<{ htmlReady: boolean; renderPath: SensorRenderPath }> {
   // Search for loupe.py: repo root → package dir → cwd → polyglot-mini sub-project
   const candidates = [
     resolvePath(moduleDir, "../../../../loupe.py"), // repo root
@@ -255,16 +258,19 @@ async function renderLoupeDashboard(
     // Try `loupe` on PATH
     try {
       await spawnChecked("python3", ["-m", "loupe_cli", csvPath, "-o", htmlPath]);
-      return true;
+      return { htmlReady: true, renderPath: "loupe-cli" };
+    } catch {
+      /* continue to fallback */
+    }
+  } else {
+    try {
+      await spawnChecked("python3", [loupePath, csvPath, "-o", htmlPath]);
+      return { htmlReady: true, renderPath: "loupe-script" };
     } catch {
       /* continue to fallback */
     }
   }
-  try {
-    await spawnChecked("python3", [loupePath ?? "loupe.py", csvPath, "-o", htmlPath]);
-    return true;
-  } catch {
-    const fallbackHtml = `<!doctype html>
+  const fallbackHtml = `<!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
 <title>${spec.signal} preview</title>
@@ -274,9 +280,8 @@ async function renderLoupeDashboard(
   <p>Open <code>${csvPath}</code> or rerun with Python 3 available to get the interactive dashboard.</p>
 </body>
 </html>`;
-    await writeFile(htmlPath, fallbackHtml);
-    return true;
-  }
+  await writeFile(htmlPath, fallbackHtml);
+  return { htmlReady: true, renderPath: "fallback-static-html" };
 }
 
 function ensureExtension(path: string, ext: string): string {

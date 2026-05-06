@@ -40,6 +40,12 @@ export interface RenderResult {
     costUsdReason?: CostUsdReason;
     durationMs: number;
     seed: number | null;
+    /**
+     * Optional codec-internal path identifier — e.g. for sensor it discriminates
+     * `loupe-script` / `loupe-cli` / `fallback-static-html` so the manifest tells
+     * the truth about which renderer actually fired (Issue #223).
+     */
+    renderPath?: string;
   };
 }
 
@@ -58,6 +64,7 @@ export const RenderResultSchema = z.object({
     costUsdReason: z.enum(["computed", "unknown-model", "missing-usage"]).optional(),
     durationMs: z.number().nonnegative(),
     seed: z.number().int().nullable(),
+    renderPath: z.string().optional(),
   }),
 });
 

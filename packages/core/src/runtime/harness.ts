@@ -306,6 +306,9 @@ export class Wittgenstein {
         if (rendered.metadata.costUsdReason !== undefined) {
           manifest.costUsdReason = rendered.metadata.costUsdReason;
         }
+        if (rendered.metadata.renderPath !== undefined) {
+          manifest.renderPath = rendered.metadata.renderPath;
+        }
       }
     } catch (caughtError) {
       error = serializeError(caughtError);
