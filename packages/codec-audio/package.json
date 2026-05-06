@@ -12,6 +12,7 @@
     "typecheck": "tsc -b",
     "lint": "eslint src test --ext .ts",
     "test": "vitest run",
+    "test:golden": "vitest run test/parity.test.ts",
     "build": "tsc"
   },
   "dependencies": {

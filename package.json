@@ -20,7 +20,7 @@
     "lint": "pnpm -r lint",
     "lint:deps": "node scripts/check-codec-boundaries.mjs",
     "test": "pnpm -r test",
-    "test:golden": "pnpm --filter @wittgenstein/codec-sensor run test:golden",
+    "test:golden": "pnpm -r --filter \"./packages/codec-*\" --if-present run test:golden",
     "sweep:audio-kokoro": "tsx scripts/audio-kokoro-sweep.ts",
     "launch:check": "pnpm typecheck && pnpm --filter @wittgenstein/codec-audio test && pnpm --filter @wittgenstein/codec-sensor test",
     "benchmark": "node --import tsx benchmarks/harness.ts",
