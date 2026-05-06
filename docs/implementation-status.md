@@ -24,7 +24,7 @@ Everything below runs with `python3 -m polyglot.cli <cmd>`.
 | **Image — LLM code-as-painter**    | ✅ Ships | LLM → Python PIL/NumPy/SciPy → sandboxed subprocess → PNG                                          |
 | **Image — MLP fallback painter**   | ✅ Ships | text → hashed-BoW embed → MLP → palette+layout → procedural PNG                                    |
 | **Image — COCO training pipeline** | ✅ Ships | `train/build_dataset_coco.py` + `train/train.py`; 781 examples, 9 s                                |
-| **TTS — speech**                   | ✅ Ships | macOS `say` → AIFF → `afconvert` → M4A (zero deps)                                                 |
+| **TTS — speech**                   | ✅ Ships (macOS-only) | macOS `say` → AIFF → `afconvert` → M4A (zero deps). Linux / Windows have no fallback in this surface; cross-platform speech is in the TS `@wittgenstein/codec-audio` codec via the Kokoro backend (Issue #116 / PR #158). |
 | **TTS — procedural ambient**       | ✅ Ships | AudioMLP classifier → rain/wind/city/forest/electronic/white_noise → NumPy+SciPy synth → mixed M4A |
 | **Audio adapter training**         | ✅ Ships | `train/train_audio.py`; 369 examples, < 5 s                                                        |
 | **Sensor — dry-run expand**        | ✅ Ships | Built-in ECG/accelerometer/temperature specs → numpy arrays → CSV + PNG                            |

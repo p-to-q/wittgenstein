@@ -38,8 +38,8 @@ trainable without touching the rest.
 |---|---|---|
 | **Image** | LLM → Python painter code → sandboxed subprocess | `.png` |
 | **Image (no-LLM)** | MLP adapter → procedural painter | `.png` |
-| **TTS** | macOS `say` → `afconvert` | `.m4a` (zero deps) |
-| **TTS + Ambient** | text → AudioMLP → procedural synth → mix | `.m4a` |
+| **TTS** (macOS-only) | macOS `say` → `afconvert` | `.m4a` (zero deps) |
+| **TTS + Ambient** (TTS macOS-only; ambient cross-platform) | text → AudioMLP → procedural synth → mix | `.m4a` |
 | **Sensor** | operator spec JSON → numpy expand → loupe dashboard | `.html` + `.csv` + `.png` |
 
 ---

@@ -104,7 +104,11 @@ def generate_speech(
         script = prompt
 
     if not _have("say"):
-        raise RuntimeError("macOS `say` not found; TTS requires macOS or an `edge-tts` install.")
+        raise RuntimeError(
+            "macOS `say` not found; the polyglot-mini TTS path is macOS-only. "
+            "See polyglot-mini/README.md and docs/implementation-status.md for the platform matrix; "
+            "cross-platform speech is in the TypeScript `@wittgenstein/codec-audio` codec via the Kokoro backend (Issue #116 / PR #158)."
+        )
 
     voice = voice or MAC_VOICES.get(lang, MAC_VOICES["default"])
 
