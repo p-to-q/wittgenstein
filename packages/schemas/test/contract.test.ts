@@ -179,6 +179,194 @@ describe("@wittgenstein/schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("rejects invalid image routes (Issue #190)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-image-route",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image",
+      args: ["hello"],
+      seed: 7,
+      codec: "image",
+      route: "rastr",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 10, output: 20 },
+      costUsd: 0,
+      promptRaw: "hello",
+      promptExpanded: "hello",
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "sha256",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts the canonical image route literal (Issue #190)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-image-route-ok",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image",
+      args: ["hello"],
+      seed: 7,
+      codec: "image",
+      route: "raster",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 10, output: 20 },
+      costUsd: 0,
+      promptRaw: "hello",
+      promptExpanded: "hello",
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "sha256",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects invalid sensor routes (Issue #190)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-sensor-route",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein sensor",
+      args: ["hello"],
+      seed: 7,
+      codec: "sensor",
+      route: "ekg",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 10, output: 20 },
+      costUsd: 0,
+      promptRaw: "hello",
+      promptExpanded: "hello",
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.json",
+      artifactSha256: "sha256",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts canonical sensor route literals (Issue #190)", () => {
+    for (const route of ["ecg", "temperature", "gyro"]) {
+      const parsed = RunManifestSchema.safeParse({
+        runId: `run-sensor-route-${route}`,
+        gitSha: "abc123",
+        lockfileHash: "def456",
+        nodeVersion: process.version,
+        wittgensteinVersion: "0.0.0",
+        command: "wittgenstein sensor",
+        args: ["hello"],
+        seed: 7,
+        codec: "sensor",
+        route,
+        llmProvider: "anthropic",
+        llmModel: "claude-opus-4-7",
+        llmTokens: { input: 10, output: 20 },
+        costUsd: 0,
+        promptRaw: "hello",
+        promptExpanded: "hello",
+        llmOutputRaw: "{}",
+        llmOutputParsed: {},
+        artifactPath: "/tmp/out.json",
+        artifactSha256: "sha256",
+        startedAt: new Date().toISOString(),
+        durationMs: 10,
+        ok: true,
+        error: null,
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  it("rejects invalid video routes (Issue #190)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-video-route",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein video",
+      args: ["hello"],
+      seed: 7,
+      codec: "video",
+      route: "hyperframes-mov",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 10, output: 20 },
+      costUsd: 0,
+      promptRaw: "hello",
+      promptExpanded: "hello",
+      llmOutputRaw: "{}",
+      llmOutputParsed: {},
+      artifactPath: "/tmp/out.mp4",
+      artifactSha256: "sha256",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts canonical video route literals (Issue #190)", () => {
+    for (const route of ["hyperframes-mp4", "hyperframes-html"]) {
+      const parsed = RunManifestSchema.safeParse({
+        runId: `run-video-route-${route}`,
+        gitSha: "abc123",
+        lockfileHash: "def456",
+        nodeVersion: process.version,
+        wittgensteinVersion: "0.0.0",
+        command: "wittgenstein video",
+        args: ["hello"],
+        seed: 7,
+        codec: "video",
+        route,
+        llmProvider: "anthropic",
+        llmModel: "claude-opus-4-7",
+        llmTokens: { input: 10, output: 20 },
+        costUsd: 0,
+        promptRaw: "hello",
+        promptExpanded: "hello",
+        llmOutputRaw: "{}",
+        llmOutputParsed: {},
+        artifactPath: "/tmp/out.mp4",
+        artifactSha256: "sha256",
+        startedAt: new Date().toISOString(),
+        durationMs: 10,
+        ok: true,
+        error: null,
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
+
   it("accepts costUsd: null when paired with a non-computed reason", () => {
     const parsed = RunManifestSchema.safeParse({
       runId: "run-cost-null",

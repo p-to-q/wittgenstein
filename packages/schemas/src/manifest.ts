@@ -12,6 +12,9 @@ export const AudioRenderManifestSchema = z.object({
 });
 
 const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
+const ImageRouteSchema = z.enum(["raster"]);
+const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
+const VideoRouteSchema = z.enum(["hyperframes-mp4", "hyperframes-html"]);
 
 const CostUsdReasonSchema = z.enum(["computed", "unknown-model", "missing-usage"]);
 
@@ -112,6 +115,39 @@ export const RunManifestSchema = z
           code: z.ZodIssueCode.custom,
           path: ["route"],
           message: `Audio manifests must use one of: ${AudioRouteSchema.options.join(", ")}.`,
+        });
+      }
+    }
+
+    if (manifest.codec === "image" && manifest.route !== undefined) {
+      const parsedRoute = ImageRouteSchema.safeParse(manifest.route);
+      if (!parsedRoute.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["route"],
+          message: `Image manifests must use one of: ${ImageRouteSchema.options.join(", ")}.`,
+        });
+      }
+    }
+
+    if (manifest.codec === "sensor" && manifest.route !== undefined) {
+      const parsedRoute = SensorRouteSchema.safeParse(manifest.route);
+      if (!parsedRoute.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["route"],
+          message: `Sensor manifests must use one of: ${SensorRouteSchema.options.join(", ")}.`,
+        });
+      }
+    }
+
+    if (manifest.codec === "video" && manifest.route !== undefined) {
+      const parsedRoute = VideoRouteSchema.safeParse(manifest.route);
+      if (!parsedRoute.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["route"],
+          message: `Video manifests must use one of: ${VideoRouteSchema.options.join(", ")}.`,
         });
       }
     }
