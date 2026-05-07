@@ -32,7 +32,7 @@
       "sampleRateHz": 120,
       "durationSec": 3,
       "fixture": "ecg-patch-grammar.csv",
-      "artifactSha256": "ace3233655ed83b96ee6341a1a053ca0c895fc587e1b29a4fee7ec5cd1ea3178"
+      "artifactSha256": "4e894b737a57280667247f6a09618ef90f60d64b1d5dc6a40258e00f8cb7464d"
     },
     {
       "signal": "temperature",
@@ -40,7 +40,7 @@
       "sampleRateHz": 10,
       "durationSec": 12,
       "fixture": "temperature-patch-grammar.csv",
-      "artifactSha256": "823627e0d3d92d95dae1cf4612d1352a92f65a42a8696bb1071aeb1696c1b04c"
+      "artifactSha256": "cd67e521b373b26e3cc20427ddb43f03aaa5addb3bed71e3150bd440d8b42c4c"
     },
     {
       "signal": "gyro",

@@ -2,29 +2,26 @@ import { z } from "zod";
 import type { Result, SensorRequest } from "@wittgenstein/schemas";
 import { SensorRequestSchema } from "@wittgenstein/schemas";
 
-/**
- * Recursive type for `SensorOperator` — `patchGrammar` carries nested operators
- * inside each patch, so the type definition needs the recursion before the schema.
- * Field shape mirrors zod's emitted output (mutable, optional permitted) so the
- * hand-written interface and `z.infer` agree.
- */
-export type SensorOperator =
+export type SensorBaseOperator =
   | { type: "oscillator"; frequencyHz: number; amplitude: number; phaseRad: number }
   | { type: "noise"; color: "white" | "pink"; amplitude: number }
   | { type: "drift"; slopePerSec: number }
   | { type: "pulse"; centerSec: number; widthSec: number; amplitude: number }
   | { type: "step"; atSec: number; amplitude: number }
-  | { type: "ecgTemplate"; bpm: number; amplitude: number }
-  | {
-      type: "patchGrammar";
-      patchLengthSec: number;
-      patches: Array<{
-        operators: SensorOperator[];
-        affineNormalize?: { minOutput: number; maxOutput: number } | undefined;
-      }>;
-    };
+  | { type: "ecgTemplate"; bpm: number; amplitude: number };
 
-const baseOperatorSchema = z.discriminatedUnion("type", [
+export type SensorPatchGrammarOperator = {
+  type: "patchGrammar";
+  patchLengthSec: number;
+  patches: Array<{
+    operators: SensorBaseOperator[];
+    affineNormalize?: { minOutput: number; maxOutput: number } | undefined;
+  }>;
+};
+
+export type SensorOperator = SensorBaseOperator | SensorPatchGrammarOperator;
+
+const baseOperatorVariants = [
   z.object({
     type: z.literal("oscillator"),
     frequencyHz: z.number().positive(),
@@ -56,38 +53,51 @@ const baseOperatorSchema = z.discriminatedUnion("type", [
     bpm: z.number().positive().default(72),
     amplitude: z.number().positive().default(1),
   }),
-]);
+] as const;
+
+const baseOperatorSchema = z.discriminatedUnion("type", [...baseOperatorVariants]);
+
+/**
+ * `affineNormalize` requires `minOutput < maxOutput` strictly. Equality (degenerate
+ * range) and inversion (`min > max`) are rejected at parse time per #247 so the
+ * normalized output band is unambiguous. If callers want a constant offset, the
+ * `step` operator with `atSec: 0` already covers that case.
+ */
+const affineNormalizeSchema = z
+  .object({
+    minOutput: z.number(),
+    maxOutput: z.number(),
+  })
+  .refine((value) => value.minOutput < value.maxOutput, {
+    message: "affineNormalize.minOutput must be strictly less than maxOutput.",
+  });
 
 /**
  * `SensorOperatorSchema` admits the 6 flat operator variants plus a higher-order
- * `patchGrammar` operator that composes nested operators across patches per
- * `docs/research/2026-05-07-sensor-patch-grammar.md` Option A. Recursion is
- * expressed via `z.lazy`; the wrapping `z.union` (rather than discriminatedUnion)
- * is required because zod's discriminatedUnion does not currently accept lazy
- * children. Base operators still benefit from discriminated parsing.
+ * `patchGrammar` operator. Patches contain ONLY base operators — nested
+ * `patchGrammar` is rejected at parse time per #247 (recursion-depth cap = 1 for
+ * the first implementation slice). Future PRs can lift the cap if motivated by
+ * a use case the flat-operator-per-patch shape can't express.
+ *
+ * Tracks `docs/research/2026-05-07-sensor-patch-grammar.md` Option A.
  */
-const SensorOperatorSchema: z.ZodType<SensorOperator, z.ZodTypeDef, unknown> = z.lazy(() =>
-  z.union([
-    baseOperatorSchema,
-    z.object({
-      type: z.literal("patchGrammar"),
-      patchLengthSec: z.number().positive(),
-      patches: z
-        .array(
-          z.object({
-            operators: z.array(SensorOperatorSchema),
-            affineNormalize: z
-              .object({
-                minOutput: z.number(),
-                maxOutput: z.number(),
-              })
-              .optional(),
-          }),
-        )
-        .min(1),
-    }),
-  ]),
-);
+const patchGrammarSchema = z.object({
+  type: z.literal("patchGrammar"),
+  patchLengthSec: z.number().positive(),
+  patches: z
+    .array(
+      z.object({
+        operators: z.array(baseOperatorSchema),
+        affineNormalize: affineNormalizeSchema.optional(),
+      }),
+    )
+    .min(1),
+});
+
+const SensorOperatorSchema = z.discriminatedUnion("type", [
+  ...baseOperatorVariants,
+  patchGrammarSchema,
+]);
 
 export const SensorSignalSpecSchema = z.object({
   signal: z.enum(["ecg", "temperature", "gyro"]).default("temperature"),

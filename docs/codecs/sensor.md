@@ -45,15 +45,19 @@ The runtime composes operators by addition into a single sample buffer. Composit
 
 ### Higher-order operator: `patchGrammar`
 
-`patchGrammar` is the only operator that nests other operators. It exists so the spec can express **local context that flat composition cannot** — e.g. a heart-rate ramp (different `bpm` per segment), or a per-segment range constraint. The design tracks `docs/research/2026-05-07-sensor-patch-grammar.md` Option A and is intentionally _not_ a learned model: patches are deterministic concatenations of regular operators.
+`patchGrammar` is the only operator that composes other operators. It exists so the spec can express **local context that flat composition cannot** — e.g. a heart-rate ramp (different `bpm` per segment), or a per-segment range constraint. The design tracks `docs/research/2026-05-07-sensor-patch-grammar.md` Option A and is intentionally _not_ a learned model: patches are deterministic concatenations of regular operators.
 
-Semantics:
+**Lineage receipt.** The research note ratified in #239 closed #221 as research-only. Implementation landed in #244; contract follow-up #247 corrected patch-local time semantics, capped recursion, and validated `affineNormalize` bounds. The operator is **not yet doctrine** — it stays a sensor-codec-internal extension until measurement (#155) earns it an ADR. Treat patchGrammar as a **post-M3 sensor operator that landed early**: M3 ports the existing flat-operator surface to Codec Protocol v2; patchGrammar runs alongside that surface and is permitted but not promoted in agent guides.
 
-- The duration is split into consecutive patches of `patchLengthSec` seconds. The last patch is truncated if it would extend past `durationSec`; patches that start past `durationSec` are skipped.
-- Within each patch, `operators[]` is expanded over the patch's frame range using the **parent RNG** — so noise across patches stays deterministic given the parent seed and a single-patch `patchGrammar` covering the full duration is byte-identical to the equivalent flat operator list.
-- If `affineNormalize` is set on a patch, the patch's _contribution_ (post-pre snapshot delta) is min-max normalized to `[minOutput, maxOutput]` before being added back. When the contribution is constant (range=0), the value collapses to the midpoint of `[minOutput, maxOutput]`.
+**Patch slicing and time origin.**
 
-The recursion is enforced by the schema (a `patchGrammar` patch may itself contain another `patchGrammar`), but the operator library expects shallow trees in practice; deep nesting is an RFC topic, not a usage tip.
+- The parent range `[startFrame, endFrame)` is split into consecutive patches of `floor(patchLengthSec * sampleRateHz)` frames, starting from `startFrame`. The last patch is truncated if it would extend past `endFrame`; patches whose start is past `endFrame` are skipped.
+- Operators inside a patch are interpreted **patch-local**: `step.atSec`, `pulse.centerSec`, `oscillator.phaseRad`, `drift.slopePerSec`, and `ecgTemplate` phase are all measured relative to the patch boundary. So `step.atSec: 0.3` inside a patch starting at global second 6 means "step starts at global 6.3s", not "step starts at global 0.3s clipped to the patch range" (the broken semantics shipped in #244 before #247 corrected them).
+- `noise` has no time dependence and continues to consume the **parent RNG sequentially** across patches. This is the recursion-seam invariant: a single-patch `patchGrammar` whose patch covers the full duration produces byte-identical output to the equivalent flat operator list. The `gyro-patch-grammar.csv` golden enforces this: its SHA-256 equals `gyro.csv`'s SHA-256.
+
+**`affineNormalize`.** When set on a patch, the patch's _contribution_ (post-pre snapshot delta) is min-max normalized to `[minOutput, maxOutput]` before being added back to the pre-patch values. The schema rejects `minOutput >= maxOutput` (#247): degenerate ranges are user error, not a feature. When the contribution is constant inside a valid `[minOutput, maxOutput]` window (post-pre delta range = 0), the value collapses to the midpoint of the target range.
+
+**Recursion cap.** Patches admit only flat (non-`patchGrammar`) operators. Nested `patchGrammar` is rejected at parse time per #247. Lifting the cap is a future-PR conversation gated on a use case the flat-per-patch shape can't express.
 
 ## Renderer Families
 
@@ -111,7 +115,7 @@ Sensor synthesis is **fully deterministic**. `artifacts/showcase/workflow-exampl
 is the preserved `v0.1.0-alpha.1` hackathon receipt pack and, for now, the regression
 corpus — any drift is a real regression. Sensor does not have an LLM-stage drift excuse.
 
-`fixtures/golden/sensor/` holds the byte-pinned CSVs verified by `packages/codec-sensor/test/golden.test.ts`. Each signal family has a flat-operator golden plus a `*-patch-grammar.csv` companion exercising the higher-order operator (multi-patch concatenation for `ecg`, per-patch `affineNormalize` for `temperature`, single-patch RNG-sharing for `gyro`). The single-patch `gyro-patch-grammar.csv` SHA equals `gyro.csv` SHA — the byte-identity check that anchors the recursion seam.
+`fixtures/golden/sensor/` holds the byte-pinned CSVs verified by `packages/codec-sensor/test/golden.test.ts`. Each signal family has a flat-operator golden plus a `*-patch-grammar.csv` companion exercising the higher-order operator: multi-patch ECG bpm ramp (`ecg-patch-grammar.csv`), per-patch `affineNormalize` (`temperature-patch-grammar.csv`), and single-patch full-duration recursion (`gyro-patch-grammar.csv`). The `gyro-patch-grammar.csv` SHA-256 equals `gyro.csv` SHA-256 — the recursion-seam invariant. The `ecg-` and `temperature-` patch-grammar SHAs reflect the patch-local-time semantics ratified in #247; SHAs from the original #244 implementation no longer match.
 
 ## Benchmark Case
 

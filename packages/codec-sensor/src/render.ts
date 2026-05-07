@@ -150,13 +150,31 @@ function expandSensorAlgorithm(
   const signal = new Float32Array(frameCount);
   const rng = createRng(seed ?? 0);
 
+  // Top-level operators run with timeOriginFrame = 0 so absolute-time semantics
+  // are preserved for the flat operator list (existing 3 sensor goldens stay
+  // byte-stable). Patches override timeOriginFrame to the patch boundary so
+  // operator parameters inside a patch are interpreted patch-local per the
+  // research note (#239) and #247 contract decision.
   for (const operator of spec.operators) {
-    expandOperator(operator, signal, 0, frameCount, sampleRateHz, rng);
+    expandOperator(operator, signal, 0, frameCount, sampleRateHz, rng, 0);
   }
 
   return signal;
 }
 
+/**
+ * Expand a single operator over `[startFrame, endFrame)`.
+ *
+ * `timeOriginFrame` defines the local zero of the operator's time axis. At top
+ * level it is 0 (operators see absolute time). Inside a patch it is the patch
+ * start, so `step.atSec`, `pulse.centerSec`, `oscillator.phaseRad`,
+ * `drift.slopePerSec`, and `ecgTemplate` phase are all measured relative to the
+ * patch boundary — the patch-local contract called out in
+ * `docs/research/2026-05-07-sensor-patch-grammar.md` and pinned by #247.
+ *
+ * Noise has no time dependence and is unaffected by `timeOriginFrame`; it
+ * continues to consume the parent RNG sequentially.
+ */
 function expandOperator(
   operator: SensorOperator,
   signal: Float32Array,
@@ -164,13 +182,14 @@ function expandOperator(
   endFrame: number,
   sampleRateHz: number,
   rng: () => number,
+  timeOriginFrame: number,
 ): void {
   if (operator.type === "oscillator") {
     for (let i = startFrame; i < endFrame; i += 1) {
-      const timeSec = i / sampleRateHz;
+      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
       signal[i] =
         (signal[i] ?? 0) +
-        Math.sin(2 * Math.PI * operator.frequencyHz * timeSec + operator.phaseRad) *
+        Math.sin(2 * Math.PI * operator.frequencyHz * localTimeSec + operator.phaseRad) *
           operator.amplitude;
     }
     return;
@@ -187,8 +206,8 @@ function expandOperator(
 
   if (operator.type === "drift") {
     for (let i = startFrame; i < endFrame; i += 1) {
-      const timeSec = i / sampleRateHz;
-      signal[i] = (signal[i] ?? 0) + timeSec * operator.slopePerSec;
+      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
+      signal[i] = (signal[i] ?? 0) + localTimeSec * operator.slopePerSec;
     }
     return;
   }
@@ -196,11 +215,11 @@ function expandOperator(
   if (operator.type === "pulse") {
     const start = Math.max(
       startFrame,
-      Math.floor((operator.centerSec - operator.widthSec / 2) * sampleRateHz),
+      timeOriginFrame + Math.floor((operator.centerSec - operator.widthSec / 2) * sampleRateHz),
     );
     const end = Math.min(
       endFrame,
-      Math.ceil((operator.centerSec + operator.widthSec / 2) * sampleRateHz),
+      timeOriginFrame + Math.ceil((operator.centerSec + operator.widthSec / 2) * sampleRateHz),
     );
     for (let i = start; i < end; i += 1) {
       const phase = (i - start) / Math.max(1, end - start);
@@ -210,7 +229,7 @@ function expandOperator(
   }
 
   if (operator.type === "step") {
-    const start = Math.max(startFrame, Math.floor(operator.atSec * sampleRateHz));
+    const start = Math.max(startFrame, timeOriginFrame + Math.floor(operator.atSec * sampleRateHz));
     for (let i = start; i < endFrame; i += 1) {
       signal[i] = (signal[i] ?? 0) + operator.amplitude;
     }
@@ -220,8 +239,8 @@ function expandOperator(
   if (operator.type === "ecgTemplate") {
     const beatPeriod = 60 / operator.bpm;
     for (let i = startFrame; i < endFrame; i += 1) {
-      const timeSec = i / sampleRateHz;
-      const phase = (timeSec % beatPeriod) / beatPeriod;
+      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
+      const phase = (localTimeSec % beatPeriod) / beatPeriod;
       const p = Math.exp(-Math.pow((phase - 0.16) * 22, 2)) * 0.08;
       const qrs =
         Math.exp(-Math.pow((phase - 0.34) * 55, 2)) * 0.92 -
@@ -237,19 +256,27 @@ function expandOperator(
 }
 
 /**
- * Expand a patchGrammar operator across [startFrame, endFrame).
+ * Expand a patchGrammar operator across `[startFrame, endFrame)`.
  *
  * Each patch occupies `floor(patchLengthSec * sampleRateHz)` consecutive frames,
  * starting from `startFrame`. Patches that would extend past `endFrame` are
  * truncated; patches whose start frame is past `endFrame` are skipped. Within
  * each patch:
  *   - Pre-patch signal values in the patch range are snapshotted.
- *   - All patch operators are applied recursively, sharing the parent RNG so
- *     noise across patches stays deterministic given the parent seed.
+ *   - Inner operators run with `timeOriginFrame = patchStart` so all time-based
+ *     parameters (oscillator phase reference, drift origin, step.atSec,
+ *     pulse.centerSec, ecgTemplate phase) are interpreted patch-local. Noise
+ *     consumption is sequential against the parent RNG so a single-patch
+ *     full-duration `patchGrammar` stays byte-identical to the equivalent flat
+ *     operator list (the recursion-seam invariant).
  *   - If `affineNormalize` is set, the patch's *contribution* (post-pre) is
  *     min-max normalized to `[minOutput, maxOutput]` before being added back
- *     onto the pre-patch values. This preserves additive operator semantics
- *     while letting patches enforce a canonical local range.
+ *     onto the pre-patch values. The schema rejects `minOutput >= maxOutput`
+ *     so a degenerate range can never reach this code (#247 item 4).
+ *
+ * Nested `patchGrammar` is rejected at the schema level (#247 item 3); inner
+ * operators are typed as `SensorBaseOperator` so this function never recurses
+ * into another patchGrammar.
  */
 function expandPatchGrammar(
   operator: Extract<SensorOperator, { type: "patchGrammar" }>,
@@ -278,7 +305,7 @@ function expandPatchGrammar(
     }
 
     for (const inner of patch.operators) {
-      expandOperator(inner, signal, patchStart, patchEnd, sampleRateHz, rng);
+      expandOperator(inner, signal, patchStart, patchEnd, sampleRateHz, rng, patchStart);
     }
 
     if (patch.affineNormalize) {

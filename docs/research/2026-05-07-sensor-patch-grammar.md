@@ -10,6 +10,8 @@ tracks: [#221, #154]
 > **Status:** research note (not doctrine, not active execution guidance).
 > Extracts the **principle** from TimesFM-class time-series models and proposes a deterministic patch operator that fits into the existing `SensorOperatorSchema` discriminated union. **Adopts no model dependency.** Sensor stays an algorithmic / operator-expansion modality per ADR-0005 and the existing codec contract.
 > _Tracker: #221._
+>
+> **Implementation lineage:** Option A landed in PR #244 after #221 was closed; contract follow-up #247 corrected patch-local time semantics, capped recursion at depth 1, and tightened `affineNormalize` bounds. The current code in `packages/codec-sensor` is the post-#247 corrected shape. This note remains the design source-of-truth for *intent*; the canonical operator-by-operator semantics live in `docs/codecs/sensor.md`.
 
 ## Why this exists
 
@@ -41,7 +43,7 @@ Three options, in order of complexity:
 
 ### Option A — `patchGrammar` operator (preferred; smallest)
 
-A deterministic operator that emits a sequence of small patches. Each patch references one or more existing operators with patch-local parameters.
+A deterministic operator that emits a sequence of small patches. Each patch references one or more existing operators with **patch-local parameters** — `step.atSec`, `pulse.centerSec`, `oscillator.phaseRad`, `drift` origin, and `ecgTemplate` phase are all measured relative to the patch boundary, not absolute time. (Pinned in #247 after the initial #244 implementation kept absolute time; see `docs/codecs/sensor.md` for the canonical semantics table.)
 
 ```ts
 {
