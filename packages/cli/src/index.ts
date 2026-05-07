@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { registerInitCommand } from "./commands/init.js";
 import { registerImageCommand } from "./commands/image.js";
+import { registerImageDryExpandCommand } from "./commands/image-dry-expand.js";
 import { registerAudioCommand } from "./commands/audio.js";
 import { registerTtsCommand } from "./commands/tts.js";
 import { registerVideoCommand } from "./commands/video.js";
@@ -20,6 +21,7 @@ export function createProgram(): Command {
 
   registerInitCommand(program);
   registerImageCommand(program);
+  registerImageDryExpandCommand(program);
   registerTtsCommand(program);
   registerAudioCommand(program);
   registerVideoCommand(program);

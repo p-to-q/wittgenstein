@@ -13,6 +13,7 @@ describe("@wittgenstein/cli", () => {
       "audio",
       "doctor",
       "image",
+      "image-dry-expand",
       "init",
       "sensor",
       "svg",
