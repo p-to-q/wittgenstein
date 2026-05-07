@@ -7,6 +7,28 @@ export type ImageCodePath =
   | "visual-seed-code"
   | "semantic-fallback";
 
+/**
+ * Which adapter tier actually fired during a render. Distinct from
+ * `ImageCodePath`, which records the *intent* declared on the spec — this
+ * records the *outcome* observed by `adaptSceneToLatents`, so the manifest
+ * can show which tier won the fall-through (e.g. spec carried
+ * `providerLatents` but it failed validation, so the actual fired tier was
+ * `coarse-vq` or further down).
+ *
+ * Adapter tiers, in priority order:
+ *   - `provider-latents` — spec.providerLatents validated and was used directly
+ *   - `coarse-vq`        — spec.coarseVq validated and was upsampled
+ *   - `visual-seed-code` — spec.seedCode validated and was expanded
+ *   - `learned-mlp`      — env-resolved MLP adapter ran (#243 reframing)
+ *   - `placeholder`      — no hint validated and no learned adapter resolved
+ */
+export type ImageAdapterOutcome =
+  | "provider-latents"
+  | "coarse-vq"
+  | "visual-seed-code"
+  | "learned-mlp"
+  | "placeholder";
+
 export type ImageSemanticSource = "emitted" | "legacy-top-level" | "absent";
 
 export interface ImageCodeReceipt {
@@ -38,6 +60,12 @@ export interface ImageArtifactMetadata extends codecV2.BaseArtifactMetadata {
   readonly llmOutputRaw: string | null;
   readonly llmOutputParsed: ImageSceneSpec | null;
   readonly imageCode: ImageCodeReceipt;
+  /**
+   * Which adapter tier actually fired this render (outcome, not intent).
+   * Mirrors what sensor and audio already record via
+   * `RenderResult.metadata.renderPath`.
+   */
+  readonly adapterOutcome: ImageAdapterOutcome;
   readonly quality: {
     readonly structural: {
       readonly schemaValidated: boolean;

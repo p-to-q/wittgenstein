@@ -12,8 +12,8 @@ export async function renderImagePipeline(
   ctx: RenderCtx,
 ): Promise<RenderResult> {
   const expanded = await expandSceneSpec(parsed, ctx);
-  const latentCodes = await adaptSceneToLatents(expanded, ctx);
-  const raster = await decodeLatentsToRaster(latentCodes, ctx);
+  const { latents, outcome } = await adaptSceneToLatents(expanded, ctx);
+  const raster = await decodeLatentsToRaster(latents, ctx);
   const imageCode = imageCodeReceipt(parsed);
   const artifact: ImageArtifact = {
     outPath: ctx.outPath,
@@ -33,6 +33,7 @@ export async function renderImagePipeline(
       llmOutputRaw: null,
       llmOutputParsed: parsed,
       imageCode,
+      adapterOutcome: outcome,
       quality: {
         structural: {
           schemaValidated: true,

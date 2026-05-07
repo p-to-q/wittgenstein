@@ -51,6 +51,7 @@ describe("image v2 round trip", () => {
     });
     expect(imageV2Codec.manifestRows(art).map((row) => row.key)).toEqual([
       "route",
+      "renderPath",
       "image.code",
       "quality.structural",
       "quality.partial",
@@ -59,6 +60,9 @@ describe("image v2 round trip", () => {
       "L5.decoderHash",
       "artifact.sha256",
     ]);
+    expect(
+      imageV2Codec.manifestRows(art).find((row) => row.key === "renderPath")?.value,
+    ).toBe("visual-seed-code");
     expect(imageV2Codec.manifestRows(art).find((row) => row.key === "image.code")?.value).toEqual(
       art.metadata.imageCode,
     );

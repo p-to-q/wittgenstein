@@ -9,6 +9,7 @@ import {
   type ImageLatentCodes,
   type ImageSceneSpec,
 } from "../schema.js";
+import type { ImageAdapterOutcome } from "../types.js";
 
 export type { ImageLatentCodes };
 export { ImageLatentCodesSchema };
@@ -16,15 +17,27 @@ export { ImageLatentCodesSchema };
 /** v1 stub: tokens[0]=1, tokens[1]=byte length, tokens[2..]=UTF-8 bytes of caption. */
 export const STUB_LATENT_PROTOCOL_V1 = 1;
 
+/**
+ * Result of `adaptSceneToLatents`: the decoder-native latents plus a record
+ * of which adapter tier actually produced them. The outcome is what the
+ * pipeline propagates to the manifest as `renderPath`, so a downstream
+ * observer can tell whether (e.g.) `providerLatents` won, or whether it
+ * failed validation and a lower-priority tier ran instead.
+ */
+export interface AdaptSceneResult {
+  readonly latents: ImageLatentCodes;
+  readonly outcome: ImageAdapterOutcome;
+}
+
 export async function adaptSceneToLatents(
   parsed: ImageSceneSpec,
   ctx: RenderCtx,
-): Promise<ImageLatentCodes> {
+): Promise<AdaptSceneResult> {
   if (parsed.providerLatents) {
     const validated = ImageLatentCodesSchema.safeParse(parsed.providerLatents);
     if (validated.success) {
       ctx.logger.info("Using provider-included latents; skipping learned adapter.");
-      return validated.data;
+      return { latents: validated.data, outcome: "provider-latents" };
     }
     ctx.logger.warn("providerLatents failed validation; falling back to adapter.", {
       issues: validated.error?.issues,
@@ -35,7 +48,10 @@ export async function adaptSceneToLatents(
     const validated = ImageCoarseVqSchema.safeParse(parsed.coarseVq);
     if (validated.success) {
       ctx.logger.info("Using coarseVq hints; expanding to decoder-native latents.");
-      return expandCoarseVqToLatents(parsed, validated.data);
+      return {
+        latents: expandCoarseVqToLatents(parsed, validated.data),
+        outcome: "coarse-vq",
+      };
     }
     ctx.logger.warn("coarseVq failed validation; falling back to next adapter tier.", {
       issues: validated.error?.issues,
@@ -46,11 +62,14 @@ export async function adaptSceneToLatents(
     const validated = ImageVisualSeedCodeSchema.safeParse(parsed.seedCode);
     if (validated.success) {
       ctx.logger.info("Using Visual Seed Code; expanding to decoder-native latents.");
-      return placeholderSeedExpander.expand({
-        seedCode: validated.data,
-        decoder: parsed.decoder,
-        seed: hashSpecToSeed(parsed),
-      });
+      return {
+        latents: placeholderSeedExpander.expand({
+          seedCode: validated.data,
+          decoder: parsed.decoder,
+          seed: hashSpecToSeed(parsed),
+        }),
+        outcome: "visual-seed-code",
+      };
     }
     ctx.logger.warn("seedCode failed validation; falling back to next adapter tier.", {
       issues: validated.error?.issues,
@@ -59,10 +78,16 @@ export async function adaptSceneToLatents(
 
   const resolved = await resolveMlpForScene(parsed, ctx);
   if (resolved) {
-    return annotateLatents(parsed, await predictWithResolved(parsed, resolved));
+    return {
+      latents: annotateLatents(parsed, await predictWithResolved(parsed, resolved)),
+      outcome: "learned-mlp",
+    };
   }
 
-  return annotateLatents(parsed, placeholderLatents(parsed, ctx));
+  return {
+    latents: annotateLatents(parsed, placeholderLatents(parsed, ctx)),
+    outcome: "placeholder",
+  };
 }
 
 function placeholderLatents(parsed: ImageSceneSpec, ctx: RenderCtx): ImageLatentCodes {

@@ -19,7 +19,7 @@ import { adaptSceneToLatents } from "./pipeline/adapter.js";
 import { decodeLatentsToRaster } from "./pipeline/decoder.js";
 import { packageRasterAsPng } from "./pipeline/package.js";
 import { imageCodeReceipt } from "./image-code-receipt.js";
-import type { ImageArtifact } from "./types.js";
+import type { ImageAdapterOutcome, ImageArtifact } from "./types.js";
 
 interface ImageCodecLlmService {
   readonly provider: string;
@@ -54,6 +54,7 @@ interface ImageCodecServices {
 interface AdaptedImagePayload {
   readonly scene: ImageSceneSpec;
   readonly latents: ImageLatentCodes;
+  readonly adapterOutcome: ImageAdapterOutcome;
   readonly promptExpanded: string;
   readonly llmOutputRaw: string;
   readonly llmTokens: { input: number; output: number };
@@ -269,7 +270,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
 
   protected override async adapt(ir: codecV2.IR, ctx: codecV2.HarnessCtx): Promise<codecV2.IR> {
     const expanded = asScenePlan(ir);
-    const latents = await adaptSceneToLatents(
+    const { latents, outcome } = await adaptSceneToLatents(
       expanded.scene,
       this.createRenderCtx(ctx, codecV2.CodecPhase.Adapt),
     );
@@ -280,6 +281,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
       latent: {
         scene: expanded.scene,
         latents,
+        adapterOutcome: outcome,
         promptExpanded: expanded.promptExpanded,
         llmOutputRaw: expanded.llmOutputRaw,
         llmTokens: expanded.llmTokens,
@@ -317,6 +319,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         llmOutputRaw: payload.llmOutputRaw,
         llmOutputParsed: payload.scene,
         imageCode,
+        adapterOutcome: payload.adapterOutcome,
         quality: {
           structural: {
             schemaValidated: true,
@@ -350,6 +353,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
   manifestRows(art: ImageArtifact): ReadonlyArray<codecV2.ManifestRow> {
     return [
       { key: "route", value: art.metadata.route },
+      { key: "renderPath", value: art.metadata.adapterOutcome },
       { key: "image.code", value: art.metadata.imageCode },
       { key: "quality.structural", value: art.metadata.quality.structural },
       { key: "quality.partial", value: art.metadata.quality.partial },

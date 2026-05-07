@@ -32,6 +32,11 @@ export function toRenderResult(art: ImageArtifact): RenderResult {
       costUsd: art.metadata.costUsd,
       durationMs: art.metadata.durationMs,
       seed: art.metadata.seed,
+      // Outcome of the adapter fall-through (which tier actually fired) — not
+      // the spec intent. Surfaces in `RunManifest.renderPath` so observers can
+      // see e.g. "providerLatents was provided but failed validation; the
+      // visual-seed-code tier ran instead."
+      renderPath: art.metadata.adapterOutcome,
     },
   };
 }
