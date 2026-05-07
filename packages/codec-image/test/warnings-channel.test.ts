@@ -42,4 +42,9 @@ describe("image v2 warnings channel", () => {
       art.metadata.warnings.some((warning) => warning.code === imageV2Codec.warnings.adapter_stub),
     ).toBe(true);
   });
+
+  it("declares image/coarse-vq-invalid + image/seed-code-invalid warning codes for adapter fall-through", () => {
+    expect(imageV2Codec.warnings.coarse_vq_invalid).toBe("image/coarse-vq-invalid");
+    expect(imageV2Codec.warnings.seed_code_invalid).toBe("image/seed-code-invalid");
+  });
 });

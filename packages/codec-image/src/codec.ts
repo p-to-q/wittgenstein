@@ -196,6 +196,8 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
   readonly warnings = {
     palette_overflow: "image/palette-overflow",
     provider_latents_invalid: "image/provider-latents-invalid",
+    coarse_vq_invalid: "image/coarse-vq-invalid",
+    seed_code_invalid: "image/seed-code-invalid",
     adapter_stub: "image/adapter-stub",
     decoder_reference_bridge: "image/decoder-reference-bridge",
     decoder_placeholder: "image/decoder-placeholder",
@@ -383,6 +385,12 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
   private warningCodeFor(message: string): string | null {
     if (message.includes("providerLatents failed validation")) {
       return this.warnings.provider_latents_invalid;
+    }
+    if (message.includes("coarseVq failed validation")) {
+      return this.warnings.coarse_vq_invalid;
+    }
+    if (message.includes("seedCode failed validation")) {
+      return this.warnings.seed_code_invalid;
     }
     if (message.includes("Using placeholder seed-expansion adapter")) {
       return this.warnings.adapter_stub;

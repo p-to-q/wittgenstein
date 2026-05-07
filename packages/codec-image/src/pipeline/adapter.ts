@@ -37,6 +37,9 @@ export async function adaptSceneToLatents(
       ctx.logger.info("Using coarseVq hints; expanding to decoder-native latents.");
       return expandCoarseVqToLatents(parsed, validated.data);
     }
+    ctx.logger.warn("coarseVq failed validation; falling back to next adapter tier.", {
+      issues: validated.error?.issues,
+    });
   }
 
   if (parsed.seedCode) {
@@ -45,6 +48,9 @@ export async function adaptSceneToLatents(
       ctx.logger.info("Using Visual Seed Code; expanding to decoder-native latents.");
       return expandSeedToLatents(parsed, validated.data);
     }
+    ctx.logger.warn("seedCode failed validation; falling back to next adapter tier.", {
+      issues: validated.error?.issues,
+    });
   }
 
   const resolved = await resolveMlpForScene(parsed, ctx);
