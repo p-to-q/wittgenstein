@@ -77,7 +77,7 @@ jobs:
 
       - name: Upload receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kokoro-sweep-linux
           path: artifacts/tmp/kokoro-sweep-linux.json
