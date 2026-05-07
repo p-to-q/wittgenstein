@@ -31,16 +31,29 @@ The LLM does not emit raw samples, NumPy arrays, or waveform binaries. It emits 
 
 The library is deliberately small. Adding an operator requires an RFC.
 
-| Operator      | Use                                 | Parameters                        |
-| ------------- | ----------------------------------- | --------------------------------- |
-| `oscillator`  | sine / square / triangle base waves | `freqHz`, `amplitude`, `phase`    |
-| `noise`       | white / pink / brown noise overlay  | `kind`, `amplitude`               |
-| `drift`       | low-frequency baseline drift        | `slope`, `period`                 |
-| `pulse`       | event-rate Poisson or fixed-period  | `rateHz`, `width`, `shape`        |
-| `step`        | discrete level changes              | `levels`, `times`                 |
-| `ecgTemplate` | clinical-shape ECG cycle (P-QRS-T)  | `bpm`, `morphology`, `noiseFloor` |
+| Operator       | Use                                                              | Parameters                                                        |
+| -------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `oscillator`   | sine / square / triangle base waves                              | `freqHz`, `amplitude`, `phase`                                    |
+| `noise`        | white / pink / brown noise overlay                               | `kind`, `amplitude`                                               |
+| `drift`        | low-frequency baseline drift                                     | `slope`, `period`                                                 |
+| `pulse`        | event-rate Poisson or fixed-period                               | `rateHz`, `width`, `shape`                                        |
+| `step`         | discrete level changes                                           | `levels`, `times`                                                 |
+| `ecgTemplate`  | clinical-shape ECG cycle (P-QRS-T)                               | `bpm`, `morphology`, `noiseFloor`                                 |
+| `patchGrammar` | higher-order: split duration into patches, recurse per-patch ops | `patchLengthSec`, `patches[]: { operators[], affineNormalize? }`  |
 
 The runtime composes operators by addition into a single sample buffer. Composition order is recorded in the manifest for replay.
+
+### Higher-order operator: `patchGrammar`
+
+`patchGrammar` is the only operator that nests other operators. It exists so the spec can express **local context that flat composition cannot** — e.g. a heart-rate ramp (different `bpm` per segment), or a per-segment range constraint. The design tracks `docs/research/2026-05-07-sensor-patch-grammar.md` Option A and is intentionally _not_ a learned model: patches are deterministic concatenations of regular operators.
+
+Semantics:
+
+- The duration is split into consecutive patches of `patchLengthSec` seconds. The last patch is truncated if it would extend past `durationSec`; patches that start past `durationSec` are skipped.
+- Within each patch, `operators[]` is expanded over the patch's frame range using the **parent RNG** — so noise across patches stays deterministic given the parent seed and a single-patch `patchGrammar` covering the full duration is byte-identical to the equivalent flat operator list.
+- If `affineNormalize` is set on a patch, the patch's _contribution_ (post-pre snapshot delta) is min-max normalized to `[minOutput, maxOutput]` before being added back. When the contribution is constant (range=0), the value collapses to the midpoint of `[minOutput, maxOutput]`.
+
+The recursion is enforced by the schema (a `patchGrammar` patch may itself contain another `patchGrammar`), but the operator library expects shallow trees in practice; deep nesting is an RFC topic, not a usage tip.
 
 ## Renderer Families
 
@@ -97,6 +110,8 @@ All three are recorded in the manifest with their SHA-256 hashes.
 Sensor synthesis is **fully deterministic**. `artifacts/showcase/workflow-examples/sensor/`
 is the preserved `v0.1.0-alpha.1` hackathon receipt pack and, for now, the regression
 corpus — any drift is a real regression. Sensor does not have an LLM-stage drift excuse.
+
+`fixtures/golden/sensor/` holds the byte-pinned CSVs verified by `packages/codec-sensor/test/golden.test.ts`. Each signal family has a flat-operator golden plus a `*-patch-grammar.csv` companion exercising the higher-order operator (multi-patch concatenation for `ecg`, per-patch `affineNormalize` for `temperature`, single-patch RNG-sharing for `gyro`). The single-patch `gyro-patch-grammar.csv` SHA equals `gyro.csv` SHA — the byte-identity check that anchors the recursion seam.
 
 ## Benchmark Case
 

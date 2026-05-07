@@ -25,6 +25,30 @@
       "durationSec": 4,
       "fixture": "gyro.csv",
       "artifactSha256": "86074f303a4441d9851e44e814458a9a17ba79e37b32ff30491214410a1932fc"
+    },
+    {
+      "signal": "ecg",
+      "seed": 7,
+      "sampleRateHz": 120,
+      "durationSec": 3,
+      "fixture": "ecg-patch-grammar.csv",
+      "artifactSha256": "ace3233655ed83b96ee6341a1a053ca0c895fc587e1b29a4fee7ec5cd1ea3178"
+    },
+    {
+      "signal": "temperature",
+      "seed": 7,
+      "sampleRateHz": 10,
+      "durationSec": 12,
+      "fixture": "temperature-patch-grammar.csv",
+      "artifactSha256": "823627e0d3d92d95dae1cf4612d1352a92f65a42a8696bb1071aeb1696c1b04c"
+    },
+    {
+      "signal": "gyro",
+      "seed": 7,
+      "sampleRateHz": 50,
+      "durationSec": 4,
+      "fixture": "gyro-patch-grammar.csv",
+      "artifactSha256": "86074f303a4441d9851e44e814458a9a17ba79e37b32ff30491214410a1932fc"
     }
   ]
 }

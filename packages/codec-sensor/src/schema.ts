@@ -2,7 +2,29 @@ import { z } from "zod";
 import type { Result, SensorRequest } from "@wittgenstein/schemas";
 import { SensorRequestSchema } from "@wittgenstein/schemas";
 
-const SensorOperatorSchema = z.discriminatedUnion("type", [
+/**
+ * Recursive type for `SensorOperator` — `patchGrammar` carries nested operators
+ * inside each patch, so the type definition needs the recursion before the schema.
+ * Field shape mirrors zod's emitted output (mutable, optional permitted) so the
+ * hand-written interface and `z.infer` agree.
+ */
+export type SensorOperator =
+  | { type: "oscillator"; frequencyHz: number; amplitude: number; phaseRad: number }
+  | { type: "noise"; color: "white" | "pink"; amplitude: number }
+  | { type: "drift"; slopePerSec: number }
+  | { type: "pulse"; centerSec: number; widthSec: number; amplitude: number }
+  | { type: "step"; atSec: number; amplitude: number }
+  | { type: "ecgTemplate"; bpm: number; amplitude: number }
+  | {
+      type: "patchGrammar";
+      patchLengthSec: number;
+      patches: Array<{
+        operators: SensorOperator[];
+        affineNormalize?: { minOutput: number; maxOutput: number } | undefined;
+      }>;
+    };
+
+const baseOperatorSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("oscillator"),
     frequencyHz: z.number().positive(),
@@ -35,6 +57,37 @@ const SensorOperatorSchema = z.discriminatedUnion("type", [
     amplitude: z.number().positive().default(1),
   }),
 ]);
+
+/**
+ * `SensorOperatorSchema` admits the 6 flat operator variants plus a higher-order
+ * `patchGrammar` operator that composes nested operators across patches per
+ * `docs/research/2026-05-07-sensor-patch-grammar.md` Option A. Recursion is
+ * expressed via `z.lazy`; the wrapping `z.union` (rather than discriminatedUnion)
+ * is required because zod's discriminatedUnion does not currently accept lazy
+ * children. Base operators still benefit from discriminated parsing.
+ */
+const SensorOperatorSchema: z.ZodType<SensorOperator, z.ZodTypeDef, unknown> = z.lazy(() =>
+  z.union([
+    baseOperatorSchema,
+    z.object({
+      type: z.literal("patchGrammar"),
+      patchLengthSec: z.number().positive(),
+      patches: z
+        .array(
+          z.object({
+            operators: z.array(SensorOperatorSchema),
+            affineNormalize: z
+              .object({
+                minOutput: z.number(),
+                maxOutput: z.number(),
+              })
+              .optional(),
+          }),
+        )
+        .min(1),
+    }),
+  ]),
+);
 
 export const SensorSignalSpecSchema = z.object({
   signal: z.enum(["ecg", "temperature", "gyro"]).default("temperature"),

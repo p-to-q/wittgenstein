@@ -3,7 +3,7 @@ import { dirname, extname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
-import type { SensorSignalSpec } from "./schema.js";
+import type { SensorOperator, SensorSignalSpec } from "./schema.js";
 
 export interface SensorSample {
   timeSec: number;
@@ -151,60 +151,75 @@ function expandSensorAlgorithm(
   const rng = createRng(seed ?? 0);
 
   for (const operator of spec.operators) {
-    if (operator.type === "oscillator") {
-      for (let i = 0; i < frameCount; i += 1) {
-        const timeSec = i / sampleRateHz;
-        signal[i] =
-          (signal[i] ?? 0) +
-          Math.sin(2 * Math.PI * operator.frequencyHz * timeSec + operator.phaseRad) *
-            operator.amplitude;
-      }
-      continue;
-    }
+    expandOperator(operator, signal, 0, frameCount, sampleRateHz, rng);
+  }
 
-    if (operator.type === "noise") {
-      const noise =
-        operator.color === "pink" ? pinkNoise(frameCount, rng) : whiteNoise(frameCount, rng);
-      for (let i = 0; i < frameCount; i += 1) {
-        signal[i] = (signal[i] ?? 0) + (noise[i] ?? 0) * operator.amplitude;
-      }
-      continue;
-    }
+  return signal;
+}
 
-    if (operator.type === "drift") {
-      for (let i = 0; i < frameCount; i += 1) {
-        const timeSec = i / sampleRateHz;
-        signal[i] = (signal[i] ?? 0) + timeSec * operator.slopePerSec;
-      }
-      continue;
+function expandOperator(
+  operator: SensorOperator,
+  signal: Float32Array,
+  startFrame: number,
+  endFrame: number,
+  sampleRateHz: number,
+  rng: () => number,
+): void {
+  if (operator.type === "oscillator") {
+    for (let i = startFrame; i < endFrame; i += 1) {
+      const timeSec = i / sampleRateHz;
+      signal[i] =
+        (signal[i] ?? 0) +
+        Math.sin(2 * Math.PI * operator.frequencyHz * timeSec + operator.phaseRad) *
+          operator.amplitude;
     }
+    return;
+  }
 
-    if (operator.type === "pulse") {
-      const start = Math.max(
-        0,
-        Math.floor((operator.centerSec - operator.widthSec / 2) * sampleRateHz),
-      );
-      const end = Math.min(
-        frameCount,
-        Math.ceil((operator.centerSec + operator.widthSec / 2) * sampleRateHz),
-      );
-      for (let i = start; i < end; i += 1) {
-        const phase = (i - start) / Math.max(1, end - start);
-        signal[i] = (signal[i] ?? 0) + Math.sin(Math.PI * phase) * operator.amplitude;
-      }
-      continue;
+  if (operator.type === "noise") {
+    const span = endFrame - startFrame;
+    const noise = operator.color === "pink" ? pinkNoise(span, rng) : whiteNoise(span, rng);
+    for (let i = 0; i < span; i += 1) {
+      signal[startFrame + i] = (signal[startFrame + i] ?? 0) + (noise[i] ?? 0) * operator.amplitude;
     }
+    return;
+  }
 
-    if (operator.type === "step") {
-      const start = Math.max(0, Math.floor(operator.atSec * sampleRateHz));
-      for (let i = start; i < frameCount; i += 1) {
-        signal[i] = (signal[i] ?? 0) + operator.amplitude;
-      }
-      continue;
+  if (operator.type === "drift") {
+    for (let i = startFrame; i < endFrame; i += 1) {
+      const timeSec = i / sampleRateHz;
+      signal[i] = (signal[i] ?? 0) + timeSec * operator.slopePerSec;
     }
+    return;
+  }
 
+  if (operator.type === "pulse") {
+    const start = Math.max(
+      startFrame,
+      Math.floor((operator.centerSec - operator.widthSec / 2) * sampleRateHz),
+    );
+    const end = Math.min(
+      endFrame,
+      Math.ceil((operator.centerSec + operator.widthSec / 2) * sampleRateHz),
+    );
+    for (let i = start; i < end; i += 1) {
+      const phase = (i - start) / Math.max(1, end - start);
+      signal[i] = (signal[i] ?? 0) + Math.sin(Math.PI * phase) * operator.amplitude;
+    }
+    return;
+  }
+
+  if (operator.type === "step") {
+    const start = Math.max(startFrame, Math.floor(operator.atSec * sampleRateHz));
+    for (let i = start; i < endFrame; i += 1) {
+      signal[i] = (signal[i] ?? 0) + operator.amplitude;
+    }
+    return;
+  }
+
+  if (operator.type === "ecgTemplate") {
     const beatPeriod = 60 / operator.bpm;
-    for (let i = 0; i < frameCount; i += 1) {
+    for (let i = startFrame; i < endFrame; i += 1) {
       const timeSec = i / sampleRateHz;
       const phase = (timeSec % beatPeriod) / beatPeriod;
       const p = Math.exp(-Math.pow((phase - 0.16) * 22, 2)) * 0.08;
@@ -214,9 +229,80 @@ function expandSensorAlgorithm(
       const t = Math.exp(-Math.pow((phase - 0.58) * 15, 2)) * 0.18;
       signal[i] = (signal[i] ?? 0) + (p + qrs + t) * operator.amplitude;
     }
+    return;
   }
 
-  return signal;
+  // operator.type === "patchGrammar"
+  expandPatchGrammar(operator, signal, startFrame, endFrame, sampleRateHz, rng);
+}
+
+/**
+ * Expand a patchGrammar operator across [startFrame, endFrame).
+ *
+ * Each patch occupies `floor(patchLengthSec * sampleRateHz)` consecutive frames,
+ * starting from `startFrame`. Patches that would extend past `endFrame` are
+ * truncated; patches whose start frame is past `endFrame` are skipped. Within
+ * each patch:
+ *   - Pre-patch signal values in the patch range are snapshotted.
+ *   - All patch operators are applied recursively, sharing the parent RNG so
+ *     noise across patches stays deterministic given the parent seed.
+ *   - If `affineNormalize` is set, the patch's *contribution* (post-pre) is
+ *     min-max normalized to `[minOutput, maxOutput]` before being added back
+ *     onto the pre-patch values. This preserves additive operator semantics
+ *     while letting patches enforce a canonical local range.
+ */
+function expandPatchGrammar(
+  operator: Extract<SensorOperator, { type: "patchGrammar" }>,
+  signal: Float32Array,
+  startFrame: number,
+  endFrame: number,
+  sampleRateHz: number,
+  rng: () => number,
+): void {
+  const patchFrames = Math.max(1, Math.floor(operator.patchLengthSec * sampleRateHz));
+  for (let patchIdx = 0; patchIdx < operator.patches.length; patchIdx += 1) {
+    const patch = operator.patches[patchIdx];
+    if (!patch) {
+      continue;
+    }
+    const patchStart = startFrame + patchIdx * patchFrames;
+    if (patchStart >= endFrame) {
+      break;
+    }
+    const patchEnd = Math.min(endFrame, patchStart + patchFrames);
+
+    const span = patchEnd - patchStart;
+    const preValues = new Float32Array(span);
+    for (let i = 0; i < span; i += 1) {
+      preValues[i] = signal[patchStart + i] ?? 0;
+    }
+
+    for (const inner of patch.operators) {
+      expandOperator(inner, signal, patchStart, patchEnd, sampleRateHz, rng);
+    }
+
+    if (patch.affineNormalize) {
+      const contribution = new Float32Array(span);
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < span; i += 1) {
+        const c = (signal[patchStart + i] ?? 0) - (preValues[i] ?? 0);
+        contribution[i] = c;
+        if (c < min) min = c;
+        if (c > max) max = c;
+      }
+      const range = max - min;
+      const targetMin = patch.affineNormalize.minOutput;
+      const targetMax = patch.affineNormalize.maxOutput;
+      const targetRange = targetMax - targetMin;
+      const fallbackCenter = (targetMin + targetMax) / 2;
+      for (let i = 0; i < span; i += 1) {
+        const normalized =
+          range > 0 ? ((contribution[i]! - min) / range) * targetRange + targetMin : fallbackCenter;
+        signal[patchStart + i] = (preValues[i] ?? 0) + normalized;
+      }
+    }
+  }
 }
 
 function samplesToRows(samples: Float32Array, sampleRateHz: number): SensorSample[] {
