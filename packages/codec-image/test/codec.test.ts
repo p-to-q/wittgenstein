@@ -222,6 +222,147 @@ describe("@wittgenstein/codec-image", () => {
     }
   });
 
+  // Cases below cover the two-pass acceptance ledger from
+  // docs/research/2026-05-07-vsc-acceptance-cases.md (#207). They lock the
+  // current codec contract: `mode` is preserved on the receipt as the
+  // declared lane, while `imageCodePath` reflects which decoder-facing
+  // layer actually fired. Mode-driven runtime short-circuit (true two-pass
+  // staging) is future work — these tests document today's behavior so a
+  // future implementation slice has a regression baseline.
+
+  it("two-pass case 8 — pass-1-only (semantic only with mode tag) routes to semantic-fallback", () => {
+    // Pass 1 of two-pass-compile: model emits mode tag + nested semantic only.
+    // Today the codec parses successfully; receipt records the declared mode,
+    // and the path is `semantic-fallback` because no decoder-facing layer is
+    // present yet. Future short-circuit work would prevent adapter dispatch.
+    const result = imageCodec.parse(
+      JSON.stringify({
+        mode: "two-pass-compile",
+        semantic: {
+          intent: "Calm forest path at golden hour",
+          subject: "forest path with ferns and distant light",
+          composition: {
+            framing: "wide shot",
+            camera: "natural",
+            depthPlan: ["foreground ferns", "midground path", "distant trees"],
+          },
+          lighting: { mood: "warm", key: "low golden side light" },
+          style: {
+            references: ["landscape photography"],
+            palette: ["amber", "moss", "umber"],
+          },
+          constraints: { mustHave: ["natural light"], negative: ["text"] },
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.mode).toBe("two-pass-compile");
+      expect(result.value.seedCode).toBeUndefined();
+      expect(result.value.coarseVq).toBeUndefined();
+      expect(result.value.providerLatents).toBeUndefined();
+      const receipt = imageCodeReceipt(result.value);
+      expect(receipt.mode).toBe("two-pass-compile");
+      expect(receipt.path).toBe("semantic-fallback");
+      expect(receipt.semanticSource).toBe("emitted");
+    }
+  });
+
+  it("two-pass case 9 — pass-2 with seedCode routes to visual-seed-code", () => {
+    // Pass 2 of two-pass-compile: model echoes mode tag and emits the
+    // decoder-facing seedCode layer. The codec routes to the visual-seed-code
+    // path; the mode literal is preserved on the receipt for downstream
+    // observability.
+    const result = imageCodec.parse(
+      JSON.stringify({
+        mode: "two-pass-compile",
+        seedCode: {
+          schemaVersion: "witt.image.seed/v0.1",
+          family: "vqvae",
+          mode: "prefix",
+          tokens: [12, 7, 41, 88, 3, 17, 9, 220],
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.mode).toBe("two-pass-compile");
+      expect(result.value.seedCode?.tokens.length).toBe(8);
+      const receipt = imageCodeReceipt(result.value);
+      expect(receipt.mode).toBe("two-pass-compile");
+      expect(receipt.path).toBe("visual-seed-code");
+      expect(receipt.seedFamily).toBe("vqvae");
+      expect(receipt.seedMode).toBe("prefix");
+      expect(receipt.seedLength).toBe(8);
+    }
+  });
+
+  it("two-pass collapsed-to-one-shot — declared two-pass plus seedCode without prior staging is allowed", () => {
+    // Collapsed case: caller declares `mode: "two-pass-compile"` but emits
+    // seedCode immediately (no prior pass-1 staging). Per #207's
+    // failure-mode table this is "collapse to one-shot" — accept anyway,
+    // route through the visual-seed-code path, preserve the mode literal
+    // for a future warning to surface in observability without rejecting
+    // the run.
+    const result = imageCodec.parse(
+      JSON.stringify({
+        mode: "two-pass-compile",
+        seedCode: {
+          schemaVersion: "witt.image.seed/v0.1",
+          family: "vqvae",
+          mode: "prefix",
+          tokens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        },
+        decoder: {
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          latentResolution: [32, 32],
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const receipt = imageCodeReceipt(result.value);
+      // Mode is preserved (declared lane) but path resolves on emitted layer.
+      expect(receipt.mode).toBe("two-pass-compile");
+      expect(receipt.path).toBe("visual-seed-code");
+      expect(receipt.hasSeedCode).toBe(true);
+      expect(receipt.semanticSource).toBe("absent");
+    }
+  });
+
+  it("two-pass case 8b — pass-1 with legacy top-level semantic still routes correctly", () => {
+    // Variant of case 8 where pass-1 uses the legacy top-level semantic
+    // shape instead of nested `semantic`. Should still parse, set
+    // semanticSource: "legacy-top-level", and route to semantic-fallback.
+    const result = imageCodec.parse(
+      JSON.stringify({
+        mode: "two-pass-compile",
+        intent: "Calm forest path at golden hour",
+        subject: "forest path",
+        composition: {
+          framing: "wide shot",
+          camera: "natural",
+          depthPlan: ["foreground", "midground", "background"],
+        },
+        lighting: { mood: "warm", key: "golden" },
+        style: {
+          references: ["landscape photography"],
+          palette: ["amber", "moss", "umber"],
+        },
+        constraints: { mustHave: [], negative: [] },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const receipt = imageCodeReceipt(result.value);
+      expect(receipt.mode).toBe("two-pass-compile");
+      expect(receipt.path).toBe("semantic-fallback");
+      expect(receipt.semanticSource).toBe("legacy-top-level");
+    }
+  });
+
   it("renders placeholder latents into a PNG artifact", async () => {
     const parsed = imageCodec.parse("{}");
     expect(parsed.ok).toBe(true);
