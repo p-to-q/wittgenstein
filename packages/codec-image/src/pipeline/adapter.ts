@@ -1,5 +1,6 @@
 import type { RenderCtx } from "@wittgenstein/schemas";
 import { resolveMlpForScene, predictWithResolved } from "../adapters/adapter-resolve.js";
+import { placeholderSeedExpander } from "../adapters/seed-expander.js";
 import {
   ImageCoarseVqSchema,
   ImageLatentCodesSchema,
@@ -7,7 +8,6 @@ import {
   type ImageCoarseVq,
   type ImageLatentCodes,
   type ImageSceneSpec,
-  type ImageVisualSeedCode,
 } from "../schema.js";
 
 export type { ImageLatentCodes };
@@ -46,7 +46,11 @@ export async function adaptSceneToLatents(
     const validated = ImageVisualSeedCodeSchema.safeParse(parsed.seedCode);
     if (validated.success) {
       ctx.logger.info("Using Visual Seed Code; expanding to decoder-native latents.");
-      return expandSeedToLatents(parsed, validated.data);
+      return placeholderSeedExpander.expand({
+        seedCode: validated.data,
+        decoder: parsed.decoder,
+        seed: hashSpecToSeed(parsed),
+      });
     }
     ctx.logger.warn("seedCode failed validation; falling back to next adapter tier.", {
       issues: validated.error?.issues,
@@ -112,31 +116,6 @@ function expandCoarseVqToLatents(
     codebook: parsed.decoder.codebook,
     codebookVersion: parsed.decoder.codebookVersion,
     tokenGrid: [targetWidth, targetHeight],
-    tokens,
-  });
-}
-
-function expandSeedToLatents(
-  parsed: ImageSceneSpec,
-  seedCode: ImageVisualSeedCode,
-): ImageLatentCodes {
-  const [width, height] = parsed.decoder.latentResolution;
-  const totalTokens = width * height;
-  const codebookSize = 8192;
-  const deterministicSeed = hashSpecToSeed(parsed);
-  const tokens = new Array<number>(totalTokens);
-
-  for (let index = 0; index < totalTokens; index += 1) {
-    const base = seedCode.tokens[index % seedCode.tokens.length] ?? 0;
-    tokens[index] = (base + deterministicSeed + index * 31) % codebookSize;
-  }
-
-  return ImageLatentCodesSchema.parse({
-    schemaVersion: "witt.image.latents/v0.1",
-    family: parsed.decoder.family,
-    codebook: parsed.decoder.codebook,
-    codebookVersion: parsed.decoder.codebookVersion,
-    tokenGrid: [width, height],
     tokens,
   });
 }
