@@ -6,13 +6,22 @@ name: Queue labeler
 
 on:
   issues:
-    types: [opened, reopened, edited]
+    types: [opened, reopened, edited, labeled, unlabeled]
   pull_request_target:
     types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, edited]
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Optional issue number to relabel"
+        required: false
+      pr_number:
+        description: "Optional PR number to relabel"
+        required: false
 
 permissions:
+  contents: read
   issues: write
   pull-requests: read
 
@@ -34,6 +43,15 @@ jobs:
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+
+            function hasStatusLabel(labels) {
+              return labels.some((label) => statusLabels.includes(label));
+            }
+
+            function isStatusLabelEvent() {
+              const labelName = context.payload.label?.name;
+              return context.eventName === "issues" && labelName && statusLabels.includes(labelName);
+            }
 
             function labelsFromText(text) {
               const rules = [
@@ -151,6 +169,11 @@ jobs:
               }
             }
 
+            async function setIssueStatusIfMissing(issue_number, labels) {
+              if (hasStatusLabel(labels)) return;
+              await setStatus(issue_number, statusForIssue(labels));
+            }
+
             function statusForIssue(labels) {
               if (labels.includes("status/has-pr")) {
                 return "status/has-pr";
@@ -165,6 +188,45 @@ jobs:
                 return "status/parked";
               }
               return "status/ready";
+            }
+
+            async function issuePayload(number) {
+              const { data } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: number,
+              });
+              return data;
+            }
+
+            async function pullRequestPayload(number) {
+              const { repository } = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      title
+                      body
+                      isDraft
+                      reviewDecision
+                      additions
+                      deletions
+                      changedFiles
+                    }
+                  }
+                }
+              `, { owner, repo, number });
+
+              const pr = repository.pullRequest;
+              if (!pr) return null;
+              return {
+                number,
+                title: pr.title,
+                body: pr.body,
+                draft: pr.isDraft,
+                additions: pr.additions,
+                deletions: pr.deletions,
+                changed_files: pr.changedFiles,
+              };
             }
 
             async function referencedOpenIssues(pr) {
@@ -210,18 +272,20 @@ jobs:
             }
 
             if (context.eventName === "issues") {
+              if (isStatusLabelEvent()) return;
+
               const issue = context.payload.issue;
               if (!issue.pull_request) {
                 const labels = issue.labels.map((label) => label.name);
                 const inferredLabels = labelsFromText(issue.title || "");
                 await addLabels(issue.number, inferredLabels);
-                await setStatus(issue.number, statusForIssue([...new Set([...labels, ...inferredLabels])]));
+                await setIssueStatusIfMissing(issue.number, [...new Set([...labels, ...inferredLabels])]);
               }
             }
 
             if (context.eventName === "pull_request_target") {
               const pr = context.payload.pull_request;
-              await addLabels(pr.number, labelsFromText(`${pr.title || ""}\n${pr.body || ""}`));
+              await addLabels(pr.number, labelsFromText(pr.title || ""));
               await addPullRequestSizeIfMissing(pr);
               await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
 
@@ -233,4 +297,31 @@ jobs:
             if (context.eventName === "pull_request_review") {
               const pr = context.payload.pull_request;
               await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
+            }
+
+            if (context.eventName === "workflow_dispatch") {
+              const issueNumber = Number(context.payload.inputs.issue_number || 0);
+              const prNumber = Number(context.payload.inputs.pr_number || 0);
+
+              if (issueNumber > 0) {
+                const issue = await issuePayload(issueNumber);
+                if (!issue.pull_request) {
+                  const labels = issue.labels.map((label) => label.name);
+                  const inferredLabels = labelsFromText(issue.title || "");
+                  await addLabels(issue.number, inferredLabels);
+                  await setIssueStatusIfMissing(issue.number, [...new Set([...labels, ...inferredLabels])]);
+                }
+              }
+
+              if (prNumber > 0) {
+                const pr = await pullRequestPayload(prNumber);
+                if (pr) {
+                  await addLabels(pr.number, labelsFromText(pr.title || ""));
+                  await addPullRequestSizeIfMissing(pr);
+                  await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
+                  for (const issue_number of await referencedOpenIssues(pr)) {
+                    await setStatus(issue_number, "status/has-pr");
+                  }
+                }
+              }
             }
