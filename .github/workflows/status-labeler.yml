@@ -169,6 +169,22 @@ jobs:
               }
             }
 
+            async function clearStatus(issue_number) {
+              const labels = await getLabels(issue_number);
+              for (const label of labels) {
+                if (statusLabels.includes(label)) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: label,
+                  }).catch((error) => {
+                    if (error.status !== 404) throw error;
+                  });
+                }
+              }
+            }
+
             async function setIssueStatusIfMissing(issue_number, labels) {
               if (hasStatusLabel(labels)) return;
               await setStatus(issue_number, statusForIssue(labels));
@@ -311,6 +327,7 @@ jobs:
               await addPullRequestSizeIfMissing(pr);
 
               if (context.payload.action === "closed") {
+                await clearStatus(pr.number);
                 await refreshReferencedIssueStatusAfterPullRequestClosed(pr);
                 return;
               }
