@@ -86,7 +86,7 @@ This is the cleanest version of the thesis:
 - `pipeline/expand.ts`
   Expands or normalizes semantic IR and image-code sections after parsing.
 - `pipeline/adapter.ts`
-  Adapter routing: `adaptSceneToLatents` runs a 4-tier fall-through (`providerLatents` → `coarseVq` → `seedCode` → learned MLP → placeholder) and returns `{ latents, outcome }`. The outcome surfaces in the manifest as `renderPath` (see *Manifest receipts* below), distinct from `imageCode.path` which records the spec *intent*.
+  Adapter routing: `adaptSceneToLatents` runs a 4-tier fall-through (`providerLatents` → `coarseVq` → `seedCode` → learned MLP → placeholder) and returns `{ latents, outcome }`. The outcome surfaces in the manifest as `renderPath` (see _Manifest receipts_ below), distinct from `imageCode.path` which records the spec _intent_.
 - `adapters/seed-expander.ts`
   The `SeedExpander` seam — the contract that turns a Visual Seed Code into decoder-native `ImageLatentCodes`. Today's implementations are placeholder-class, not trained projectors:
   - `placeholderSeedExpander` (PR #243) — deterministic 1D modulo fill that preserves the prior in-line behavior; the seam was extracted so future trained projectors drop in by changing one import.
@@ -100,10 +100,10 @@ This is the cleanest version of the thesis:
 
 The image codec records two distinct path facts so a maintainer can tell intent from outcome:
 
-- `manifest["image.code"].path` — *intent*: which hint did the LLM-emitted spec carry? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `semantic-fallback`.
-- `manifest.renderPath` — *outcome*: which adapter tier actually produced the latents? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `learned-mlp` / `placeholder`. Plumbed via `ImageAdapterOutcome` (PR #250). A bogus `providerLatents` that fails validation now surfaces as `renderPath: coarse-vq` (or further down the fall-through), not as a silent path swap.
+- `manifest["image.code"].path` — _intent_: which hint did the LLM-emitted spec carry? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `semantic-fallback`.
+- `manifest.renderPath` — _outcome_: which adapter tier actually produced the latents? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `learned-mlp` / `placeholder`. Plumbed via `ImageAdapterOutcome` (PR #250). A bogus `providerLatents` that fails validation now surfaces as `renderPath: coarse-vq` (or further down the fall-through), not as a silent path swap.
 
-Both fields appear under `RunManifest` writes through the harness; image is at parity with audio and sensor on `renderPath` reporting.
+Both fields are written through the harness manifest spine. The important parity with audio and sensor is not the field name: audio reports its concrete backend under `audioRender.decoderId` / `determinismClass`, sensor reports its dashboard route through `renderPath`, and image reports adapter-tier outcome through `renderPath`. In all three cases, the manifest names the path that actually fired instead of silently swapping behavior.
 
 ## Adapter Role
 
@@ -156,7 +156,7 @@ This still does **not** represent the final image thesis. Real generation qualit
 
 ## Training the seed-expansion adapter (v1 placeholder scaffold)
 
-> **Status:** the procedure below is the *placeholder MLP scaffold* preserved from before the SeedExpander seam (#243) and the tokenizer/decoder radar (#258). It exists so the codec has an end-to-end runnable path during scaffolding; it is **not** the target architecture for the trained projector that M1B (#70) will eventually deliver.
+> **Status:** the procedure below is the _placeholder MLP scaffold_ preserved from before the SeedExpander seam (#243) and the tokenizer/decoder radar (#258). It exists so the codec has an end-to-end runnable path during scaffolding; it is **not** the target architecture for the trained projector that M1B (#70) will eventually deliver.
 >
 > The real trained projector is gated on the radar (#258) picking a tokenizer family with: (a) verified `MIT-or-Apache` license, (b) downloadable + SHA-pinnable weights, (c) deterministic round-trip empirically tested, (d) Node/ONNX feasibility confirmed. Until those gates trip, the placeholder scaffold below is what runs.
 
@@ -181,17 +181,17 @@ The default training stack uses a **small MLP** (no LLM fine-tuning) and a **stu
 
 For agents reading this doc cold, the lineage from scene-spec doctrine to today's main HEAD:
 
-| Step | Surface | Note |
-|---|---|---|
-| Scene-spec doctrine (pre-VSC) | `docs/research/hybrid-image-code.md` | Original framing; superseded but preserved as historical receipt |
-| VSC reframe | RFC-0006, ADR-0018 | Visual Seed Token as first-class image research layer; adapter redefined primarily as seed expander |
-| SeedExpander seam | PR #243 | Pure abstraction; placeholder behavior preserved byte-for-byte |
-| Two-pass acceptance test cases | PR #242 | Cases 8 / 9 / 8b / collapsed pinned per `docs/research/2026-05-07-vsc-acceptance-cases.md` |
-| Fall-through warning symmetry | PR #241 | `coarseVq` and `seedCode` validation failures emit `ctx.logger.warn` like `providerLatents` |
-| Adapter outcome → `renderPath` | PR #250 | Manifest now records *outcome* (which tier fired) distinct from *intent* (`imageCode.path`) |
-| Second SeedExpander | PR #252 | `tileMosaicSeedExpander` demonstrates the seam swaps |
-| Theoretical anchor | `docs/research/2026-05-08-vsc-as-compression-prior.md` | Why VSC is a defensible research bet, family-agnostic |
-| Tokenizer/decoder radar | `docs/research/2026-05-08-image-tokenizer-decoder-radar.md` (#258) | 11-family survey; gates trained-projector wiring |
-| M1B trained projector | #70 (umbrella) | Gated on radar's four-step pre-wire audit (license / weights / determinism / Node-ONNX) |
+| Step                           | Surface                                                            | Note                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Scene-spec doctrine (pre-VSC)  | `docs/research/hybrid-image-code.md`                               | Original framing; superseded but preserved as historical receipt                                    |
+| VSC reframe                    | RFC-0006, ADR-0018                                                 | Visual Seed Token as first-class image research layer; adapter redefined primarily as seed expander |
+| SeedExpander seam              | PR #243                                                            | Pure abstraction; placeholder behavior preserved byte-for-byte                                      |
+| Two-pass acceptance test cases | PR #242                                                            | Cases 8 / 9 / 8b / collapsed pinned per `docs/research/2026-05-07-vsc-acceptance-cases.md`          |
+| Fall-through warning symmetry  | PR #241                                                            | `coarseVq` and `seedCode` validation failures emit `ctx.logger.warn` like `providerLatents`         |
+| Adapter outcome → `renderPath` | PR #250                                                            | Manifest now records _outcome_ (which tier fired) distinct from _intent_ (`imageCode.path`)         |
+| Second SeedExpander            | PR #252                                                            | `tileMosaicSeedExpander` demonstrates the seam swaps                                                |
+| Theoretical anchor             | `docs/research/2026-05-08-vsc-as-compression-prior.md`             | Why VSC is a defensible research bet, family-agnostic                                               |
+| Tokenizer/decoder radar        | `docs/research/2026-05-08-image-tokenizer-decoder-radar.md` (#258) | 11-family survey; gates trained-projector wiring                                                    |
+| M1B trained projector          | #70 (umbrella)                                                     | Gated on radar's four-step pre-wire audit (license / weights / determinism / Node-ONNX)             |
 
 The lineage is intentionally additive: each step is reversible (no commit erased the prior framing) and citation-backed (every claim above resolves to a PR or a docs path). New work that touches the image code-layer should extend this table, not silently rewrite earlier rows.
