@@ -8,7 +8,7 @@ on:
   issues:
     types: [opened, reopened, edited, labeled, unlabeled]
   pull_request_target:
-    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, edited]
+    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, edited, closed]
   pull_request_review:
     types: [submitted]
   workflow_dispatch:
@@ -249,6 +249,28 @@ jobs:
               return issues;
             }
 
+            async function hasOpenPullRequestReference(issue_number, excludedPullRequestNumber) {
+              const query = `repo:${owner}/${repo} is:pr is:open "#${issue_number}"`;
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q: query,
+                per_page: 20,
+              });
+
+              return data.items.some((item) => item.number !== excludedPullRequestNumber);
+            }
+
+            async function refreshReferencedIssueStatusAfterPullRequestClosed(pr) {
+              for (const issue_number of await referencedOpenIssues(pr)) {
+                if (await hasOpenPullRequestReference(issue_number, pr.number)) {
+                  await setStatus(issue_number, "status/has-pr");
+                  continue;
+                }
+
+                const labels = (await getLabels(issue_number)).filter((label) => !statusLabels.includes(label));
+                await setStatus(issue_number, statusForIssue(labels));
+              }
+            }
+
             async function statusForPullRequest(number, fallbackPayloadPr) {
               const { repository } = await github.graphql(`
                 query($owner: String!, $repo: String!, $number: Int!) {
@@ -287,6 +309,12 @@ jobs:
               const pr = context.payload.pull_request;
               await addLabels(pr.number, labelsFromText(pr.title || ""));
               await addPullRequestSizeIfMissing(pr);
+
+              if (context.payload.action === "closed") {
+                await refreshReferencedIssueStatusAfterPullRequestClosed(pr);
+                return;
+              }
+
               await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
 
               for (const issue_number of await referencedOpenIssues(pr)) {
