@@ -4,7 +4,7 @@ This page is the canonical definition of every label used on GitHub Issues and P
 
 The semantic taxonomy remains **flat by design**. Labels such as `research-derived`, `tracker`, `enhancement`, and `discussion` carry body conventions and review meaning.
 
-ADR-0019 adds a separate queue-management layer with prefixed labels: `priority/*`, `size/*`, and `stage/*`. These labels answer "when, how large, and which line?" They do not replace the semantic labels below.
+ADR-0019 adds a separate queue-management layer with prefixed labels: `priority/*`, `size/*`, and `stage/*`. This page extends that same queue layer with `milestone/*` and `slice/*` labels so maintainers can capture the roadmap gate and the local work shape without relying on GitHub's optional Milestone field. These labels answer "when, how large, which line, which roadmap gate, and what kind of slice?" They do not replace the semantic labels below.
 
 Per `docs/engineering-discipline.md`, a label is a contract: applying one obliges you to satisfy the body conventions listed below (e.g. `research-derived` requires citing the brief; `tracker` requires naming the gating event).
 
@@ -20,7 +20,7 @@ We think of labels in five categories — **provenance**, **lifecycle**, **type*
 - **Audience** — who can pick this up? (good first issue, help wanted)
 - **Queue metadata** — urgency, size, and owning milestone / lane
 
-A typical issue carries 1–3 semantic labels plus, when useful, up to three queue labels: one `priority/*`, one `size/*`, and one `stage/*`. Avoid stacking multiple labels from the same queue family unless the issue is explicitly an umbrella.
+A typical issue carries 1–3 semantic labels plus queue labels: one `priority/*`, one `size/*`, one `stage/*`, optionally one `milestone/*`, and optionally one `slice/*`. Avoid stacking multiple labels from the same queue family unless the issue is explicitly an umbrella.
 
 ---
 
@@ -172,6 +172,14 @@ Per-ecosystem dependabot routing labels. Cosmetic; safe to ignore.
 
 Queue labels are operational triage metadata. They do not change whether an issue is agent-eligible. `tracker`, `discussion`, `horizon-spike`, and `blocked` remain excluded from auto-dispatch per `WORKFLOW.md`.
 
+Queue label families have distinct jobs:
+
+- `priority/*` — urgency relative to the active release or mainline gate.
+- `size/*` — expected work volume.
+- `stage/*` — owning line or area.
+- `milestone/*` — roadmap gate or release checkpoint.
+- `slice/*` — local shape of the work inside a milestone.
+
 #### `priority/p0`
 
 Must resolve before the current release or mainline gate.
@@ -236,13 +244,89 @@ Cross-cutting schema, CLI, manifest, dependency, or infra work.
 
 Explicitly deferred until after the v0.3 release cut.
 
+### Roadmap milestones
+
+Use `milestone/*` when an issue needs to be grouped by the internal roadmap gate, even if the GitHub Milestone dropdown is unset. These labels are not release promises; they name the planning checkpoint the issue feeds.
+
+#### `milestone/m0-protocol`
+
+Codec Protocol v2 base types and no-call-site-change protocol surface.
+
+#### `milestone/m1a-image-port`
+
+M1A image Codec v2 port, image protocol pressure test, and image route migration.
+
+#### `milestone/m1b-image-depth`
+
+M1B image depth: Visual Seed Code, VQ/tokenizer radar, SeedExpander, frozen decoder bridge, image receipts, and image eval gates.
+
+#### `milestone/m2-audio`
+
+M2 audio Codec v2 port, Kokoro/Piper/procedural audio path, audio parity, and route closeout.
+
+#### `milestone/m3-sensor`
+
+M3 sensor Codec v2 confirmation line, deterministic operator programs, patchGrammar, and sensor validation.
+
+#### `milestone/m4-video`
+
+M4 video codec line, HyperFrames or successor backend, local render receipts, and MP4/HTML artifact gates.
+
+#### `milestone/m5a-image-bench`
+
+M5a image benchmark bridge and image quality/eval receipts.
+
+#### `milestone/m5b-cross-modal-bench`
+
+M5b non-image benchmark bridge: audio, sensor, and video evaluation receipts.
+
+#### `milestone/v0.3-release`
+
+v0.3 prerelease packaging, release notes, changelog, tag, and release-surface checks.
+
+#### `milestone/post-v0.3`
+
+Explicitly deferred until after the v0.3 release train.
+
+### Work slices
+
+Use `slice/*` when the issue is part of a larger milestone and the local work shape matters for dispatch. These labels are intentionally generic so they can apply across modalities.
+
+#### `slice/research`
+
+External or internal research that must feed a durable downstream surface such as a note, RFC, ADR, issue, or implementation plan.
+
+#### `slice/doctrine`
+
+RFC, ADR, hard-constraint, operating-doc, or doctrine-surface work. Requires the appropriate decision lane and review discipline.
+
+#### `slice/implementation`
+
+Code or docs implementation work with a concrete acceptance gate.
+
+#### `slice/receipts`
+
+Manifest, metadata, CLI inspection, golden, or proof-surface work that makes behavior auditable.
+
+#### `slice/eval`
+
+Benchmark, metric, quality gate, or evaluation harness work.
+
+#### `slice/cli`
+
+CLI command, flag, user-facing terminal output, or dry-run surface work.
+
+#### `slice/closeout`
+
+Release closeout, issue queue cleanup, stale issue closure, branch hygiene, or post-merge reconciliation.
+
 ---
 
 ## How to apply labels
 
-**Issues.** When opening an issue, apply 1–3 semantic labels: usually one type (`bug` / `enhancement` / `documentation`) plus optional provenance and lifecycle. When the queue status is clear, also apply one priority, one size, and one stage label. The labelling is part of the filing — an unlabelled issue is harder to triage.
+**Issues.** When opening an issue, apply 1–3 semantic labels: usually one type (`bug` / `enhancement` / `documentation`) plus optional provenance and lifecycle. When the queue status is clear, also apply one priority, one size, one stage label, and (when known) one milestone and one slice label. The labelling is part of the filing — an unlabelled issue is harder to triage.
 
-For machine labelling, include explicit title tokens when useful: `[p1]`, `[size/m]`, `[image]`, `[audio]`, `[sensor]`, `[video]`, `[release]`, `[governance]`, or `[cross-cutting]`.
+For machine labelling, include explicit title tokens when useful: `[p1]`, `[size/m]`, `[image]`, `[audio]`, `[sensor]`, `[video]`, `[release]`, `[governance]`, `[cross-cutting]`, `[m1b]`, `[m3]`, `[research]`, `[doctrine]`, `[receipts]`, or `[eval]`.
 
 **PRs.** When opening a PR, the labelling should match the issue(s) it closes (if any). PRs that don't close an issue still get labelled — usually one type plus one provenance.
 
@@ -260,4 +344,4 @@ For machine labelling, include explicit title tokens when useful: `[p1]`, `[size
 
 ---
 
-_Last updated: 2026-05-07. Next review: after the next queue-audit pass, or when a label is renamed (always)._
+_Last updated: 2026-05-09. Next review: after the next queue-audit pass, or when a label is renamed (always)._
