@@ -4,7 +4,7 @@ This page is the canonical definition of every label used on GitHub Issues and P
 
 The semantic taxonomy remains **flat by design**. Labels such as `research-derived`, `tracker`, `enhancement`, and `discussion` carry body conventions and review meaning.
 
-ADR-0019 adds a separate queue-management layer with prefixed labels: `priority/*`, `size/*`, and `stage/*`. This page extends that same queue layer with `milestone/*` and `slice/*` labels so maintainers can capture the roadmap gate and the local work shape without relying on GitHub's optional Milestone field. These labels answer "when, how large, which line, which roadmap gate, and what kind of slice?" They do not replace the semantic labels below.
+ADR-0019 adds a separate queue-management layer with prefixed labels: `priority/*`, `size/*`, and `stage/*`. This page extends that same queue layer with `status/*`, `milestone/*`, and `slice/*` labels so maintainers can capture whether an issue needs attention, the roadmap gate, and the local work shape without relying on GitHub's optional Milestone field. These labels answer "do I need to open this, when, how large, which line, which roadmap gate, and what kind of slice?" They do not replace the semantic labels below.
 
 Per `docs/engineering-discipline.md`, a label is a contract: applying one obliges you to satisfy the body conventions listed below (e.g. `research-derived` requires citing the brief; `tracker` requires naming the gating event).
 
@@ -174,11 +174,34 @@ Queue labels are operational triage metadata. They do not change whether an issu
 
 Queue label families have distinct jobs:
 
+- `status/*` — current handling state: whether the issue needs triage, is ready, has an active PR, needs a decision, or is parked.
 - `priority/*` — urgency relative to the active release or mainline gate.
 - `size/*` — expected work volume.
 - `stage/*` — owning line or area.
 - `milestone/*` — roadmap gate or release checkpoint.
 - `slice/*` — local shape of the work inside a milestone.
+
+Use at most one `status/*` label on an issue. If the issue is `blocked` or `tracker`, that lifecycle label is the state signal; do not add a redundant status label unless the queue view still needs one.
+
+#### `status/needs-triage`
+
+The issue has not been classified enough to decide whether to open, park, close, or dispatch it.
+
+#### `status/ready`
+
+The issue is actionable now and has no known active PR or blocking decision.
+
+#### `status/has-pr`
+
+An open PR is already handling the issue. Review the PR before starting parallel work.
+
+#### `status/needs-decision`
+
+The next step is maintainer judgment, architectural choice, or discussion closeout rather than implementation.
+
+#### `status/parked`
+
+Known work, but intentionally not current. Usually paired with `priority/p3`, `stage/post-v0.3`, `tracker`, or `horizon-spike`.
 
 #### `priority/p0`
 
@@ -324,7 +347,7 @@ Release closeout, issue queue cleanup, stale issue closure, branch hygiene, or p
 
 ## How to apply labels
 
-**Issues.** When opening an issue, apply 1–3 semantic labels: usually one type (`bug` / `enhancement` / `documentation`) plus optional provenance and lifecycle. When the queue status is clear, also apply one priority, one size, one stage label, and (when known) one milestone and one slice label. The labelling is part of the filing — an unlabelled issue is harder to triage.
+**Issues.** When opening an issue, apply 1–3 semantic labels: usually one type (`bug` / `enhancement` / `documentation`) plus optional provenance and lifecycle. When the queue status is clear, also apply one status, one priority, one size, one stage label, and (when known) one milestone and one slice label. The labelling is part of the filing — an unlabelled issue is harder to triage.
 
 For machine labelling, include explicit title tokens when useful: `[p1]`, `[size/m]`, `[image]`, `[audio]`, `[sensor]`, `[video]`, `[release]`, `[governance]`, `[cross-cutting]`, `[m1b]`, `[m3]`, `[research]`, `[doctrine]`, `[receipts]`, or `[eval]`.
 
