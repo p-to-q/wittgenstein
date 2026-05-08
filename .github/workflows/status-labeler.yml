@@ -1,0 +1,236 @@
+name: Queue labeler
+
+# Lightweight labels for queue visibility. This workflow manages status/* labels
+# and adds conservative labels that can be inferred from explicit title/body
+# tokens. It does not remove non-status labels.
+
+on:
+  issues:
+    types: [opened, reopened, edited]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, edited]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const statusLabels = [
+              "status/needs-triage",
+              "status/ready",
+              "status/has-pr",
+              "status/needs-decision",
+              "status/parked",
+            ];
+            const sizeLabels = ["size/s", "size/m", "size/l", "size/xl"];
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            function labelsFromText(text) {
+              const rules = [
+                ["bug", /\[bug\]|\bfix(?:\([^)]+\))?:|^bug[:\s]/i],
+                ["enhancement", /\[feat\]|\[enhancement\]|\bfeat(?:\([^)]+\))?:/i],
+                ["documentation", /\[docs?\]|\bdocs?(?:\([^)]+\))?:|^docs?[:\s]/i],
+                ["refactor", /\[refactor\]|\brefactor(?:\([^)]+\))?:/i],
+                ["question", /\[q\]|\[question\]/i],
+                ["discussion", /\[discussion\]|^discussion[:\s]/i],
+                ["horizon-spike", /horizon[\s-]spike|H\d{1,2}\b/i],
+                ["tracker", /^tracker[:\s]|\[tracker\]|watch[:\s]/i],
+                ["research-derived", /Brief\s+[A-Z]\b|brief-derived/i],
+                ["adr-derived", /ADR-?\d{3,4}/i],
+                ["rfc-derived", /RFC-?\d{3,4}/i],
+
+                ["priority/p0", /\[p0\]|\[priority\/p0\]/i],
+                ["priority/p1", /\[p1\]|\[priority\/p1\]/i],
+                ["priority/p2", /\[p2\]|\[priority\/p2\]/i],
+                ["priority/p3", /\[p3\]|\[priority\/p3\]/i],
+
+                ["size/s", /\[size\/s\]|\[small\]/i],
+                ["size/m", /\[size\/m\]|\[medium\]/i],
+                ["size/l", /\[size\/l\]|\[large\]/i],
+                ["size/xl", /\[size\/xl\]|\[xl\]|\[umbrella\]/i],
+
+                ["stage/m1-image", /\[image\]|\[m1\]|\[m1b\]|Visual Seed Code|VSC|SeedExpander|decoder bridge/i],
+                ["stage/m2-audio", /\[audio\]|\[m2\]|Kokoro|Piper|TTS/i],
+                ["stage/m3-sensor", /\[sensor\]|\[m3\]|TimesFM|chaos|operator route/i],
+                ["stage/m4-video", /\[video\]|\[m4\]|HyperFrames|Remotion|TEN/i],
+                ["stage/release", /\[release\]|prerelease|CHANGELOG|release notes/i],
+                ["stage/governance", /\[governance\]|WORKFLOW|label taxonomy|orchestration|maintainer process/i],
+                ["stage/cross-cutting", /\[cross-cutting\]|manifest|schema|CLI|dependency|infra/i],
+                ["stage/post-v0.3", /\[post-v0\.3\]|post-v0\.3|v0\.3\.x/i],
+
+                ["milestone/m1b-image-depth", /\[m1b\]|Visual Seed Code|VSC|SeedExpander|decoder bridge/i],
+                ["milestone/m2-audio", /\[m2\]|Kokoro|Piper|TTS/i],
+                ["milestone/m3-sensor", /\[m3\]|TimesFM|chaos|operator route/i],
+                ["milestone/m4-video", /\[m4\]|HyperFrames|Remotion|TEN/i],
+                ["milestone/v0.3-release", /\[v0\.3\]|\[release\]|prerelease|release notes/i],
+                ["milestone/post-v0.3", /\[post-v0\.3\]|post-v0\.3|v0\.3\.x/i],
+
+                ["slice/research", /\[research\]|research[:/\s-]/i],
+                ["slice/doctrine", /\[doctrine\]|RFC-?\d{3,4}|ADR-?\d{3,4}|hard-constraint|operating-doc/i],
+                ["slice/implementation", /\[implementation\]|\bfeat(?:\([^)]+\))?:|\bfix(?:\([^)]+\))?:/i],
+                ["slice/receipts", /\[receipts\]|receipt|manifest|golden/i],
+                ["slice/eval", /\[eval\]|benchmark|metric|quality gate|evaluation/i],
+                ["slice/cli", /\[cli\]|\bCLI\b|command|flag|dry-run/i],
+                ["slice/closeout", /\[closeout\]|closeout|queue cleanup|branch hygiene|reconciliation/i],
+              ];
+
+              return [...new Set(rules.filter(([, pattern]) => pattern.test(text)).map(([label]) => label))];
+            }
+
+            async function addLabels(issue_number, nextLabels) {
+              if (nextLabels.length === 0) return;
+              const existingLabels = await getLabels(issue_number);
+              const missingLabels = nextLabels.filter((label) => !existingLabels.includes(label));
+              if (missingLabels.length === 0) return;
+
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: missingLabels,
+              });
+            }
+
+            function sizeFromPullRequest(pr) {
+              const changedLines = pr.additions + pr.deletions;
+              if (pr.changed_files <= 3 && changedLines <= 80) return "size/s";
+              if (pr.changed_files <= 8 && changedLines <= 300) return "size/m";
+              if (pr.changed_files <= 20 && changedLines <= 1000) return "size/l";
+              return "size/xl";
+            }
+
+            async function addPullRequestSizeIfMissing(pr) {
+              const labels = await getLabels(pr.number);
+              if (labels.some((label) => sizeLabels.includes(label))) return;
+
+              await addLabels(pr.number, [sizeFromPullRequest(pr)]);
+            }
+
+            async function getLabels(issue_number) {
+              const { data } = await github.rest.issues.listLabelsOnIssue({
+                owner,
+                repo,
+                issue_number,
+                per_page: 100,
+              });
+              return data.map((label) => label.name);
+            }
+
+            async function setStatus(issue_number, nextStatus) {
+              const labels = await getLabels(issue_number);
+              for (const label of labels) {
+                if (statusLabels.includes(label) && label !== nextStatus) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: label,
+                  }).catch((error) => {
+                    if (error.status !== 404) throw error;
+                  });
+                }
+              }
+
+              if (!labels.includes(nextStatus)) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number,
+                  labels: [nextStatus],
+                });
+              }
+            }
+
+            function statusForIssue(labels) {
+              if (labels.includes("status/has-pr")) {
+                return "status/has-pr";
+              }
+              if (labels.includes("blocked") || labels.includes("tracker") || labels.includes("horizon-spike")) {
+                return "status/parked";
+              }
+              if (labels.includes("discussion") || labels.includes("question")) {
+                return "status/needs-decision";
+              }
+              if (labels.includes("priority/p3") || labels.includes("stage/post-v0.3")) {
+                return "status/parked";
+              }
+              return "status/ready";
+            }
+
+            async function referencedOpenIssues(pr) {
+              const text = `${pr.title || ""}\n${pr.body || ""}`;
+              const numbers = [...text.matchAll(/#(\d+)/g)].map((match) => Number(match[1]));
+              const uniqueNumbers = [...new Set(numbers)].filter((number) => number !== pr.number);
+              const issues = [];
+
+              for (const issue_number of uniqueNumbers) {
+                try {
+                  const { data } = await github.rest.issues.get({ owner, repo, issue_number });
+                  if (!data.pull_request && data.state === "open") {
+                    issues.push(issue_number);
+                  }
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+
+              return issues;
+            }
+
+            async function statusForPullRequest(number, fallbackPayloadPr) {
+              const { repository } = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      isDraft
+                      reviewDecision
+                    }
+                  }
+                }
+              `, { owner, repo, number });
+
+              const pr = repository.pullRequest;
+              if (pr.isDraft || fallbackPayloadPr?.draft) {
+                return "status/needs-triage";
+              }
+              if (pr.reviewDecision === "CHANGES_REQUESTED") {
+                return "status/needs-decision";
+              }
+              return "status/ready";
+            }
+
+            if (context.eventName === "issues") {
+              const issue = context.payload.issue;
+              if (!issue.pull_request) {
+                const labels = issue.labels.map((label) => label.name);
+                const inferredLabels = labelsFromText(issue.title || "");
+                await addLabels(issue.number, inferredLabels);
+                await setStatus(issue.number, statusForIssue([...new Set([...labels, ...inferredLabels])]));
+              }
+            }
+
+            if (context.eventName === "pull_request_target") {
+              const pr = context.payload.pull_request;
+              await addLabels(pr.number, labelsFromText(`${pr.title || ""}\n${pr.body || ""}`));
+              await addPullRequestSizeIfMissing(pr);
+              await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
+
+              for (const issue_number of await referencedOpenIssues(pr)) {
+                await setStatus(issue_number, "status/has-pr");
+              }
+            }
+
+            if (context.eventName === "pull_request_review") {
+              const pr = context.payload.pull_request;
+              await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
+            }

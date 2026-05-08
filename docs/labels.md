@@ -353,6 +353,8 @@ For machine labelling, include explicit title tokens when useful: `[p1]`, `[size
 
 **PRs.** When opening a PR, the labelling should match the issue(s) it closes (if any). PRs that don't close an issue still get labelled — usually one type plus one provenance.
 
+**Automation.** `.github/workflows/status-labeler.yml` maintains lightweight queue hints for newly opened or updated issues and PRs. It owns `status/*` replacement, may add conservative labels from explicit title / body tokens (`docs:`, `feat:`, `RFC-0002`, `[m1b]`, `[research]`, etc.), and may add `size/*` to PRs from changed-file / changed-line counts when no size label is already present. It does not infer `priority/*` from prose; priority automation requires explicit tokens such as `[p1]`. The workflow deliberately avoids `labeled` / `unlabeled` issue events so maintainers can override labels without the bot immediately fighting the change. Dependabot remains limited to dependency labels in `.github/dependabot.yml`; the path and title labelers continue to add their existing static labels.
+
 **Renaming a label is a breaking change** to anyone who has saved searches against the old name. If you need to rename, open a PR that updates this doc, edits the label via `gh label edit`, and announces the rename in the PR body. Consider keeping the old label as an alias (re-create with the same color and a "Renamed to X" description) for one release cycle.
 
 **Adding a new label.** Open a PR that updates this doc with the new entry (color, definition, body conventions). Create the label in the same PR via `gh label create` (or document the manual step for a maintainer). A label without a doc entry is invalid and may be deleted at any time.
