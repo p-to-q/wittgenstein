@@ -86,11 +86,24 @@ This is the cleanest version of the thesis:
 - `pipeline/expand.ts`
   Expands or normalizes semantic IR and image-code sections after parsing.
 - `pipeline/adapter.ts`
-  Reserved for the only trainable component. Primarily expands compact visual seed code into fuller discrete latent tokens; semantic-only adaptation is fallback / baseline behavior.
+  Adapter routing: `adaptSceneToLatents` runs a 4-tier fall-through (`providerLatents` → `coarseVq` → `seedCode` → learned MLP → placeholder) and returns `{ latents, outcome }`. The outcome surfaces in the manifest as `renderPath` (see *Manifest receipts* below), distinct from `imageCode.path` which records the spec *intent*.
+- `adapters/seed-expander.ts`
+  The `SeedExpander` seam — the contract that turns a Visual Seed Code into decoder-native `ImageLatentCodes`. Today's implementations are placeholder-class, not trained projectors:
+  - `placeholderSeedExpander` (PR #243) — deterministic 1D modulo fill that preserves the prior in-line behavior; the seam was extracted so future trained projectors drop in by changing one import.
+  - `tileMosaicSeedExpander` (PR #252) — a second deterministic implementation that exercises the seam as an ABI peer rather than a refactor; uses a 2D coarse mosaic instead of linear modulo. Both are placeholder-class — neither makes a decoder-quality claim.
 - `pipeline/decoder.ts`
   Calls a frozen pretrained decoder bridge.
 - `pipeline/package.ts`
   Packages the decoded raster bytes into the final PNG artifact.
+
+## Manifest receipts
+
+The image codec records two distinct path facts so a maintainer can tell intent from outcome:
+
+- `manifest["image.code"].path` — *intent*: which hint did the LLM-emitted spec carry? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `semantic-fallback`.
+- `manifest.renderPath` — *outcome*: which adapter tier actually produced the latents? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `learned-mlp` / `placeholder`. Plumbed via `ImageAdapterOutcome` (PR #250). A bogus `providerLatents` that fails validation now surfaces as `renderPath: coarse-vq` (or further down the fall-through), not as a silent path swap.
+
+Both fields appear under `RunManifest` writes through the harness; image is at parity with audio and sensor on `renderPath` reporting.
 
 ## Adapter Role
 
@@ -141,7 +154,11 @@ The scaffold now includes:
 
 This still does **not** represent the final image thesis. Real generation quality ultimately depends on a properly wired frozen decoder family and a stronger seed-expansion path than the current scaffold uses.
 
-## Training the seed-expansion adapter (v1)
+## Training the seed-expansion adapter (v1 placeholder scaffold)
+
+> **Status:** the procedure below is the *placeholder MLP scaffold* preserved from before the SeedExpander seam (#243) and the tokenizer/decoder radar (#258). It exists so the codec has an end-to-end runnable path during scaffolding; it is **not** the target architecture for the trained projector that M1B (#70) will eventually deliver.
+>
+> The real trained projector is gated on the radar (#258) picking a tokenizer family with: (a) verified `MIT-or-Apache` license, (b) downloadable + SHA-pinnable weights, (c) deterministic round-trip empirically tested, (d) Node/ONNX feasibility confirmed. Until those gates trip, the placeholder scaffold below is what runs.
 
 1. Prepare `data/image_adapter/raw/metadata.jsonl` and images — see [`data/image_adapter/README.md`](../../data/image_adapter/README.md).
 2. Run `python/image_adapter/prepare_dataset.py` then `encode_offline.py` then `train.py` — see [`python/image_adapter/README.md`](../../python/image_adapter/README.md).
@@ -158,4 +175,23 @@ export WITTGENSTEIN_IMAGE_ADAPTER_LEGACY_PATH=data/image_adapter/artifacts/adapt
 pnpm exec tsx scripts/render-image-adapter-demo.ts artifacts/demo/mlp-adapter-demo-forest.png forest
 ```
 
-The default training stack uses a **small MLP** (no LLM fine-tuning) and a **stub offline encoder** for targets; swap the encoder for a real frozen tokenizer when you wire a production decoder. Semantic-only scene-to-latent training is now baseline / fallback work, not the target architecture story.
+The default training stack uses a **small MLP** (no LLM fine-tuning) and a **stub offline encoder** for targets; swap the encoder for a real frozen tokenizer when you wire a production decoder. Semantic-only scene-to-latent training is baseline / fallback work, not the target architecture story.
+
+## Lineage receipt
+
+For agents reading this doc cold, the lineage from scene-spec doctrine to today's main HEAD:
+
+| Step | Surface | Note |
+|---|---|---|
+| Scene-spec doctrine (pre-VSC) | `docs/research/hybrid-image-code.md` | Original framing; superseded but preserved as historical receipt |
+| VSC reframe | RFC-0006, ADR-0018 | Visual Seed Token as first-class image research layer; adapter redefined primarily as seed expander |
+| SeedExpander seam | PR #243 | Pure abstraction; placeholder behavior preserved byte-for-byte |
+| Two-pass acceptance test cases | PR #242 | Cases 8 / 9 / 8b / collapsed pinned per `docs/research/2026-05-07-vsc-acceptance-cases.md` |
+| Fall-through warning symmetry | PR #241 | `coarseVq` and `seedCode` validation failures emit `ctx.logger.warn` like `providerLatents` |
+| Adapter outcome → `renderPath` | PR #250 | Manifest now records *outcome* (which tier fired) distinct from *intent* (`imageCode.path`) |
+| Second SeedExpander | PR #252 | `tileMosaicSeedExpander` demonstrates the seam swaps |
+| Theoretical anchor | `docs/research/2026-05-08-vsc-as-compression-prior.md` | Why VSC is a defensible research bet, family-agnostic |
+| Tokenizer/decoder radar | `docs/research/2026-05-08-image-tokenizer-decoder-radar.md` (#258) | 11-family survey; gates trained-projector wiring |
+| M1B trained projector | #70 (umbrella) | Gated on radar's four-step pre-wire audit (license / weights / determinism / Node-ONNX) |
+
+The lineage is intentionally additive: each step is reversible (no commit erased the prior framing) and citation-backed (every claim above resolves to a PR or a docs path). New work that touches the image code-layer should extend this table, not silently rewrite earlier rows.
