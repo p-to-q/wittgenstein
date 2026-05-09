@@ -61,6 +61,7 @@ Do not treat this migration PR as the domain cutover. The Git Source and product
 Notes:
 
 - The app is a Vite SPA, so both Vercel configs include a rewrite to `index.html`.
+- Both Vercel configs preserve the production security headers from the external website repository (`X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`).
 - The canonical production host is `https://wittgenstein.wtf`.
 - `public/CNAME` is harmless for static hosting portability, but Vercel itself uses project-domain settings rather than GitHub Pages style CNAME handling.
 
