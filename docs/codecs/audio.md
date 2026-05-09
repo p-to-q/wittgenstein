@@ -146,3 +146,19 @@ Audio quality at v0.3 is _structurally honest_, not _aesthetically frontier_:
 The thesis surface is preserved: the LLM plans, the codec renders, the manifest records,
 and the artifact reproduces from seed within its declared determinism class. Quality lift
 remains a v0.3 concern via M5b benchmarks and a future frozen-vocoder integration.
+
+## Lineage receipt
+
+For agents reading this doc cold, the lineage from M2 closure to today's main HEAD:
+
+| Step | Surface | Note |
+|---|---|---|
+| Codec-audio M2 port | `docs/exec-plans/active/codec-v2-port.md` §M2 | Three internal routes (speech / soundscape / music); `Codec<AudioRequest, AudioArtifact>` shape; ADR-0008 codec protocol |
+| Speech backend ratification | ADR-0015 | Kokoro-82M-family default target; Piper fallback ratified-but-not-wired |
+| Slice E receipt | `docs/research/2026-05-06-m2-slice-e-kokoro-sweep-verdict.md` | Kokoro is same-platform deterministic, **not** byte-identical across macOS arm64 vs Linux x64 → procedural-audio-runtime stays default at v0.3, Kokoro opt-in via `WITTGENSTEIN_AUDIO_BACKEND=kokoro` |
+| Route enum tightening | PR #245 | `RunManifest.route` enforces `speech` / `soundscape` / `music` per #190 partial closeout |
+| Audio code-layer research | PR #274 | Per-route distinct shapes recommended (SSML enrichment for speech, MIDI event-grid for music, sensor-style operator-graph for soundscape); RFC-routed only, NOT yet ratified |
+| Sub-RFC ordering (proposed) | per #274 §"Suggested follow-ups" | Soundscape operator-graph first, MIDI event-grid second, SSML enrichment last |
+| Implementation slices | #261 | Gated on at least one sub-RFC ratification |
+
+> **Audio routes do NOT share a single token shape.** This is the central claim of #274 and the inverse of image's Visual Seed Code framing: speech is text-shaped (script + optional prosody enrichment), music is event-grid-shaped (chords / note timings), soundscape is operator-graph-shaped (deterministic operators over time). Forcing them under one VQ-tokenizer story would re-introduce the category error the image-route correction (RFC-0006 / ADR-0018) just fixed for image. Future work should respect this asymmetry.
