@@ -2,7 +2,7 @@
 
 This folder contains the canonical website app for `wittgenstein.wtf`.
 
-It is a Vite + React + TypeScript build, migrated from `Jah-yee/wittgenstein-www` into the monorepo so the public site can track the repo's docs, package surface, and release work.
+It is a Vite + React + TypeScript build, migrated from [`Jah-yee/wittgenstein-www`](https://github.com/Jah-yee/wittgenstein-www) into the monorepo so the public site can track the repo's docs, package surface, and release work.
 
 ## What This Site Is For
 
@@ -45,7 +45,7 @@ This runs lint plus a full production build.
 
 The monorepo root [`vercel.json`](../../vercel.json) now builds `@wittgenstein/site` and emits `apps/site/dist`. This keeps the default root-level Vercel project aligned with the canonical website instead of the older `apps/wittgenstein-kimi` demo.
 
-This app also includes [`vercel.json`](./vercel.json) for a Vercel project whose root directory is set to `apps/site`. Vercel Git Source is still a manual follow-up step: the production project may still point at the old external repository until a maintainer switches it.
+This app also includes [`vercel.json`](./vercel.json) for a Vercel project whose root directory is set to `apps/site`. Vercel Git Source is still a manual follow-up step: the production project may still point at the old external repository ([`Jah-yee/wittgenstein-www`](https://github.com/Jah-yee/wittgenstein-www)) until a maintainer switches it.
 
 Supported Vercel configurations:
 
