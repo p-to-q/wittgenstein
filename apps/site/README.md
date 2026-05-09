@@ -58,6 +58,28 @@ Supported Vercel configurations:
 
 Do not treat this migration PR as the domain cutover. The Git Source and production domain should still be switched intentionally in Vercel.
 
+### When Vercel should (and should not) deploy
+
+Rule: a Vercel deployment is only meaningful when the changed files can change the shipped website bytes. Doc-only PRs, codec/runtime changes, CI changes, etc. must not trigger a Preview build.
+
+This is enforced by [`scripts/vercel-ignore-build.sh`](../../scripts/vercel-ignore-build.sh). The script returns:
+
+- exit `1` (proceed) when any of these paths changed since the previous Vercel SHA:
+  - `apps/site/**`
+  - `vercel.json` (root)
+  - `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+  - `.github/workflows/site.yml`
+  - `scripts/vercel-ignore-build.sh` itself
+- exit `0` (skip) for any other diff.
+
+To enforce the rule on the live project, set in **Vercel → Project Settings → Git → Ignored Build Step → Custom command**:
+
+```
+bash scripts/vercel-ignore-build.sh
+```
+
+This must be configured in the Vercel dashboard (Vercel does not honor `ignoreCommand` for build skipping from `vercel.json` alone). The script is committed so the rule is reviewable in PRs and survives project recreation.
+
 Notes:
 
 - The app is a Vite SPA, so both Vercel configs include a rewrite to `index.html`.
