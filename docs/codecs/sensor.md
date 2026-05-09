@@ -47,7 +47,7 @@ The runtime composes operators by addition into a single sample buffer. Composit
 
 `patchGrammar` is the only operator that composes other operators. It exists so the spec can express **local context that flat composition cannot** — e.g. a heart-rate ramp (different `bpm` per segment), or a per-segment range constraint. The design tracks `docs/research/2026-05-07-sensor-patch-grammar.md` Option A and is intentionally _not_ a learned model: patches are deterministic concatenations of regular operators.
 
-**Lineage receipt.** The research note ratified in #239 closed #221 as research-only. Implementation landed in #244; contract follow-up #247 corrected patch-local time semantics, capped recursion, and validated `affineNormalize` bounds. The operator is **not yet doctrine** — it stays a sensor-codec-internal extension until measurement (#155) earns it an ADR. Treat patchGrammar as a **post-M3 sensor operator that landed early**: M3 ports the existing flat-operator surface to Codec Protocol v2; patchGrammar runs alongside that surface and is permitted but not promoted in agent guides.
+**Lineage receipt.** The research note ratified in #239 closed #221 as research-only. Implementation landed in #244; contract follow-up #247 corrected patch-local time semantics, capped recursion, and validated `affineNormalize` bounds. The operator is **not yet doctrine** — it stays a sensor-codec-internal extension until measurement (#155) earns it an ADR. Treat patchGrammar as a **post-M3 sensor operator that landed early**: M3 ports the existing flat-operator surface to Codec Protocol v2; patchGrammar runs alongside that surface and is permitted but not promoted in agent guides. Post-M3 follow-up lineage: PR #276 (sensor algorithmic research; closes #262) discusses TimesFM / chaos / shapelets / reservoir concept-only borrows and proposes the concrete measurement gate; PR #295 (the measurement plan) names the dataset / metric / protocol that #284 needs to run before patchGrammar's promotion question can be settled.
 
 **Patch slicing and time origin.**
 
@@ -128,3 +128,22 @@ Sensor's quality risk is small but real:
 - The operator library is intentionally narrow; it cannot model arrhythmias, gyroscope sensor drift specific to a real chip, or thermal coupling between sensors. These are out of scope for v0.2.
 - Clinical realism (ECG) is structural, not diagnostic. Nobody should make medical decisions from a Wittgenstein-rendered ECG. The manifest's `quality.partial` invariant is the surface that says so.
 - Adding new signal types should go through an RFC, not a PR — the operator library's small size is a feature, not an oversight.
+
+## Lineage receipt
+
+For agents reading this doc cold, the full sensor lineage from M3 closure to today's main HEAD:
+
+| Step | Surface | Note |
+|---|---|---|
+| Codec-sensor M3 port | `docs/exec-plans/active/codec-v2-port.md` §M3 | The "confirmation case": no L4 adapter, deterministic L3, three signal types (ecg / gyro / temperature) |
+| Three sensor goldens | `fixtures/golden/sensor/{ecg,temperature,gyro}.csv` + `manifest.json` | Byte-pinned per signal family; CI-gated via `pnpm test:golden` |
+| patchGrammar research | PR #239 (closes #221) | TimesFM-inspired patching / local-affine-normalization / chunked expansion; concept-only borrow, no model dep |
+| patchGrammar implementation | PR #244 | Higher-order operator added; recursion via `z.lazy + z.union`; existing 3 sensor goldens unchanged |
+| patchGrammar contract honesty | PR #249 (closes #247) | Patch-local time semantics; recursion-depth cap; `affineNormalize` bound validation; lineage receipt structure documented in this doc's patchGrammar section |
+| patchGrammar goldens | `fixtures/golden/sensor/{ecg,temperature,gyro}-patch-grammar.csv` | New byte-pinned fixtures; `gyro-patch-grammar.csv` SHA equals `gyro.csv` SHA (single-patch full-duration recursion-seam invariant) |
+| Route enum tightening | PR #245 | `RunManifest.route` enforces `ecg` / `temperature` / `gyro` per #190 partial closeout |
+| Sensor algorithmic research | PR #276 (closes #262) | TimesFM concept-borrow without model dep; chaos / shapelets / reservoir surveyed; concrete measurement gate proposed for #155 |
+| patchGrammar measurement plan | PR #295 | Dataset / metric / protocol for the #284 measurement gate; PhysioNet/CinC ECG, UCI HAR gyro, NOAA temperature; Welch spectral distance + augmentation F1 lift criteria |
+| Implementation slices (gated) | #263 | Awaits #284 measurement results; #153 (chaos) un-parked only on patchGrammar pass per family |
+
+The lineage is intentionally additive: each step is reversible (no commit erased the prior framing) and citation-backed (every claim above resolves to a PR or doc path). New work that touches the sensor surface should extend this table, not silently rewrite earlier rows.
