@@ -1,9 +1,82 @@
 # Codec v2 Port — P6 execution plan
 
 **Date opened:** 2026-04-25
-**Last amended:** 2026-04-26 (M0/M1 landed; status + file-path drift corrected for the live plan)
+**Last amended:** 2026-05-08 (Status update annotation per #285 — research lanes reconciled, mainline blocker preserved)
 **Feeds from:** ADR-0008 (Codec Protocol v2 adoption), ADR-0011 (naming v2), RFC-0001, Brief A (LFQ rename), Brief E (benchmarks v2 targets), `docs/v02-final-audit.md`
-**Status:** 🟡 Active — M0 and M1 landed; M2 is the next execution line
+**Status:** 🟡 Active — M0 / M1A / M2 / M3 landed; M1B (image trained projector) is the current v0.3 mainline blocker; M4 partial; M5a/b deferred
+
+## Status update — 2026-05-08 (per #285)
+
+The original plan body below is **preserved as-is** — its M-phase definitions remain the load-bearing contract. This block annotates which phases have closed, which research receipts now feed downstream implementation work, and where the current mainline blocker sits, so future maintainers do not lose the through-line as parallel research lanes accumulate.
+
+### What's landed
+
+| Phase | Status | Evidence |
+|---|---|---|
+| **M0** — Protocol types | ✅ landed | `packages/schemas/src/codec/v2/*` shipped per ADR-0008 |
+| **M1A** — codec-image protocol port | ✅ landed | `ImageCodec extends BaseCodec`; harness modality-blind for image |
+| **M1A follow-ups** — image VSC reframe | ✅ landed | RFC-0006 / ADR-0018 ratify Visual Seed Code; `SeedExpander` seam at `packages/codec-image/src/adapters/seed-expander.ts` (PR #243); `tileMosaicSeedExpander` second impl (PR #252); `adapterOutcome` → `manifest.renderPath` (PR #250); image.md lineage receipt (PR #273) |
+| **M1B** — image trained projector | 🔴 **CURRENT MAINLINE BLOCKER** | Gated on radar (PR #272) + the four-step pre-wire audit named there. See "M1B unblock path" below |
+| **M2** — codec-audio | ✅ landed | M2 sweep gate closed; Kokoro structural-parity opt-in per ADR-0015 + Slice E |
+| **M3** — codec-sensor | ✅ landed | Sensor port complete; patchGrammar shipped post-M3 (#244 → #249 contract honesty) |
+| **M4** — Cleanup pass | 🟡 partial | Harness modality-blind for image / audio / sensor; soft→hard-warn for retired request fields **deferred** until #285 closes; `codec-video` work activated by #277 → #282 (distillation) instead of staying parked |
+| **M5a** — Image benchmark bridge | ⏸️ deferred | Original ordering (M1→M5a) preserved; M5a waits for M1B trained projector to wire so the metric has a real signal to measure |
+| **M5b** — Audio / sensor / video benchmark bridge | ⏸️ deferred | Same as M5a |
+
+### Research receipts merged (2026-05-08 sweep)
+
+These are receipts, not doctrine. They inform M1B / M2-follow-up / M3-follow-up / M4 (video) / agent-skill work but do not promote any new modality or mainline:
+
+- **PR #271** — `docs/research/2026-05-08-vsc-as-compression-prior.md` — theoretical anchor for VSC. Sits behind RFC-0006 / ADR-0018, not in front of them.
+- **PR #272** — `docs/research/2026-05-08-image-tokenizer-decoder-radar.md` — 11-family radar; recommended ranking; **does NOT pick a tokenizer**; closes #258. Local-audit follow-ups in **#283**.
+- **PR #254 r2** — `docs/research/2026-05-08-vsc-eval-matrix-cells.md` — cell matrix with citation discipline; superseded by #272 once both ratify (cross-link present in both notes).
+- **PR #274** — `docs/research/2026-05-08-audio-code-layer-design.md` — per-route shape recommendations (SSML enrichment, MIDI event-grid, soundscape operator-graph); RFC-routed only; closes #260.
+- **PR #276** — `docs/research/2026-05-08-sensor-algorithmic-research.md` — TimesFM / chaos / shapelets / reservoir concept-only borrows; concrete measurement gate for #155; closes #262. Measurement issue is **#284**.
+- **PR #277** — `docs/research/2026-05-08-video-backend-comparison.md` — HyperFrames-shaped lead path conditional on license check; **distillation, not vendoring**, per the merge clarification; closes #264. Distillation work is **#282**.
+- **PR #278** — `docs/research/2026-05-08-agent-skill-surface.md` — placement-table guidance; sensor skill deferred; no Acontext runtime dependency.
+
+### M1B unblock path (the current mainline blocker)
+
+M1B is gated on the radar's four-step pre-wire audit before any tokenizer family wires. The four steps are stated explicitly in `docs/research/2026-05-08-vsc-eval-matrix-cells.md` r2 §"Current working prior":
+
+1. Re-verify license at the candidate's actual `LICENSE` file (not via inherited claim).
+2. Verify weights availability with a SHA-pinnable URL.
+3. Test deterministic round-trip empirically (encode → decode → re-encode).
+4. Confirm Node/ONNX feasibility by **attempting** an export.
+
+**#283** owns the slice work that produces these audits per candidate. Until #283 produces at least one candidate that clears all four gates, M1B does not start.
+
+The radar's recommended ranking (top 5: VQGAN-class, FSQ, OpenMAGVIT2/LFQ, TiTok, MaskBit) is the suggested audit order. **VQGAN-class is the only candidate that already satisfies the schema-fit + decoder-bridge-slot gates today;** it is the natural first audit even though FSQ has lower implementation cost in principle.
+
+### Implementation issues now ready (post-merge sweep)
+
+| Issue | Lane | What gates it |
+|---|---|---|
+| **#283** | M1B precursor | Per-candidate license / weights / determinism / Node-ONNX audit |
+| **#282** | M4 video → distillation | HyperFrames-shaped renderer, repo-owned, distilled (not vendored) |
+| **#284** | M3 sensor follow-up | patchGrammar measurement vs flat operators (#155 active line) |
+| **#259** (existing) | M1B downstream | Image implementation slices after #283 produces a candidate |
+| **#261** (existing) | M2 follow-up | Audio implementation slices after audio sub-RFCs (#274 named: soundscape → MIDI → SSML) |
+| **#263** (existing) | M3 follow-up | Sensor implementation slices after #284 measurement |
+| **#265** (existing) | M4 video extension | Manifest receipts / doctor coverage post #282 |
+
+### What this status update does NOT do
+
+- Does NOT modify any M-phase definition below.
+- Does NOT promote research notes to doctrine.
+- Does NOT add a new modality or pre-empt RFC routing for the audio sub-RFCs (#274) or the sensor measurement (#284).
+- Does NOT close M1B prematurely — `quality.partial: { reason: "adapter-stub" }` remains the manifest invariant until a real trained projector ships.
+- Does NOT reopen ADR-0007 (Path C) — the framing here is "frozen decoder + LLM-as-prior-over-discrete-codes," not "fused multimodal retrain."
+
+### Next maintainer-facing question
+
+**v0.3.0-alpha.2 cut timing.** With M1A / M2 / M3 closed and M1B blocked on #283 audits, the alpha.2 conversation is gated on the @Jah-yee disposition (per #246 / #248). Either:
+- Cut alpha.2 now, naming the blocker explicitly in release notes, OR
+- Hold alpha.2 until #283 produces at least one candidate clearance, then cut.
+
+Both are defensible. Maintainer call.
+
+---
 
 ## Purpose
 
