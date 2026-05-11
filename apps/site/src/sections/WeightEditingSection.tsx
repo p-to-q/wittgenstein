@@ -1,23 +1,27 @@
 const packagingNotes = [
   {
-    name: 'CLI & install',
-    pct: 'L5',
-    description: 'Ships the command surface, install conventions, and smoke checks so contributors land in the right package quickly.',
+    name: "CLI & install",
+    pct: "L5",
+    description:
+      "Ships the command surface, install conventions, and smoke checks so contributors land in the right package quickly.",
   },
   {
-    name: 'RunManifest',
-    pct: 'IR',
-    description: 'Shared trace schema for codec id, route, adapter version, artifact hashes, and replay handles.',
+    name: "RunManifest",
+    pct: "IR",
+    description:
+      "Shared trace schema for codec id, route, adapter version, artifact hashes, and replay handles.",
   },
   {
-    name: 'docs & skills',
-    pct: 'DX',
-    description: 'Architecture docs plus per-codec READMEs keep image, audio, sensor, and video responsibilities explicit.',
+    name: "docs & skills",
+    pct: "DX",
+    description:
+      "Architecture docs plus per-codec READMEs keep image, audio, sensor, and video responsibilities explicit.",
   },
   {
-    name: 'distribution',
-    pct: 'pkg',
-    description: 'Versioned harness bundles let tiny adapters and modality-specific logic ship beside the runtime rather than inside the base model.',
+    name: "distribution",
+    pct: "pkg",
+    description:
+      "Versioned harness bundles let tiny adapters and modality-specific logic ship beside the runtime rather than inside the base model.",
   },
 ];
 
@@ -30,26 +34,30 @@ export default function WeightEditingSection() {
         <span className="section-number">07</span>
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase">packaging</h2>
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
-          Layer five turns the architecture into something people can actually use: CLI, install, shared schemas, docs,
-          agent primers, and distribution conventions.
+          Layer five turns the architecture into something people can actually use: CLI, install,
+          shared schemas, docs, agent primers, and distribution conventions.
         </p>
 
         <div className="card-border p-6">
           <div className="flex items-baseline justify-between mb-2">
-            <div className="text-xs font-mono text-muted-foreground">manifest depth · 16 surfaced checkpoints</div>
+            <div className="text-xs font-mono text-muted-foreground">
+              manifest depth · 16 surfaced checkpoints
+            </div>
             <div className="text-xs font-mono text-muted-foreground">target harness</div>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Runtime and contracts are ahead of a few renderers; packaging is where that progress becomes legible, installable,
-            and reusable.
+            Runtime and contracts are ahead of a few renderers; packaging is where that progress
+            becomes legible, installable, and reusable.
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            For a project like this, release hygiene is not an afterthought. The packaging layer is what turns a clever
-            architecture into something teammates, judges, contributors, and future users can actually pick up.
+            For a project like this, release hygiene is not an afterthought. The packaging layer is
+            what turns a clever architecture into something teammates, judges, contributors, and
+            future users can actually pick up.
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            The percentages below are directional packaging signals, not release-gating numbers. They show where the shared
-            runtime is already stable and where some modality surfaces are still catching up.
+            The percentages below are directional packaging signals, not release-gating numbers.
+            They show where the shared runtime is already stable and where some modality surfaces
+            are still catching up.
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -60,8 +68,9 @@ export default function WeightEditingSection() {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center border-2"
                       style={{
-                        borderColor: signal > 40 ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                        backgroundColor: i === 11 ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                        borderColor: signal > 40 ? "hsl(var(--primary))" : "hsl(var(--border))",
+                        backgroundColor:
+                          i === 11 ? "hsl(var(--primary) / 0.12)" : "hsl(var(--card))",
                       }}
                     >
                       <span className="text-xs font-mono text-muted-foreground">{i}</span>
@@ -86,12 +95,16 @@ export default function WeightEditingSection() {
             <div>
               <div className="text-xs font-mono text-muted-foreground mb-4">release</div>
               <div className="space-y-2">
-                {['scaffold', 'manifest', 'publish', 'tag'].map((step, idx) => (
+                {["scaffold", "manifest", "publish", "tag"].map((step, idx) => (
                   <div key={step} className="flex items-center gap-2">
                     <div
-                      className={`w-2 h-2 rounded-full ${idx < 3 ? 'bg-[hsl(var(--muted-green))]' : 'bg-muted-foreground/40'}`}
+                      className={`w-2 h-2 rounded-full ${idx < 3 ? "bg-[hsl(var(--muted-green))]" : "bg-muted-foreground/40"}`}
                     />
-                    <span className={`text-sm ${idx < 3 ? 'text-foreground' : 'text-muted-foreground'}`}>{step}</span>
+                    <span
+                      className={`text-sm ${idx < 3 ? "text-foreground" : "text-muted-foreground"}`}
+                    >
+                      {step}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -128,10 +141,22 @@ export default function WeightEditingSection() {
           </div>
 
           <div className="mt-8 flex items-center justify-between pt-4 border-t border-border">
-            <div className="text-xs text-muted-foreground">Apache-2.0 · traceable artifacts · contributor-ready CLI</div>
-            <a href="#s-thesis" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+            <div className="text-xs text-muted-foreground">
+              Apache-2.0 · traceable artifacts · contributor-ready CLI
+            </div>
+            <a
+              href="#s-thesis"
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
               read the thesis
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </a>

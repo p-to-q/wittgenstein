@@ -1,6 +1,9 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 
 reviews:
+  high_level_summary: false
+  in_progress_fortune: false
+  poem: false
   auto_review:
     drafts: false
     auto_incremental_review: true
@@ -42,3 +45,6 @@ reviews:
       instructions: |
         Prefer factual drift checks over prose polish.
         Flag claims that overstate placeholder, future, or partially-landed behavior.
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
