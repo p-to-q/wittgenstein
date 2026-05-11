@@ -11,7 +11,7 @@ const modalityChecks = [
   },
   {
     name: 'Decoder posture',
-    subtitle: 'image path',
+    subtitle: 'visual seed code',
     description: 'Frozen decoders are in-bounds for image reconstruction; the repo is not trying to smuggle in a local diffusion stack.',
     metrics: [
       { label: 'decoder lock', value: 100, tone: 'green' as const },

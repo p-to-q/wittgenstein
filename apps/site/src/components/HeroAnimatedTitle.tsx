@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-const TITLE = "text-first LLMs, file-native outputs.";
+const TITLE = "text-first LLMs, real files out.";
 
 function readPrefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;

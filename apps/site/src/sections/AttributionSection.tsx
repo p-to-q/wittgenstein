@@ -8,8 +8,8 @@ export default function AttributionSection() {
         <span className="section-number">01</span>
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase">thesis</h2>
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
-          Agent = Model + Harness, extended with modality codecs. The LLM remains the planner; the harness owns schema
-          injection, validation, retries, budgets, sandboxing, telemetry, and artifact traces.
+          Agent = model + harness, with modality codecs at the file boundary. The LLM remains the planner; the harness
+          owns schema injection, validation, retries, budgets, sandboxing, telemetry, and artifact traces.
         </p>
 
         <div className="grid md:grid-cols-2 gap-6">
