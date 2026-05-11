@@ -1,2 +1,2 @@
-Wittgenstein — modality harness for text-first models
+Wittgenstein — modality harness for text-first LLMs
 Site: https://wittgenstein.wtf/

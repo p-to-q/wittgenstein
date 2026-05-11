@@ -36,7 +36,7 @@ export default function WeightEditingSection() {
 
         <div className="card-border p-6">
           <div className="flex items-baseline justify-between mb-2">
-            <div className="text-xs font-mono text-muted-foreground">manifest depth · 16 checkpoints</div>
+            <div className="text-xs font-mono text-muted-foreground">manifest depth · 16 surfaced checkpoints</div>
             <div className="text-xs font-mono text-muted-foreground">target harness</div>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
@@ -46,6 +46,10 @@ export default function WeightEditingSection() {
           <p className="text-sm text-muted-foreground mb-6">
             For a project like this, release hygiene is not an afterthought. The packaging layer is what turns a clever
             architecture into something teammates, judges, contributors, and future users can actually pick up.
+          </p>
+          <p className="text-sm text-muted-foreground mb-6">
+            The percentages below are directional packaging signals, not release-gating numbers. They show where the shared
+            runtime is already stable and where some modality surfaces are still catching up.
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -124,7 +128,7 @@ export default function WeightEditingSection() {
           </div>
 
           <div className="mt-8 flex items-center justify-between pt-4 border-t border-border">
-            <div className="text-xs text-muted-foreground">Apache-2.0 · traceable artifacts · publish-ready CLI</div>
+            <div className="text-xs text-muted-foreground">Apache-2.0 · traceable artifacts · contributor-ready CLI</div>
             <a href="#s-thesis" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
               read the thesis
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

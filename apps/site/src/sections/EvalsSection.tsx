@@ -1,12 +1,12 @@
 const modalityChecks = [
   {
-    name: 'IR contracts',
+    name: 'Contract posture',
     subtitle: 'schema & parse',
     description: 'Structured success paths are validated up front so malformed output never silently becomes an artifact.',
     metrics: [
-      { label: 'parse coverage', value: 94, tone: 'primary' as const },
-      { label: 'replay fidelity', value: 91, tone: 'primary' as const },
-      { label: 'manifest completeness', value: 88, tone: 'primary' as const },
+      { label: 'parse guard', value: 94, tone: 'primary' as const },
+      { label: 'replay surface', value: 91, tone: 'primary' as const },
+      { label: 'manifest spine', value: 88, tone: 'primary' as const },
     ],
   },
   {
@@ -15,14 +15,14 @@ const modalityChecks = [
     description: 'Frozen decoders are in-bounds for image reconstruction; the repo is not trying to smuggle in a local diffusion stack.',
     metrics: [
       { label: 'decoder lock', value: 100, tone: 'green' as const },
-      { label: 'adapter seam tests', value: 76, tone: 'green' as const },
+      { label: 'seed-expander seam', value: 76, tone: 'green' as const },
       { label: 'PNG packaging', value: 89, tone: 'green' as const },
     ],
   },
   {
-    name: 'Launch benchmarks',
-    subtitle: 'price · latency · quality',
-    description: 'Lightweight smoke benchmarks track real file outputs for image, tts, audio, and sensor while video catches up.',
+    name: 'Runnable surfaces',
+    subtitle: 'image · audio · sensor',
+    description: 'Lightweight smoke checks track the currently runnable local paths while video catches up.',
     metrics: [
       { label: 'image editorial', value: 85, tone: 'accent' as const },
       { label: 'tts launch', value: 85, tone: 'accent' as const },
@@ -52,9 +52,9 @@ export default function EvalsSection() {
         <span className="section-number">05</span>
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase">checks</h2>
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
-          Contract-shaped checks for schemas, decoders, and launch-ready artifacts. Every real run still leaves traces under{' '}
-          <span className="font-mono text-xs">artifacts/runs/</span>, while the benchmark layer summarizes price, latency,
-          and quality for the current runnable paths.
+          Contract-shaped checks for schemas, decoders, and runnable artifact paths. Every real run still leaves traces
+          under <span className="font-mono text-xs">artifacts/runs/</span>. The percentages below are directional product
+          surfaces, not release receipts; the ground truth still lives in manifests, tests, and docs.
         </p>
 
         <div className="grid md:grid-cols-3 gap-6 mb-10">
@@ -86,16 +86,16 @@ export default function EvalsSection() {
         </div>
 
         <div className="card-border p-6">
-          <div className="text-xs font-mono text-muted-foreground mb-4">run history</div>
+          <div className="text-xs font-mono text-muted-foreground mb-4">mode snapshots</div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground">
-                  <th className="pb-2 font-mono font-normal">run</th>
-                  <th className="pb-2 font-mono font-normal">IR</th>
+                  <th className="pb-2 font-mono font-normal">surface</th>
+                  <th className="pb-2 font-mono font-normal">contract</th>
                   <th className="pb-2 font-mono font-normal">decoder</th>
-                  <th className="pb-2 font-mono font-normal">launch score</th>
-                  <th className="pb-2 font-mono font-normal">delta</th>
+                  <th className="pb-2 font-mono font-normal">runnable</th>
+                  <th className="pb-2 font-mono font-normal">trend</th>
                 </tr>
               </thead>
               <tbody>

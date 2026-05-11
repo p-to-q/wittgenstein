@@ -7,7 +7,7 @@ const layers = [
   {
     num: 'L2',
     title: 'IR / codec',
-    desc: 'Typed schemas, prompt contracts, and structured parse boundaries at every external edge.',
+    desc: 'Typed schemas, modality contracts, and structured parse boundaries at every external edge.',
   },
   {
     num: 'L3',
@@ -17,7 +17,7 @@ const layers = [
   {
     num: 'L4',
     title: 'Optional adapter',
-    desc: 'Small learned translators such as scene-to-latent bridges, shipped beside codecs instead of inside the base model.',
+    desc: 'Small learned bridges such as seed expanders or local code aligners, shipped beside codecs instead of inside the base model.',
   },
   {
     num: 'L5',

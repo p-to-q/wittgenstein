@@ -12,9 +12,11 @@ export default function HumanReadabilitySection() {
         <span className="section-number text-[hsl(var(--warm-silver))]">03</span>
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase text-[hsl(var(--ivory))]">pipeline</h2>
         <p className="text-[hsl(var(--warm-silver))] text-sm max-w-2xl mb-10 leading-relaxed">
-          The locked image pipeline stays narrow: semantic JSON → adapter → frozen decoder → PNG. Decoder ≠ generator, and
-          every run writes a trace under <span className="font-mono text-xs">artifacts/runs/</span>. Audio, sensor, and
-          video follow the same philosophy: structured intent first, local codec logic second, file output last.
+          The locked image pipeline stays narrow: Visual Seed Code-bearing contract → seed expander / adapter → frozen
+          decoder → PNG. Semantic IR still helps with model-side organization and user inspection, but it no longer owns the
+          path. Decoder ≠ generator, and every run writes a trace under{' '}
+          <span className="font-mono text-xs">artifacts/runs/</span>. Audio, sensor, and video follow the same philosophy:
+          modality-specific code first, local runtime second, file output last.
         </p>
 
         <div className="relative mb-8 rounded-xl overflow-hidden border border-[hsl(var(--dark-surface))] bg-black shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
@@ -42,7 +44,7 @@ export default function HumanReadabilitySection() {
             aria-hidden
           >
             <span className="text-[hsl(var(--coral))]">User prompt</span>
-            {'\n    →  schema preamble + JSON contract'}
+            {'\n    →  schema preamble + image contract'}
             {'\n          →  '}
             <span className="text-[hsl(var(--coral))]">LLM</span>
             {' (planner)'}
@@ -50,16 +52,20 @@ export default function HumanReadabilitySection() {
             <span className="text-[hsl(var(--coral))]">parse</span>
             {' (zod)'}
             {'\n                      →  '}
-            <span className="text-[hsl(var(--coral))]">expand</span>
-            {' →  '}
-            <span className="text-[hsl(var(--coral))]">adapter</span>
-            {' (latents)'}
+            <span className="text-[hsl(var(--coral))]">inspect</span>
+            {' (semantic, optional)'}
             {'\n                            →  '}
+            <span className="text-[hsl(var(--coral))]">expand</span>
+            {' (seedCode / coarse code)'}
+            {'\n                                  →  '}
+            <span className="text-[hsl(var(--coral))]">adapter</span>
+            {' (seed expander)'}
+            {'\n                                        →  '}
             <span className="text-[hsl(var(--coral))]">decoder</span>
             {' (frozen)'}
-            {'\n                                  →  '}
+            {'\n                                              →  '}
             <span className="text-[hsl(var(--coral))]">packageRasterAsPng</span>
-            {'\n                                        →  artifact + manifest'}
+            {'\n                                                    →  artifact + manifest'}
           </pre>
         </div>
 
@@ -82,9 +88,10 @@ export default function HumanReadabilitySection() {
             <span className="font-mono text-[0.7rem] text-[hsl(var(--warm-silver))] w-10 text-right shrink-0">42%</span>
           </div>
           <p className="text-[0.8125rem] text-[hsl(var(--warm-silver))] leading-relaxed">
-            Illustrative only: runtime and shared contracts are ahead of some finished renderers. Image already centers on
-            adapter + frozen decoder wiring; sensor expands deterministic operators; audio renders local WAV artifacts; video
-            still waits on the fuller MP4 branch to be merged back into the main flow.
+            Illustrative only: these bars show relative scaffold depth, not benchmarked release scores. Runtime and shared
+            contracts are ahead of some finished renderers. Image already centers on Visual Seed Code plus frozen-decoder
+            wiring; sensor expands deterministic operators; audio renders local WAV artifacts; video still waits on the
+            fuller MP4 branch to be merged back into the main flow.
           </p>
         </div>
       </div>

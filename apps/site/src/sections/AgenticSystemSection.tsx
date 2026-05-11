@@ -2,7 +2,7 @@ const toolChain = [
   {
     name: 'harness.router',
     active: true,
-    description: 'Owns retries, seeds, budgets, sandbox, telemetry, and routing while the planner stays text-native.',
+    description: 'Owns retries, seeds, budgets, sandbox, telemetry, and routing while the planner stays text-first.',
   },
   {
     name: 'codec.registry',
@@ -12,7 +12,7 @@ const toolChain = [
   {
     name: 'artifacts.replay',
     active: false,
-    description: 'Replays structured IR plus manifests from artifacts/runs/ without touching the base model weights.',
+    description: 'Replays modality contracts plus manifests from artifacts/runs/ without touching the base model weights.',
   },
 ];
 
@@ -24,7 +24,7 @@ export default function AgenticSystemSection() {
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase">harness</h2>
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
           The LLM plans; the harness owns routing, schema injection, validation, and traces. Modality codecs sit behind a
-          single contract so new file types can ship without pretending the backbone has become a giant native VLM.
+          shared contract surface so new file types can ship without pretending the backbone has become a giant native VLM.
         </p>
 
         <div className="card-border p-6">
@@ -37,8 +37,8 @@ export default function AgenticSystemSection() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Route this request through the right codec, validate the structured IR, and show the artifact and
-                      manifest path rather than a black-box answer.
+                      Route this request through the right codec, validate the code-bearing contract, and show the artifact
+                      and manifest path rather than a black-box answer.
                     </p>
                   </div>
                 </div>

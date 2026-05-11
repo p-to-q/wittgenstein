@@ -9,14 +9,15 @@ export default function HeroSection() {
     <section className="pt-32 pb-16 text-center px-4 relative" id="top">
       <HeroAnimatedTitle className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-serif mb-10 tracking-tight text-foreground leading-[1.12] max-w-5xl mx-auto animate-fade-in-up" />
       <p className="text-base text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
-        A <strong className="text-foreground font-semibold">harness-first portability layer</strong> for text-native LLMs.
-        The model stays a planner; codecs, adapters, decoders, mixers, and deterministic runtimes turn structured intent
-        into real files such as <strong className="text-foreground font-semibold">PNG, WAV, HTML, JSON,</strong> and,
-        once the video branch is fully wired back in, <strong className="text-foreground font-semibold">MP4</strong>.
+        A <strong className="text-foreground font-semibold">harness-first modality layer</strong> for text-first LLMs.
+        The model stays a planner; modality contracts, codecs, seed expanders, frozen decoders, and deterministic runtimes
+        turn structured outputs into real files such as <strong className="text-foreground font-semibold">PNG, WAV, HTML, JSON,</strong>{' '}
+        and, once the video branch is fully wired back in, <strong className="text-foreground font-semibold">MP4</strong>.
       </p>
       <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-        The point is not to pretend a text model is already a giant native VLM. The point is to make multimodal outputs
-        practical through contracts, local compute, and portable codec logic.
+        The point is not to pretend a text model is already a native multimodal stack. The point is to give it narrow,
+        inspectable code paths: Visual Seed Code for image, local render routes for audio and sensor, and traceable
+        artifact receipts at every step.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <a href="#s-layers" className="yellow-btn inline-flex items-center justify-center">

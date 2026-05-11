@@ -1,11 +1,11 @@
 const codecs = [
   {
     label: 'Image',
-    body: 'Single raster path: scene IR, latent adapter seam, frozen decoder, and PNG packaging. This is the research path, not a fallback tier.',
+    body: 'Single raster path: Visual Seed Code-bearing contract, optional semantic layer, seed expander seam, frozen decoder, and PNG packaging. This is the research path, not a fallback tier.',
   },
   {
     label: 'Audio',
-    body: 'Typed routes for speech, soundscape, and music, with local WAV rendering, ambient layering, and one shared contract.',
+    body: 'Typed routes for speech, soundscape, and music, with local WAV rendering, ambient layering, and one shared harness contract.',
   },
   {
     label: 'Video',
@@ -30,8 +30,8 @@ export default function FactualChecksSection() {
         </p>
         <p className="text-muted-foreground text-sm max-w-2xl mb-10 leading-relaxed">
           In practice, that means each codec can move at its own speed while still fitting the same harness. Image is the
-          strictest and most research-shaped path; audio and sensor are already productive local outputs; video is waiting for
-          the fuller MP4 path to land.
+          strictest and most research-shaped path; audio and sensor already produce useful local outputs; video is waiting
+          for the fuller MP4 path to land.
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4">

@@ -1,5 +1,5 @@
 const promptTokens = ['Create', 'a', 'traceable', 'PNG', 'artifact', 'from', 'text'];
-const responseTokens = ['scene', 'spec', 'JSON', 'latents', 'manifest'];
+const responseTokens = ['semantic', 'seedCode', 'decoder', 'PNG', 'manifest'];
 
 export default function AttributionSection() {
   return (
@@ -34,13 +34,13 @@ export default function AttributionSection() {
                 <path d="M12 5v14M5 12l7 7 7-7" />
               </svg>
             </div>
-            <div className="text-xs font-mono text-muted-foreground mb-4">structured IR</div>
+            <div className="text-xs font-mono text-muted-foreground mb-4">structured contract</div>
             <div className="flex flex-wrap gap-1.5">
               {responseTokens.map((token, i) => (
                 <span
                   key={i}
                   className={`px-2 py-1 text-sm rounded-md border shadow-[0_0_0_1px_hsl(var(--ring))] ${
-                    ['scene', 'spec', 'latents', 'manifest'].includes(token)
+                    ['semantic', 'seedCode', 'decoder', 'manifest'].includes(token)
                       ? 'bg-primary/15 text-foreground border-primary/35'
                       : 'bg-secondary text-secondary-foreground'
                   }`}
@@ -55,14 +55,14 @@ export default function AttributionSection() {
             <div className="text-xs font-mono text-muted-foreground mb-4">why it scales</div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Modern harnesses usually stop at tools and control flow. Wittgenstein adds a stricter seam:{' '}
-              <strong className="text-foreground font-semibold">structured IR, codec boundaries, frozen decoders,</strong>{' '}
-              and optional tiny adapters. When the trade-off is right, post-training moves to the harness bundle instead of
-              the base model. Every run leaves artifacts under{' '}
+              <strong className="text-foreground font-semibold">code-bearing contracts, codec boundaries, frozen decoders,</strong>{' '}
+              and optional tiny seed expanders. When the trade-off is right, post-training moves to the harness bundle
+              instead of the base model. Every run leaves artifacts under{' '}
               <span className="font-mono text-xs text-secondary-foreground">artifacts/runs/</span>.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed mt-4">
-              That makes the project legible to both researchers and builders: you can inspect the contract, replay the run,
-              and improve one modality without rewriting the whole system.
+              That keeps the project legible to both researchers and builders: you can inspect the contract, replay the run,
+              and improve one modality without pretending the whole stack changed shape.
             </p>
           </div>
         </div>
