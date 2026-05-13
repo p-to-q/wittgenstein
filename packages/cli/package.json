@@ -50,6 +50,7 @@
     "smoke": "node ./bin/wittgenstein.js doctor"
   },
   "dependencies": {
+    "@wittgenstein/codec-video": "workspace:*",
     "@wittgenstein/core": "workspace:*",
     "@wittgenstein/schemas": "workspace:*",
     "commander": "^14.0.3",

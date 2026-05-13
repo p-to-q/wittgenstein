@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
-import { buildPlayableSlideshowHtml } from "../../../codec-video/src/playable-slideshow-html.js";
+import { buildPlayableSlideshowHtml } from "@wittgenstein/codec-video";
 import { resolveExecutionRoot } from "./shared.js";
 
 function collectSvgPath(value: string, previous: string[] | undefined): string[] {

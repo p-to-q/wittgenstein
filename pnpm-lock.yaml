@@ -266,6 +266,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@wittgenstein/codec-video':
+        specifier: workspace:*
+        version: link:../codec-video
       '@wittgenstein/core':
         specifier: workspace:*
         version: link:../core
