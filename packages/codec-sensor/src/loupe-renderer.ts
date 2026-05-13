@@ -5,7 +5,7 @@
 // `SensorRenderPath` outcome string so manifests and tests stay byte-stable.
 
 import { access, writeFile } from "node:fs/promises";
-import { dirname, resolve as resolvePath } from "node:path";
+import { basename, dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import type { SensorSignalSpec } from "./schema.js";
@@ -74,6 +74,14 @@ async function firstExistingPath(candidates: string[]): Promise<string | null> {
 }
 
 function buildFallbackHtml(spec: SensorSignalSpec, csvPath: string): string {
+  // Embed only the CSV file's basename, not its absolute path. Absolute
+  // paths bake the run's output directory into the artifact bytes, which
+  // breaks the "same IR + same seed → same bytes" reproducibility doctrine
+  // (manifest replay across runs to different outPaths would diverge by
+  // path bytes alone). The basename + the colocated layout (csv sits next
+  // to the html) is enough for a user landing on the dashboard to find
+  // the file (Issue #387).
+  const csvBasename = basename(csvPath);
   return `<!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
@@ -81,7 +89,7 @@ function buildFallbackHtml(spec: SensorSignalSpec, csvPath: string): string {
 <body style="font-family: ui-monospace, monospace; padding: 24px; background: #111; color: #f5f5f5;">
   <h1>${spec.signal} preview</h1>
   <p>Loupe was unavailable, so Wittgenstein wrote the raw CSV sidecar instead.</p>
-  <p>Open <code>${csvPath}</code> or rerun with Python 3 available to get the interactive dashboard.</p>
+  <p>Open <code>${csvBasename}</code> (next to this HTML file) or rerun with Python 3 available to get the interactive dashboard.</p>
 </body>
 </html>`;
 }
