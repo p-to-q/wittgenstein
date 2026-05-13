@@ -248,7 +248,7 @@ jobs:
             function closingIssueNumbers(pr) {
               const text = `${pr.title || ""}\n${pr.body || ""}`;
               const closingReferencePattern =
-                /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)/gi;
+                /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*(?:[\w.-]+\/[\w.-]+)?#(\d+)/gi;
 
               return [
                 ...new Set(
