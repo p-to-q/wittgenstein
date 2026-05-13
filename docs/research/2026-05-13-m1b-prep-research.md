@@ -1,17 +1,34 @@
 ---
 date: 2026-05-13
-status: research note (decision-oriented)
+status: research note (decision-oriented) — Phase 0 floor; superseded by Phase 1+ research program
 labels: [research-derived, m1b-image, training, dataset, adapter, eval]
 tracks: [#283, #259, #334, #335]
 feeds-into: M1B implementation slices
+superseded-by: docs/research/2026-05-13-wittgenstein-research-program.md
 ---
 
-# M1B Prep Research: Tokenizer, Dataset, Adapter, Eval
+# M1B Prep Research: Tokenizer, Dataset, Adapter, Eval (Phase 0 floor)
 
-> **Status:** decision-oriented research note. Surveys the empirical landscape ahead of M1B wiring so the implementation slice is a contract-fill, not a design-from-scratch. Pairs with the locked bridge contract in [`packages/codec-image/src/decoders/types.ts`](../../packages/codec-image/src/decoders/types.ts).
+> **🔁 Status update (2026-05-13, same day):** This note was drafted under
+> hackathon-grade constraints (ONNX-CPU runtime, no training compute,
+> ship-floor quality bar). **Those constraints were lifted later the same
+> day** when the maintainer confirmed GPU-rich compute and reframed the
+> project as top-tier engineering / research / hacker work.
+>
+> The canonical research direction is now
+> [`docs/research/2026-05-13-wittgenstein-research-program.md`](2026-05-13-wittgenstein-research-program.md),
+> which supersedes the recommendations below.
+>
+> This note STAYS in the tree because (a) the **Phase 0 floor** it
+> recommends is still the right shipping path if compute or budget
+> evaporates, and (b) the literature survey (§1–§5) remains accurate
+> regardless of compute posture. Read this note for the landscape; read
+> the research-program note for the chosen path.
+
+> **Status (original):** decision-oriented research note. Surveys the empirical landscape ahead of M1B wiring so the implementation slice is a contract-fill, not a design-from-scratch. Pairs with the locked bridge contract in [`packages/codec-image/src/decoders/types.ts`](../../packages/codec-image/src/decoders/types.ts).
 > _Tracker: [#283](https://github.com/p-to-q/wittgenstein/issues/283); per-candidate audits [#329–#333](https://github.com/p-to-q/wittgenstein/issues/329); Gates C/D [#334](https://github.com/p-to-q/wittgenstein/issues/334) + [#335](https://github.com/p-to-q/wittgenstein/issues/335)._
 
-**Scope:** Targeted prep for landing M1B (image route via frozen VQ decoder bridge) in Wittgenstein. Architecture under evaluation: LLM emits Visual Seed Code (short discrete sequence) → L4 adapter expands seed to tokenizer latent grid → frozen VQ decoder produces pixels. Constraints: Node.js / ONNX-CPU runtime, permissive code+weights, deterministic per-platform, hackathon-grade.
+**Scope:** Targeted prep for landing M1B (image route via frozen VQ decoder bridge) in Wittgenstein. Architecture under evaluation: LLM emits Visual Seed Code (short discrete sequence) → L4 adapter expands seed to tokenizer latent grid → frozen VQ decoder produces pixels. **Original constraints (Phase 0 floor):** Node.js / ONNX-CPU runtime, permissive code+weights, deterministic per-platform, hackathon-grade. **Reframed Phase 1+ constraints:** see the [research-program note](2026-05-13-wittgenstein-research-program.md).
 
 ---
 
@@ -230,15 +247,30 @@ LLM emits seed → adapter → decoder → image.
 
 ---
 
-## Recommended minimum first-cut
+## Recommended minimum first-cut (Phase 0 floor only)
 
-**For M1B specifically:** Use the **LlamaGen `vq_ds16_c2i.pt` tokenizer** (Apache-2.0, 72M params, conv enc/dec, codebook K=16384 / dim 8 / downsample 16 → 16×16 token grid). Export the decoder-only path to ONNX-CPU. Define the Visual Seed Code as the 16×16 LlamaGen token grid downsampled by an integer factor (start k=2 → 8×8=64 seed tokens; iterate if quality demands). Implement the **L4 adapter as deterministic PixelShuffle-style replicate** with no learnable weights for the first cut — no adapter training, no extra GPU budget, fully deterministic by construction. Validate on **ImageNet-1k validation 50k for reconstruction (PSNR/SSIM/LPIPS/rFID)** and defer generative FID-30K to a one-off GPU rental or to M1C.
+> **⚠️ Superseded:** this section is the **floor** recommendation that
+> applies only if the compute / budget / staffing situation reverts to
+> hackathon-grade. The actual chosen direction is in
+> [`2026-05-13-wittgenstein-research-program.md`](2026-05-13-wittgenstein-research-program.md) Phase 1:
+> own-trained tokenizer + learned MaskGIT-style adapter + native LLM head,
+> targeting SOTA-adjacent quality with full eval matrix.
 
-**Why this and not the SOTA path:** Open-MAGVIT2 has better rFID and TiTok has shorter sequences but both add engineering surface (bit-factorization, ViT decoder, less-mature ONNX support) at a stage where Wittgenstein's project risk is in the bridge architecture, not in tokenizer fidelity. LlamaGen's tokenizer is unambiguously good enough at rFID ~2 and is the path of least resistance to a green-light M1B. **If** the first-cut quality is insufficient on the ImageNet-val Rung-1 eval, the cheap upgrade is to retrain a slightly-larger LlamaGen tokenizer on ImageNet+CC12M; the more expensive upgrade is the Open-MAGVIT2 swap, deferred to M1C. **If** the adapter quality is insufficient on the Rung-2 eval, the cheap upgrade is to extend k from 4 to 2 (more seed tokens), and the more expensive upgrade is a learned MaskGIT-style fill-in adapter trained on ImageNet (seed, grid) pairs.
+**Phase 0 floor (for archival completeness):** Use the **LlamaGen `vq_ds16_c2i.pt` tokenizer** (Apache-2.0, 72M params, conv enc/dec, codebook K=16384 / dim 8 / downsample 16 → 16×16 token grid). Export the decoder-only path to ONNX-CPU. Define the Visual Seed Code as the 16×16 LlamaGen token grid downsampled by an integer factor (start k=2 → 8×8=64 seed tokens; iterate if quality demands). Implement the **L4 adapter as deterministic PixelShuffle-style replicate** with no learnable weights for the first cut — no adapter training, no extra GPU budget, fully deterministic by construction. Validate on **ImageNet-1k validation 50k for reconstruction (PSNR/SSIM/LPIPS/rFID)** and defer generative FID-30K to a one-off GPU rental or to M1C.
+
+**Why this and not the SOTA path (Phase 0 reasoning):** Open-MAGVIT2 has better rFID and TiTok has shorter sequences but both add engineering surface (bit-factorization, ViT decoder, less-mature ONNX support) at a stage where Wittgenstein's project risk is in the bridge architecture, not in tokenizer fidelity. LlamaGen's tokenizer is unambiguously good enough at rFID ~2 and is the path of least resistance to a green-light M1B. **If** the first-cut quality is insufficient on the ImageNet-val Rung-1 eval, the cheap upgrade is to retrain a slightly-larger LlamaGen tokenizer on ImageNet+CC12M; the more expensive upgrade is the Open-MAGVIT2 swap, deferred to M1C. **If** the adapter quality is insufficient on the Rung-2 eval, the cheap upgrade is to extend k from 4 to 2 (more seed tokens), and the more expensive upgrade is a learned MaskGIT-style fill-in adapter trained on ImageNet (seed, grid) pairs.
+
+> Under the **reframed (compute-rich) constraints**, the answer flips on
+> nearly every line: own-trained tokenizer beats LlamaGen consumption;
+> learned adapter beats deterministic replicate; full FID-30K beats 5K
+> subsample; SOTA-adjacent ship bar beats hackathon-grade. The §1 / §2 /
+> §4 / §5 survey content stays useful; the recommendations don't.
 
 ---
 
-## Headline decisions to act on
+## Headline decisions (Phase 0 floor)
+
+> Replaced by [research-program §"Phase 1 — M1B with own-trained models"](2026-05-13-wittgenstein-research-program.md). Kept here for archival comparison.
 
 1. **Tokenizer:** LlamaGen `vq_ds16_c2i.pt`. Defer Open-MAGVIT2 swap to M1C.
 2. **Adapter:** Deterministic PixelShuffle-replicate, no training. Promote to MaskGIT-style fill-in only if Rung-2 LPIPS/SSIM fails.
