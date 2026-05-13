@@ -25,19 +25,25 @@ Give a text LLM a prompt and Wittgenstein turns the structured plan into real fi
 `.png`, `.wav`, `.csv`, or `.mp4`, with run manifests that record the seed,
 artifact hash, and model I/O.
 
-Image, audio, and sensor routes already produce real artifacts with the same
-harness/codec/manifest contract. Video targets `.mp4` once its codec slot opens. The
-image route is now explicitly framed around **Visual Seed Code**: `Semantic IR` remains
-supported for model-side organization and user-facing inspection, while Visual Seed
-Code / Visual Seed Token is the primary image research layer and feeds the
-decoder-facing path. The local 30-second sensor quickstart below is the smallest
-no-API-key proof; maturity levels are called out in `docs/implementation-status.md`.
+The shape is uniform across modalities:
 
-The image concern is deliberate: a pure seed-token output may be compact and decoder-facing,
-but it can also become opaque, brittle, or hard to diagnose. `Semantic IR` exists to activate
-and organize model-side visual concepts, make intent inspectable, and provide optional
-conditioning for a seed expander or later decoder-side network. It is important support, but
-not the main image research object.
+```
+text-first LLM
+  → modality-specific code contract
+  → deterministic renderer / frozen decoder
+  → real artifact + manifest receipt
+```
+
+| Modality | LLM-facing code layer | Local execution layer | Artifact |
+| --- | --- | --- | --- |
+| 🖼️ Image | Visual Seed Code (primary) + optional `Semantic IR` | Seed expander → frozen VQ decoder | PNG |
+| 🔊 Audio | Route-specific audio code (speech / soundscape / music) | Procedural synth (default) + opt-in Kokoro speech | WAV |
+| 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion | CSV + interactive HTML |
+| 🎞️ Video | Composition spec | HyperFrames-shaped local render (M4 stub today; ratified lead path) | MP4 / HTML |
+
+Image, audio, and sensor produce real artifacts today; video is post-v0.3 work. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
+
+The image codec's split between **Visual Seed Code** (primary, decoder-facing) and **`Semantic IR`** (support: concept activation, user inspection, optional conditioning) is a doctrine correction ratified by [ADR-0018](docs/adrs/0018-hybrid-image-code-and-visual-seed-token.md). `Semantic IR` is important support — pure seed output can be opaque, brittle, or hard to diagnose — but it is not the main image research object.
 
 > **🧪 Project status — early-stage, doctrine-locked, v0.3 prerelease.**
 > Wittgenstein is a prerelease (`v0.3.0-alpha.1`) with a working Python
@@ -45,9 +51,13 @@ not the main image research object.
 > unfinished surfaces clearly flagged with ⚠️ or 🔴 in
 > [`docs/implementation-status.md`](docs/implementation-status.md). The v0.2
 > cut locks the thesis, vocabulary, and codec protocol (RFC-0001 / ADR-0008);
-> M0, M1A, and the M2 audio sweep have landed; v0.3 is packaged against
-> [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md).
-> The next major correction line is the image-route reframe around Visual Seed Code.
+> **M0, M1A, M2 audio, and M3 sensor have landed**, and the image doctrine
+> has been reframed around Visual Seed Code ([ADR-0018](docs/adrs/0018-hybrid-image-code-and-visual-seed-token.md)).
+> v0.3 is packaged against
+> [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md);
+> the **current mainline blocker is M1B** (image trained projector), gated
+> on per-candidate radar audits in
+> [#283](https://github.com/p-to-q/wittgenstein/issues/283).
 > Breaking changes are still possible before a stable release. **We are
 > actively looking for early adopters and contributors** — see
 > [How to help](#how-to-help) below.
