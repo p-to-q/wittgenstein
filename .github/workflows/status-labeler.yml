@@ -245,10 +245,22 @@ jobs:
               };
             }
 
-            async function referencedOpenIssues(pr) {
+            function closingIssueNumbers(pr) {
               const text = `${pr.title || ""}\n${pr.body || ""}`;
-              const numbers = [...text.matchAll(/#(\d+)/g)].map((match) => Number(match[1]));
-              const uniqueNumbers = [...new Set(numbers)].filter((number) => number !== pr.number);
+              const closingReferencePattern =
+                /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)/gi;
+
+              return [
+                ...new Set(
+                  [...text.matchAll(closingReferencePattern)]
+                    .map((match) => Number(match[1]))
+                    .filter((number) => number !== pr.number),
+                ),
+              ];
+            }
+
+            async function closingReferencedOpenIssues(pr) {
+              const uniqueNumbers = closingIssueNumbers(pr);
               const issues = [];
 
               for (const issue_number of uniqueNumbers) {
@@ -272,11 +284,19 @@ jobs:
                 per_page: 20,
               });
 
-              return data.items.some((item) => item.number !== excludedPullRequestNumber);
+              for (const item of data.items) {
+                if (item.number === excludedPullRequestNumber) continue;
+                const pr = await pullRequestPayload(item.number);
+                if (pr && closingIssueNumbers(pr).includes(issue_number)) {
+                  return true;
+                }
+              }
+
+              return false;
             }
 
             async function refreshReferencedIssueStatusAfterPullRequestClosed(pr) {
-              for (const issue_number of await referencedOpenIssues(pr)) {
+              for (const issue_number of await closingReferencedOpenIssues(pr)) {
                 if (await hasOpenPullRequestReference(issue_number, pr.number)) {
                   await setStatus(issue_number, "status/has-pr");
                   continue;
@@ -334,7 +354,7 @@ jobs:
 
               await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
 
-              for (const issue_number of await referencedOpenIssues(pr)) {
+              for (const issue_number of await closingReferencedOpenIssues(pr)) {
                 await setStatus(issue_number, "status/has-pr");
               }
             }
@@ -364,7 +384,7 @@ jobs:
                   await addLabels(pr.number, labelsFromText(pr.title || ""));
                   await addPullRequestSizeIfMissing(pr);
                   await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
-                  for (const issue_number of await referencedOpenIssues(pr)) {
+                  for (const issue_number of await closingReferencedOpenIssues(pr)) {
                     await setStatus(issue_number, "status/has-pr");
                   }
                 }
