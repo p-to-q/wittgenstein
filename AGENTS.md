@@ -142,7 +142,7 @@ The original Read Order is still valid as a depth path. Before that, an agent la
 2. [`docs/glossary.md`](docs/glossary.md) — locked vocabulary (the table above)
 3. [`docs/contributor-map.md`](docs/contributor-map.md) — onboarding map (humans + agents)
 4. [`docs/hard-constraints.md`](docs/hard-constraints.md) — what will not change (canonical, supersedes the bullets above)
-5. [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md) — the live P6 plan; M0 and M1A are landed, and M2 audio is the active execution line
+5. [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md) — the live P6 plan; M0, M1A, M2 audio, and M3 sensor are landed. M1B (image trained projector) is the current mainline blocker, gated on [#283](https://github.com/p-to-q/wittgenstein/issues/283).
 6. [`docs/inheritance-audit.md`](docs/inheritance-audit.md) — what survived / was promoted / was retired in the v0.2 lock
 7. [`docs/SYNTHESIS_v0.2.md`](docs/SYNTHESIS_v0.2.md) — branch-level merge brief
 8. [`docs/v02-final-audit.md`](docs/v02-final-audit.md) — pre-lock decision ledger
