@@ -197,6 +197,21 @@ export class Wittgenstein {
         manifest.ok = true;
         manifest.durationMs = Date.now() - startedAt.getTime();
       } else {
+        // ====================================================================
+        // v1 legacy codec pipeline (#300 modality-blind invariant exception)
+        // ====================================================================
+        // Every `request.modality === "..."` branch in this `else` block is
+        // v1-codec compatibility scaffolding for asciipng / svg / video — the
+        // three modalities whose codec hasn't yet ported to Codec Protocol v2.
+        // When the last v1 codec ports to v2 (#300), this entire `else` arm
+        // disappears: the harness reduces to the v2 path above, which dispatches
+        // through `codec.produce(req, ctx)` without inspecting `request.modality`.
+        //
+        // DO NOT add new modality branches here. New modalities ship as v2
+        // codecs (the `if (isV2Codec(codec))` branch above) and never touch
+        // this block. The bounded-count test in `harness-modality-references.test.ts`
+        // will trip if a new branch sneaks in.
+        // ====================================================================
         const v1Codec = codec;
         const generation =
           request.modality === "asciipng" && request.source === "minimax" && !options.dryRun
@@ -482,6 +497,10 @@ function createLlmAdapter(
   return new OpenAICompatibleLlmAdapter(llmConfig);
 }
 
+// v1-compat guard: this builder is asciipng-specific and exists only because
+// codec-asciipng hasn't ported to v2 yet. The modality check is a type narrower
+// for callers, not a real dispatch — it's a defensive assertion that retires
+// with the v1 pipeline.
 function buildAsciiPngGeneration(request: WittgensteinRequest): LlmGenerationResult {
   if (request.modality !== "asciipng") {
     throw new ValidationError("buildAsciiPngGeneration called for non-asciipng request.");
@@ -502,6 +521,10 @@ function buildAsciiPngGeneration(request: WittgensteinRequest): LlmGenerationRes
   };
 }
 
+// v1-compat: dry-run generation shapes are modality-aware because v1 codecs
+// expect modality-specific JSON shapes. v2 codecs construct their own dry-run
+// payloads via `codec.expand(req, ctx)` and never call this function. Retires
+// with the v1 pipeline (#300).
 function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResult {
   if (request.modality === "svg") {
     return {
@@ -563,6 +586,10 @@ function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResu
   };
 }
 
+// LEGITIMATE modality-aware routing (NOT v1-compat; stays even after #300).
+// The codec registry IS keyed by modality, so picking a default output file
+// extension by modality is the registry's own dispatch dimension. v2 codecs
+// can override `outPath` via the request; this just provides the convention.
 function defaultOutputPathFor(
   modality: WittgensteinRequest["modality"],
   cwd: string,
