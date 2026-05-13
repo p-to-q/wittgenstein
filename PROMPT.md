@@ -24,7 +24,7 @@ surface (`polyglot-mini/`), with a manifest-spine reproducibility contract.
 1. [`docs/THESIS.md`](docs/THESIS.md) — the smallest locked statement (≤1 page)
 2. [`docs/glossary.md`](docs/glossary.md) — locked vocabulary; do not invent alternatives
 3. [`docs/hard-constraints.md`](docs/hard-constraints.md) — what will not change
-4. [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md) — the live P6 workstream (M0 → M5b); M0 and M1A are landed, and M2 audio is the active execution line
+4. [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md) — the live P6 workstream (M0 → M5b); M0, M1A, M2 audio, and M3 sensor are landed. M1B (image trained projector) is the current mainline blocker, gated on [#283](https://github.com/p-to-q/wittgenstein/issues/283) (per-candidate radar audits).
 
 That's enough to start. Pull deeper docs **only when the task forces you to**.
 
@@ -35,7 +35,7 @@ That's enough to start. Pull deeper docs **only when the task forces you to**.
 | **Harness**   | L1    | Routing, retry, seed, validate, budget, record                                    |
 | **Codec**     | L2    | Modality implementation (owns schema + render)                                    |
 | **Spec**      | L2    | Structured artifact (`ImageSceneSpec`, `AudioPlan`, …)                            |
-| **IR**        | L3    | Internal representation; sum type `Text \| Latent \| Hybrid`; only `Text` at v0.2 |
+| **IR**        | L3    | Typed internal-representation layer; contracts may carry text, code-bearing, or hybrid sections by modality. Image's Visual Seed Code route is the current ratified example. (ADR-0011 / ADR-0018) |
 | **Decoder**   | L3    | IR → bytes; **frozen, deterministic, never generative** (ADR-0005)                |
 | **Adapter**   | L4    | Learned bridge (Spec → latent); optional, image only today                        |
 | **Packaging** | L5    | CLI · npm · manifests · install                                                   |
