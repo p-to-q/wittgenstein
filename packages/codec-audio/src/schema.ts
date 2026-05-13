@@ -2,8 +2,14 @@ import { z } from "zod";
 import type { AudioRequest, Result } from "@wittgenstein/schemas";
 import { AudioRequestSchema } from "@wittgenstein/schemas";
 
+// Audio route enum surfaced separately so route inference can drive off the
+// schema (not a hardcoded list parallel to it). Adding a new audio route
+// becomes: extend AudioRouteSchema.options + add a keyword entry to
+// `ROUTE_KEYWORDS` in codec.ts (#355).
+export const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
+
 export const AudioPlanSchema = z.object({
-  route: z.enum(["speech", "soundscape", "music"]).default("speech"),
+  route: AudioRouteSchema.default("speech"),
   script: z.string().default("Wittgenstein launches a multimodal artifact."),
   voice: z
     .object({

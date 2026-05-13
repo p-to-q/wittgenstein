@@ -208,4 +208,19 @@ describe("@wittgenstein/codec-audio", () => {
     expect(art.metadata.warnings).toEqual([]);
     expect(warnings).toEqual([]);
   });
+
+  // Schema-driven intent routing (#355). `inferIntentRoute` reads its
+  // keyword table off `AudioRouteSchema.options` instead of a hardcoded
+  // branch tree; these tests pin the routing contract via the codec's
+  // public route matchers.
+  it.each([
+    { prompt: "upbeat music score with motif", expected: "music" },
+    { prompt: "a calm forest soundscape with rain", expected: "soundscape" },
+    { prompt: "narrator reads a story", expected: "speech" },
+    { prompt: "", expected: "speech" }, // empty prompt falls through to speech
+  ])("infers route '$expected' for prompt: $prompt", ({ prompt, expected }) => {
+    const req = { modality: "audio" as const, prompt };
+    const matched = audioCodec.routes.find((r) => r.match(req));
+    expect(matched?.id).toBe(expected);
+  });
 });

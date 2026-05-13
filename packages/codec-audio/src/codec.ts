@@ -5,6 +5,7 @@ import { Modality, codecV2 } from "@wittgenstein/schemas";
 import {
   AudioPlanSchema,
   AudioRequestSchema,
+  AudioRouteSchema,
   audioSchemaPreamble,
   parseAudioPlan,
   type AudioPlan,
@@ -184,23 +185,35 @@ function routeFromRequest(req: AudioRequest): AudioRoute {
   return inferIntentRoute(req.prompt);
 }
 
+// Keyword patterns for intent-driven route inference. Keys MUST stay in sync
+// with `AudioRouteSchema.options` (enforced at compile time below). `speech`
+// is the implicit fallback when no other route's keywords match — adding it
+// here as a real pattern would create circular semantics (the catch-all
+// can't both match-explicitly and serve as the default).
+const ROUTE_KEYWORDS: Record<Exclude<AudioRoute, "speech">, RegExp> = {
+  music: /\b(music|soundtrack|score|melody|song|cue|theme|pulse|beat|chord|motif)\b/,
+  soundscape:
+    /\b(soundscape|ambient|ambience|rain|wind|forest|city|ocean|waves|birds|noise|texture)\b/,
+};
+
+// Compile-time guard: every non-`speech` enum member must appear in
+// `ROUTE_KEYWORDS`. If a future PR adds a route to `AudioRouteSchema`
+// without a keyword entry, this type assertion fails the build.
+const _routeKeywordKeysCheck: ReadonlySet<Exclude<AudioRoute, "speech">> = new Set(
+  AudioRouteSchema.options.filter((route): route is Exclude<AudioRoute, "speech"> => route !== "speech"),
+);
+void (_routeKeywordKeysCheck satisfies ReadonlySet<keyof typeof ROUTE_KEYWORDS>);
+
 function inferIntentRoute(prompt: string): AudioRoute {
   const normalized = prompt.toLowerCase();
-
-  if (
-    /\b(music|soundtrack|score|melody|song|cue|theme|pulse|beat|chord|motif)\b/.test(normalized)
-  ) {
-    return "music";
+  // Iterate in schema-declared order. `speech` is the fallback — skipped
+  // here, returned if no other route's keywords match.
+  for (const route of AudioRouteSchema.options) {
+    if (route === "speech") continue;
+    if (ROUTE_KEYWORDS[route].test(normalized)) {
+      return route;
+    }
   }
-
-  if (
-    /\b(soundscape|ambient|ambience|rain|wind|forest|city|ocean|waves|birds|noise|texture)\b/.test(
-      normalized,
-    )
-  ) {
-    return "soundscape";
-  }
-
   return "speech";
 }
 
