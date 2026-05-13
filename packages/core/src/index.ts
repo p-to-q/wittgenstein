@@ -23,5 +23,3 @@ export * from "./codecs/sensor.js";
  * shadowing the v1 names exported above. See `docs/rfcs/0001-codec-protocol-v2.md`.
  */
 export { codecV2 } from "@wittgenstein/schemas";
-
-export * from "./utils/process-runner.js";
