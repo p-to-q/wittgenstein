@@ -36,5 +36,3 @@ export { loadWittgensteinConfig } from "./runtime/config.js";
  * `docs/rfcs/0001-codec-protocol-v2.md`.
  */
 export { codecV2 } from "@wittgenstein/schemas";
-
-export * from "./utils/process-runner.js";

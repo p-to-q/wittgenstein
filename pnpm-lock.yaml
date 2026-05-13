@@ -349,9 +349,9 @@ importers:
 
   packages/codec-video:
     dependencies:
-      '@wittgenstein/core':
+      '@wittgenstein/process-runner':
         specifier: workspace:*
-        version: link:../core
+        version: link:../process-runner
       '@wittgenstein/schemas':
         specifier: workspace:*
         version: link:../schemas
@@ -388,6 +388,8 @@ importers:
       zod:
         specifier: ^3.23.8
         version: 3.25.76
+
+  packages/process-runner: {}
 
   packages/sandbox: {}
 

@@ -1,5 +1,5 @@
 {
-  "name": "@wittgenstein/codec-video",
+  "name": "@wittgenstein/process-runner",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,12 +12,6 @@
     "typecheck": "tsc -b",
     "lint": "eslint src test --ext .ts",
     "test": "vitest run",
-    "test:golden": "vitest run test/golden.test.ts",
     "build": "tsc"
-  },
-  "dependencies": {
-    "@wittgenstein/process-runner": "workspace:*",
-    "@wittgenstein/schemas": "workspace:*",
-    "zod": "^3.23.8"
   }
 }

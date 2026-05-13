@@ -5,7 +5,7 @@
  * timeout + bounded-capture + structured-error invariants directly.
  */
 import { describe, expect, it } from "vitest";
-import { runProcess } from "../src/utils/process-runner.js";
+import { runProcess } from "../src/index.js";
 
 const baseOptions = {
   cwd: process.cwd(),

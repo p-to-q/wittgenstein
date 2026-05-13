@@ -5,14 +5,14 @@
 //
 // Per-composition HTML builders live in `./compositions/{svg-slide,scene-card}.ts`
 // (extracted per #327 / #288). The subprocess plumbing lives in
-// `@wittgenstein/core` (lifted from this package per #356 so future codec
-// subprocess work — audio's Kokoro path — can reuse it). This file owns
-// dispatch + MP4 wiring only.
+// `@wittgenstein/process-runner` (lifted from this package per #356 so future
+// codec subprocess work — audio's Kokoro path — can reuse it without coupling
+// codecs back to the core package). This file owns dispatch + MP4 wiring only.
 
 import { mkdir, writeFile, stat } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
-import { runProcess } from "@wittgenstein/core";
+import { runProcess } from "@wittgenstein/process-runner";
 import type { VideoComposition } from "./schema.js";
 import { buildSvgSlideHtml } from "./compositions/svg-slide.js";
 import { buildSceneCardHtml } from "./compositions/scene-card.js";

@@ -1,8 +1,7 @@
 // Generic subprocess runner with timeout + stdout/stderr buffering. Lifted
 // from `packages/codec-video/src/process-runner.ts` per Issue #356 so future
-// codec subprocess work (e.g. audio's Kokoro path) can reuse the timeout
-// boundary, bounded output capture, and structured-error extraction without
-// re-implementing them. Original extraction context: #327 / #288.
+// codec subprocess work can reuse the timeout boundary, bounded output capture,
+// and structured-error extraction without creating codec/core dependency cycles.
 
 import { spawn } from "node:child_process";
 
