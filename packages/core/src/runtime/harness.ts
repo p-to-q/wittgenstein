@@ -10,7 +10,7 @@ import type {
 import { codecV2 as codecV2Ns } from "@wittgenstein/schemas";
 import { loadWittgensteinConfig } from "./config.js";
 import { BudgetTracker } from "./budget.js";
-import { collectRuntimeFingerprint, hashFile } from "./manifest.js";
+import { collectRuntimeFingerprint, hashFileOrThrow } from "./manifest.js";
 import { routeRequest } from "./router.js";
 import { CodecRegistry } from "./registry.js";
 import { createRunId, resolveSeed } from "./seed.js";
@@ -313,7 +313,7 @@ export class Wittgenstein {
         const rendered = await v1Codec.render(parsed.value, renderCtx);
         result = rendered;
         manifest.artifactPath = rendered.artifactPath;
-        manifest.artifactSha256 = await hashFile(rendered.artifactPath);
+        manifest.artifactSha256 = await hashFileOrThrow(rendered.artifactPath);
         manifest.ok = true;
         manifest.durationMs = Date.now() - startedAt.getTime();
         manifest.llmTokens = rendered.metadata.llmTokens;

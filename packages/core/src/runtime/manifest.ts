@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { WittgensteinError } from "./errors.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -40,6 +41,24 @@ export async function hashFile(filePath: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Like `hashFile` but throws an inspectable, typed error when the file can't
+ * be read. Use this when a `null` digest would silently violate the manifest's
+ * `artifactSha256` invariant — e.g. after a v1 codec render step that promised
+ * to write `artifactPath` (Issue #345, doctrine: no silent fallbacks).
+ */
+export async function hashFileOrThrow(filePath: string): Promise<string> {
+  const digest = await hashFile(filePath);
+  if (digest === null) {
+    throw new WittgensteinError(
+      "ARTIFACT_HASH_FAILED",
+      `Could not hash artifact at ${filePath}. The codec render step promised this path, but the file is missing or unreadable. The manifest cannot be honestly written with artifactSha256 = null.`,
+      { details: { artifactPath: filePath } },
+    );
+  }
+  return digest;
 }
 
 async function readGitSha(cwd: string): Promise<string | null> {

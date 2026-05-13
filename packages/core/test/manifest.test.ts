@@ -3,7 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { collectRuntimeFingerprint, hashFile } from "../src/runtime/manifest.js";
+import { WittgensteinError } from "../src/runtime/errors.js";
+import {
+  collectRuntimeFingerprint,
+  hashFile,
+  hashFileOrThrow,
+} from "../src/runtime/manifest.js";
 
 let tmp: string;
 
@@ -46,6 +51,31 @@ describe("hashFile", () => {
   it("returns null (not throws) for a missing file — failure must be inspectable, not silent", async () => {
     const result = await hashFile(join(tmp, "does-not-exist.txt"));
     expect(result).toBeNull();
+  });
+});
+
+describe("hashFileOrThrow (Issue #345)", () => {
+  it("returns the same digest as hashFile for an existing file", async () => {
+    const path = join(tmp, "fixture.txt");
+    const content = "deterministic content";
+    await writeFile(path, content);
+
+    const expected = createHash("sha256").update(content).digest("hex");
+    await expect(hashFileOrThrow(path)).resolves.toBe(expected);
+  });
+
+  it("throws ARTIFACT_HASH_FAILED for a missing file with the path in details", async () => {
+    const missing = join(tmp, "does-not-exist.txt");
+    let caught: unknown;
+    try {
+      await hashFileOrThrow(missing);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect((caught as WittgensteinError).code).toBe("ARTIFACT_HASH_FAILED");
+    expect((caught as WittgensteinError).message).toContain(missing);
+    expect((caught as WittgensteinError).details).toEqual({ artifactPath: missing });
   });
 });
 
