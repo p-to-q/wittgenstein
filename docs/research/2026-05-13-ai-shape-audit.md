@@ -169,15 +169,15 @@ Two additional files over 400 lines under `packages/codec-*/src/` and `packages/
 
 | File | Lines | Verdict | Filed follow-up |
 |---|---|---|---|
-| `pipeline/decoder.ts` | 602 | strong | _filed:_ extract landscape renderer |
-| `codec-sensor/render.ts` | 447 | strong | _filed:_ extract operator strategy + LoupeRenderer |
-| `codec-video/hyperframes-wrapper.ts` | 409 | strong | _filed:_ extract composition + ProcessRunner |
+| `pipeline/decoder.ts` | 602 | strong | [#325](https://github.com/p-to-q/wittgenstein/issues/325) — extract landscape renderer |
+| `codec-sensor/render.ts` | 447 | strong | [#326](https://github.com/p-to-q/wittgenstein/issues/326) — extract operator strategy + LoupeRenderer |
+| `codec-video/hyperframes-wrapper.ts` | 409 | strong | [#327](https://github.com/p-to-q/wittgenstein/issues/327) — extract composition + ProcessRunner |
 | `codec-image/test/codec.test.ts` | 776 | mild | none (opportunistic later) |
 | `codec-audio/src/codec.ts` | 467 | mild | none (opportunistic later) |
 | `core/runtime/harness.ts` | 600 | mild (AI-shape) / **separate concern: M4 modality-blind drift** | already at [#300](https://github.com/p-to-q/wittgenstein/issues/300) |
 | `codec-image/codec.ts` | 427 | mild | none |
 
-**Three follow-up issues** are filed from this audit; their numbers will be added here on creation. Each one names the refactor seam, names the file, and carries `slice/implementation` + `priority/p2` + `size/m` labels in the spirit of the campaign's "smallest effective change" guardrail.
+**Three follow-up issues** are filed from this audit ([#325](https://github.com/p-to-q/wittgenstein/issues/325) / [#326](https://github.com/p-to-q/wittgenstein/issues/326) / [#327](https://github.com/p-to-q/wittgenstein/issues/327)). Each one names the refactor seam, names the file, and carries `slice/implementation` + `priority/p2` + `size/m` labels in the spirit of the campaign's "smallest effective change" guardrail.
 
 ## What this audit does NOT do
 
