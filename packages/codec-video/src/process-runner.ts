@@ -21,18 +21,26 @@ export interface ProcessRunnerOptions {
   timeoutHint?: string;
 }
 
-export interface ProcessRunnerError {
-  message: string;
-  exitCode: number | null;
-  stdoutTail: string;
-  stderrTail: string;
-  cause?: unknown;
+/**
+ * Cap on per-stream buffered output. Long-running noisy subprocesses can
+ * otherwise accumulate unbounded strings; the error-path slice (`.slice(-8000)`
+ * below) only consumes the last 8000 bytes, so a 32 KB cap stays well above
+ * what error messages need while keeping memory predictable.
+ */
+const MAX_STREAM_BYTES = 32_768;
+
+function appendCapped(current: string, chunk: string): string {
+  const combined = current + chunk;
+  if (combined.length <= MAX_STREAM_BYTES) {
+    return combined;
+  }
+  return combined.slice(combined.length - MAX_STREAM_BYTES);
 }
 
 /**
  * Run a subprocess with a timeout and bounded stdout/stderr capture. Resolves
- * on exit code 0. Rejects with a typed `Error` carrying tail output on
- * non-zero exit, spawn error, or timeout.
+ * on exit code 0. Rejects with an `Error` carrying tail output on non-zero
+ * exit, spawn error, or timeout.
  *
  * `errorPrefix` is used as the leading sentence of the rejection message; it
  * lets callers preserve their domain-specific phrasing (e.g.
@@ -58,10 +66,10 @@ export async function runProcess(
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
-      stdout += chunk;
+      stdout = appendCapped(stdout, chunk);
     });
     child.stderr?.on("data", (chunk: string) => {
-      stderr += chunk;
+      stderr = appendCapped(stderr, chunk);
     });
 
     const timer = setTimeout(() => {
