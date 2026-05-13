@@ -30,8 +30,8 @@ export function buildVideoCompositionFromInlineSvgs(
   return {
     text: JSON.stringify(composition),
     tokens: { input: 0, output: 0 },
-    costUsd: 0,
-    costUsdReason: "computed",
+    costUsd: null,
+    costUsdReason: "no-llm-call",
     raw: { videoInlineSvgs: true as const },
   };
 }

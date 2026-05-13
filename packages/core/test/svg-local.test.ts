@@ -21,4 +21,15 @@ describe("svg-local", () => {
     expect(svg).not.toMatch(/<tspan[\s>]/);
     expect(svg).not.toMatch(/font-family/);
   });
+
+  it("reports null costUsd with no-llm-call reason — pure-local renderer (Issue #363)", () => {
+    const gen = buildSvgLocalGeneration({
+      modality: "svg",
+      prompt: "honesty-check",
+      source: "local",
+    });
+    expect(gen.costUsd).toBeNull();
+    expect(gen.costUsdReason).toBe("no-llm-call");
+    expect(gen.tokens).toEqual({ input: 0, output: 0 });
+  });
 });

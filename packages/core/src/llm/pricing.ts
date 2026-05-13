@@ -20,7 +20,8 @@
 export type CostUsdReason =
   | "computed"
   | "unknown-model"
-  | "missing-usage";
+  | "missing-usage"
+  | "no-llm-call";
 
 export interface ModelRate {
   /** USD per 1,000,000 input tokens. */

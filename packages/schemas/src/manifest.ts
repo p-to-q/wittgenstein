@@ -16,7 +16,12 @@ const ImageRouteSchema = z.enum(["raster"]);
 const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
 const VideoRouteSchema = z.enum(["hyperframes-mp4", "hyperframes-html"]);
 
-const CostUsdReasonSchema = z.enum(["computed", "unknown-model", "missing-usage"]);
+const CostUsdReasonSchema = z.enum([
+  "computed",
+  "unknown-model",
+  "missing-usage",
+  "no-llm-call",
+]);
 
 export const RunManifestSchema = z
   .object({
@@ -42,8 +47,10 @@ export const RunManifestSchema = z
     }),
     /**
      * USD cost computed from `costUsd = priceModel(llmProvider, llmModel, llmTokens)`.
-     * `null` only when `costUsdReason` is `"unknown-model"` or `"missing-usage"` —
-     * never silently zero (Issue #182).
+     * `null` when:
+     *   - `costUsdReason` is `"unknown-model"` or `"missing-usage"` (LLM was called, cost cannot be priced), or
+     *   - `costUsdReason` is `"no-llm-call"` (no LLM round-trip occurred — dry-run, pure-local renderer, cached response).
+     * Never silently zero — `0` only when a real LLM call was priced at zero (Issues #182, #363).
      */
     costUsd: z.number().nonnegative().nullable(),
     /** Why `costUsd` is what it is — required so manifests cannot fudge zeros. */
@@ -156,7 +163,8 @@ export const RunManifestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["costUsdReason"],
-        message: "costUsd === null requires a costUsdReason (unknown-model or missing-usage).",
+        message:
+          "costUsd === null requires a costUsdReason (unknown-model, missing-usage, or no-llm-call).",
       });
     }
     if (manifest.costUsd === null && manifest.costUsdReason === "computed") {
@@ -164,6 +172,14 @@ export const RunManifestSchema = z
         code: z.ZodIssueCode.custom,
         path: ["costUsdReason"],
         message: 'costUsd === null cannot have costUsdReason = "computed".',
+      });
+    }
+    if (manifest.costUsdReason === "no-llm-call" && manifest.costUsd !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["costUsd"],
+        message:
+          'costUsdReason = "no-llm-call" requires costUsd === null (no LLM round-trip occurred).',
       });
     }
   });

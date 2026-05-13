@@ -61,7 +61,9 @@ export const RenderResultSchema = z.object({
       output: z.number().int().nonnegative(),
     }),
     costUsd: z.number().nonnegative(),
-    costUsdReason: z.enum(["computed", "unknown-model", "missing-usage"]).optional(),
+    costUsdReason: z
+      .enum(["computed", "unknown-model", "missing-usage", "no-llm-call"])
+      .optional(),
     durationMs: z.number().nonnegative(),
     seed: z.number().int().nullable(),
     renderPath: z.string().optional(),

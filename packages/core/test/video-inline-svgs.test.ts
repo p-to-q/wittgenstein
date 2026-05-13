@@ -23,4 +23,18 @@ describe("video-inline-svgs", () => {
     expect(parsed.scenes[1].durationSec).toBe(3);
     expect(parsed.durationSec).toBe(6);
   });
+
+  it("reports null costUsd with no-llm-call reason — inline-svgs is a pure-local composition (Issue #363)", () => {
+    const gen = buildVideoCompositionFromInlineSvgs({
+      modality: "video",
+      prompt: "honesty-check",
+      durationSec: 2,
+      inlineSvgs: [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
+      ],
+    });
+    expect(gen.costUsd).toBeNull();
+    expect(gen.costUsdReason).toBe("no-llm-call");
+    expect(gen.tokens).toEqual({ input: 0, output: 0 });
+  });
 });

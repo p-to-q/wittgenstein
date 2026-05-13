@@ -111,8 +111,8 @@ export class Wittgenstein {
         input: 0,
         output: 0,
       },
-      costUsd: 0,
-      costUsdReason: "computed",
+      costUsd: null,
+      costUsdReason: "no-llm-call",
       promptRaw: request.prompt,
       promptExpanded,
       llmOutputRaw: null,
@@ -184,10 +184,18 @@ export class Wittgenstein {
         manifest.llmOutputRaw = artMeta.llmOutputRaw ?? null;
         manifest.llmOutputParsed = artMeta.llmOutputParsed ?? null;
         manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
+        // Cost truth: if the codec asserted any cost value, take it over the
+        // manifest's honest init (null + "no-llm-call"). When the codec didn't
+        // also set a reason, infer one from the value so we never leave the
+        // contradictory pair `costUsd != null + costUsdReason = "no-llm-call"`
+        // (Issue #363). Codecs SHOULD set both explicitly — inference is a
+        // backstop while v2 codecs catch up.
         if (artMeta.costUsd !== undefined) {
           manifest.costUsd = artMeta.costUsd;
-        }
-        if (artMeta.costUsdReason !== undefined) {
+          manifest.costUsdReason =
+            artMeta.costUsdReason ??
+            (artMeta.costUsd === null ? "missing-usage" : "computed");
+        } else if (artMeta.costUsdReason !== undefined) {
           manifest.costUsdReason = artMeta.costUsdReason;
         }
         manifest.artifactPath = produced.outPath;
@@ -317,8 +325,13 @@ export class Wittgenstein {
         manifest.ok = true;
         manifest.durationMs = Date.now() - startedAt.getTime();
         manifest.llmTokens = rendered.metadata.llmTokens;
-        manifest.costUsd = rendered.metadata.costUsd;
+        // Render-step cost is informational. The authoritative cost was set
+        // by the generation step above (line 289-290); the render step only
+        // updates the manifest if it explicitly asserts a reason — otherwise
+        // the generation-step truth (which may be null for no-LLM paths)
+        // is preserved (Issue #363).
         if (rendered.metadata.costUsdReason !== undefined) {
+          manifest.costUsd = rendered.metadata.costUsd;
           manifest.costUsdReason = rendered.metadata.costUsdReason;
         }
         if (rendered.metadata.renderPath !== undefined) {
@@ -515,8 +528,8 @@ function buildAsciiPngGeneration(request: WittgensteinRequest): LlmGenerationRes
   return {
     text: JSON.stringify(ir),
     tokens: { input: 0, output: 0 },
-    costUsd: 0,
-    costUsdReason: "computed",
+    costUsd: null,
+    costUsdReason: "no-llm-call",
     raw: { asciiPngLocal: true },
   };
 }
@@ -564,8 +577,8 @@ function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResu
         input: 0,
         output: 0,
       },
-      costUsd: 0,
-      costUsdReason: "computed",
+      costUsd: null,
+      costUsdReason: "no-llm-call",
       raw: {
         dryRun: true,
       },
@@ -578,8 +591,8 @@ function createDryRunGeneration(request: WittgensteinRequest): LlmGenerationResu
       input: 0,
       output: 0,
     },
-    costUsd: 0,
-    costUsdReason: "computed",
+    costUsd: null,
+    costUsdReason: "no-llm-call",
     raw: {
       dryRun: true,
     },

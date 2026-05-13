@@ -429,6 +429,68 @@ describe("@wittgenstein/schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('accepts costUsd: null with costUsdReason: "no-llm-call" (dry-run, pure-local) — Issue #363', () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-no-llm-call",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image --dry-run",
+      args: ["test"],
+      seed: 7,
+      codec: "image",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 0, output: 0 },
+      costUsd: null,
+      costUsdReason: "no-llm-call",
+      promptRaw: "test",
+      promptExpanded: null,
+      llmOutputRaw: null,
+      llmOutputParsed: null,
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "deadbeef",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects costUsdReason: "no-llm-call" paired with non-null costUsd (Issue #363)', () => {
+    const parsed = RunManifestSchema.safeParse({
+      runId: "run-no-llm-call-but-nonzero",
+      gitSha: "abc123",
+      lockfileHash: "def456",
+      nodeVersion: process.version,
+      wittgensteinVersion: "0.0.0",
+      command: "wittgenstein image --dry-run",
+      args: ["test"],
+      seed: 7,
+      codec: "image",
+      llmProvider: "anthropic",
+      llmModel: "claude-opus-4-7",
+      llmTokens: { input: 0, output: 0 },
+      costUsd: 0,
+      costUsdReason: "no-llm-call",
+      promptRaw: "test",
+      promptExpanded: null,
+      llmOutputRaw: null,
+      llmOutputParsed: null,
+      artifactPath: "/tmp/out.png",
+      artifactSha256: "deadbeef",
+      startedAt: new Date().toISOString(),
+      durationMs: 10,
+      ok: true,
+      error: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('rejects costUsd: null with costUsdReason: "computed" (contradiction)', () => {
     const parsed = RunManifestSchema.safeParse({
       runId: "run-cost-null-contradiction",
