@@ -35,6 +35,23 @@ interface ExpectedFile {
   receipts: Receipt[];
 }
 
+interface PinErrorBody {
+  code: string;
+  receiptId?: string;
+  message: string;
+  details?: unknown;
+}
+
+class PinError extends Error {
+  readonly body: PinErrorBody;
+
+  constructor(body: PinErrorBody) {
+    super(body.message);
+    this.name = "PinError";
+    this.body = body;
+  }
+}
+
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -47,19 +64,63 @@ async function pinReceipt(r: Receipt): Promise<string> {
     encoding: "utf8",
   });
   if (cli.status !== 0) {
-    throw new Error(
-      `cli failed for ${r.id}: status=${cli.status}\n${cli.stderr || cli.stdout}`,
-    );
+    throw new PinError({
+      code: "CLI_FAILED",
+      receiptId: r.id,
+      message: `CLI failed while pinning ${r.id}.`,
+      details: {
+        status: cli.status,
+        stderr: cli.stderr.slice(0, 800),
+        stdout: cli.stdout.slice(0, 800),
+      },
+    });
   }
   let bytes: Uint8Array;
   try {
     bytes = new Uint8Array(await readFile(outPath));
-  } catch {
-    const payload = JSON.parse(cli.stdout) as { artifactPath?: string };
-    if (!payload.artifactPath) {
-      throw new Error(`no artifactPath in cli stdout for ${r.id}`);
+  } catch (primaryReadError) {
+    let payload: { artifactPath?: string };
+    try {
+      payload = JSON.parse(cli.stdout) as { artifactPath?: string };
+    } catch (parseError) {
+      throw new PinError({
+        code: "CLI_STDOUT_UNPARSABLE",
+        receiptId: r.id,
+        message: `CLI stdout was not valid JSON while pinning ${r.id}.`,
+        details: {
+          stdout: cli.stdout.slice(0, 800),
+          primaryReadError:
+            primaryReadError instanceof Error ? primaryReadError.message : String(primaryReadError),
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        },
+      });
     }
-    bytes = new Uint8Array(await readFile(payload.artifactPath));
+    if (!payload.artifactPath) {
+      throw new PinError({
+        code: "CLI_STDOUT_MISSING_ARTIFACT_PATH",
+        receiptId: r.id,
+        message: `CLI stdout did not include artifactPath while pinning ${r.id}.`,
+        details: {
+          stdout: cli.stdout.slice(0, 800),
+          primaryReadError:
+            primaryReadError instanceof Error ? primaryReadError.message : String(primaryReadError),
+        },
+      });
+    }
+    try {
+      bytes = new Uint8Array(await readFile(payload.artifactPath));
+    } catch (payloadReadError) {
+      throw new PinError({
+        code: "ARTIFACT_READ_FAILED",
+        receiptId: r.id,
+        message: `Could not read artifactPath while pinning ${r.id}.`,
+        details: {
+          artifactPath: payload.artifactPath,
+          error:
+            payloadReadError instanceof Error ? payloadReadError.message : String(payloadReadError),
+        },
+      });
+    }
   }
   return sha256(bytes);
 }
@@ -84,13 +145,29 @@ async function main(): Promise<void> {
   };
   process.stdout.write(JSON.stringify(output, null, 2));
   process.stdout.write("\n");
-
-  await rm(workDir, { recursive: true, force: true });
 }
 
-main().catch((error: unknown) => {
-  process.stderr.write(
-    `reviewer-bench-pin crashed: ${error instanceof Error ? error.message : String(error)}\n`,
-  );
-  process.exit(1);
-});
+main()
+  .catch((error: unknown) => {
+    const body =
+      error instanceof PinError
+        ? error.body
+        : {
+            code: "REVIEWER_BENCH_PIN_CRASHED",
+            message: error instanceof Error ? error.message : String(error),
+          };
+    process.stderr.write(
+      `${JSON.stringify(
+        {
+          ok: false,
+          ...body,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });

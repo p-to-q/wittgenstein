@@ -5,13 +5,7 @@
     {
       "id": "sensor-ecg",
       "route": "sensor",
-      "args": [
-        "sensor",
-        "ECG 72 bpm resting",
-        "--dry-run",
-        "--seed",
-        "42"
-      ],
+      "args": ["sensor", "ECG 72 bpm resting", "--dry-run", "--seed", "42"],
       "artifactBasename": "out.html",
       "sha256": "dbbf8ccae0815fac2801e132224623c4f641082732cdc8938b942abb48e27d14",
       "description": "sensor route, ECG dry-run @ seed 42 — HTML artifact byte-stable"
@@ -19,29 +13,23 @@
     {
       "id": "svg-local",
       "route": "svg",
-      "args": [
-        "svg",
-        "deterministic circle pattern",
-        "--source",
-        "local",
-        "--seed",
-        "42"
-      ],
+      "args": ["svg", "deterministic circle pattern", "--source", "local", "--seed", "42"],
       "artifactBasename": "out.svg",
       "sha256": "ad3b1975a427af14908d0306df64d61af74ce0e782f690d35c666173632b1e53",
       "description": "svg-local, pure deterministic vector art @ seed 42"
     },
     {
+      "id": "asciipng-local",
+      "route": "asciipng",
+      "args": ["asciipng", "terminal phosphor grid", "--source", "local", "--seed", "42"],
+      "artifactBasename": "out.png",
+      "sha256": "2ddc9e0954af8aac63e5ba70b89e540d231f5aaaceba8ce7e6594ce744c07e1c",
+      "description": "asciipng-local, pure deterministic character-grid PNG @ seed 42"
+    },
+    {
       "id": "svg-local-replay",
       "route": "svg",
-      "args": [
-        "svg",
-        "replay smoke target",
-        "--source",
-        "local",
-        "--seed",
-        "1234"
-      ],
+      "args": ["svg", "replay smoke target", "--source", "local", "--seed", "1234"],
       "artifactBasename": "out.svg",
       "sha256": "aedfc7164cc386878a3ac679e8db00ddd1924013914b22dc3e4eb10ff9fef6d3",
       "description": "svg-local replay target (different seed to isolate from svg-local row)"
@@ -49,13 +37,7 @@
     {
       "id": "sensor-replay",
       "route": "sensor",
-      "args": [
-        "sensor",
-        "replay smoke target ECG",
-        "--dry-run",
-        "--seed",
-        "1234"
-      ],
+      "args": ["sensor", "replay smoke target ECG", "--dry-run", "--seed", "1234"],
       "artifactBasename": "out.html",
       "sha256": "7fe25f0e0e06d87dc8028e92a867295285e6f44273a921b17d116f7b903ac742",
       "description": "sensor replay target (different seed to isolate from sensor-ecg row)"

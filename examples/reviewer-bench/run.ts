@@ -26,7 +26,7 @@
  * doctrine note for the split.
  */
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -73,6 +73,62 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function formatUnknownError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function directoryExists(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function parseCliJson<T extends object>(
+  stdout: string,
+  failure: {
+    id: string;
+    description: string;
+    expected: string;
+    observed: string;
+  },
+): { ok: true; payload: T } | { ok: false; row: RowResult } {
+  try {
+    return { ok: true, payload: JSON.parse(stdout) as T };
+  } catch {
+    return {
+      ok: false,
+      row: {
+        ...failure,
+        outcome: "fail",
+        detail: stdout.slice(0, 200),
+      },
+    };
+  }
+}
+
+async function readArtifactBytes(
+  path: string,
+  receipt: ExpectedReceipt,
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; row: RowResult }> {
+  try {
+    return { ok: true, bytes: new Uint8Array(await readFile(path)) };
+  } catch (error) {
+    return {
+      ok: false,
+      row: {
+        id: receipt.id,
+        description: receipt.description,
+        outcome: "fail",
+        expected: receipt.sha256,
+        observed: "(artifact unreadable)",
+        detail: `${path}: ${formatUnknownError(error)}`.slice(0, 400),
+      },
+    };
+  }
+}
+
 async function runCli(
   args: ReadonlyArray<string>,
 ): Promise<{ stdout: string; stderr: string; status: number | null }> {
@@ -107,24 +163,20 @@ async function verifyArtifactRow(receipt: ExpectedReceipt): Promise<RowResult> {
   // The CLI may write to <outPath> or to a derived path (e.g. sensor
   // emits .json/.csv/.html siblings; svg emits .svg). Try the primary
   // outPath first, then look up via the structured CLI stdout.
-  let bytes: Uint8Array;
-  try {
-    bytes = new Uint8Array(await readFile(outPath));
-  } catch {
+  const primaryArtifact = await readArtifactBytes(outPath, receipt);
+  let bytes: Uint8Array | undefined = primaryArtifact.ok ? primaryArtifact.bytes : undefined;
+  if (!bytes) {
     // Pull artifactPath from the CLI's JSON stdout.
-    let cliPayload: { artifactPath?: string };
-    try {
-      cliPayload = JSON.parse(result.stdout) as { artifactPath?: string };
-    } catch {
-      return {
-        id: receipt.id,
-        description: receipt.description,
-        outcome: "fail",
-        expected: receipt.sha256,
-        observed: "(cli stdout unparseable)",
-        detail: result.stdout.slice(0, 200),
-      };
+    const parsed = parseCliJson<{ artifactPath?: string }>(result.stdout, {
+      id: receipt.id,
+      description: receipt.description,
+      expected: receipt.sha256,
+      observed: "(cli stdout unparsable)",
+    });
+    if (parsed.ok === false) {
+      return parsed.row;
     }
+    const cliPayload = parsed.payload;
     if (!cliPayload.artifactPath) {
       return {
         id: receipt.id,
@@ -135,7 +187,11 @@ async function verifyArtifactRow(receipt: ExpectedReceipt): Promise<RowResult> {
         detail: result.stdout.slice(0, 200),
       };
     }
-    bytes = new Uint8Array(await readFile(cliPayload.artifactPath));
+    const payloadArtifact = await readArtifactBytes(cliPayload.artifactPath, receipt);
+    if (payloadArtifact.ok === false) {
+      return payloadArtifact.row;
+    }
+    bytes = payloadArtifact.bytes;
   }
 
   const observed = sha256(bytes);
@@ -176,17 +232,26 @@ async function verifyReplayRow(receipt: ExpectedReceipt): Promise<RowResult> {
       detail: baseline.stderr.slice(0, 400),
     };
   }
-  let baselineOut: { runDir: string };
-  try {
-    baselineOut = JSON.parse(baseline.stdout) as { runDir: string };
-  } catch {
+  const parsedBaseline = parseCliJson<{ runDir?: string }>(baseline.stdout, {
+    id: receipt.id,
+    description: `${receipt.description} (replay round-trip)`,
+    expected: "REPLAY_OK",
+    observed: "(baseline stdout unparsable)",
+  });
+  if (parsedBaseline.ok === false) {
+    return parsedBaseline.row;
+  }
+  const baselineOut = parsedBaseline.payload;
+  if (!baselineOut.runDir || !(await directoryExists(baselineOut.runDir))) {
     return {
       id: receipt.id,
       description: `${receipt.description} (replay round-trip)`,
       outcome: "fail",
       expected: "REPLAY_OK",
-      observed: "(baseline stdout unparseable)",
-      detail: baseline.stdout.slice(0, 200),
+      observed: "(baseline runDir missing)",
+      detail: baselineOut.runDir
+        ? `${baselineOut.runDir} does not exist or is not a directory.`
+        : baseline.stdout.slice(0, 200),
     };
   }
   const manifestPath = resolve(baselineOut.runDir, "manifest.json");
@@ -254,17 +319,23 @@ function renderReport(rows: ReadonlyArray<RowResult>, elapsedMs: number): string
   lines.push("");
   lines.push(`**Verdict:** ${allPass ? "✅ all pass" : `❌ ${failCount} of ${total} failed`}`);
   lines.push("");
-  lines.push(`**Summary:** ${passCount} pass · ${failCount} fail · ${skipCount} skip · ${total} total · ${(elapsedMs / 1000).toFixed(1)}s`);
+  lines.push(
+    `**Summary:** ${passCount} pass · ${failCount} fail · ${skipCount} skip · ${total} total · ${(elapsedMs / 1000).toFixed(1)}s`,
+  );
   lines.push("");
   lines.push("## What this bench verifies");
   lines.push("");
   lines.push("Wittgenstein's **engineering claims** at Tier 0 (no GPU, no learned models):");
   lines.push("");
-  lines.push("- Each deterministic-by-construction route (sensor, svg-local, asciipng) produces an artifact with a SHA-256 that matches a pinned receipt.");
+  lines.push(
+    "- Each deterministic-by-construction route (sensor, svg-local, asciipng) produces an artifact with a SHA-256 that matches a pinned receipt.",
+  );
   lines.push("- `wittgenstein replay` round-trips a saved manifest to byte parity.");
   lines.push("- `wittgenstein doctor` exits clean.");
   lines.push("");
-  lines.push("The **quality** claim (SOTA-adjacent FID-30K and beyond) is verified by the published benchmark page, not re-run here. See [`docs/research/2026-05-13-delivery-and-componentization.md`](../../docs/research/2026-05-13-delivery-and-componentization.md) for the split.");
+  lines.push(
+    "The **quality** claim (SOTA-adjacent FID-30K and beyond) is verified by the published benchmark page, not re-run here. See [`docs/research/2026-05-13-delivery-and-componentization.md`](../../docs/research/2026-05-13-delivery-and-componentization.md) for the split.",
+  );
   lines.push("");
   lines.push("## Rows");
   lines.push("");
@@ -272,8 +343,10 @@ function renderReport(rows: ReadonlyArray<RowResult>, elapsedMs: number): string
   lines.push("|---|---|---|---|---|");
   for (const r of rows) {
     const desc = r.description.replace(/\|/g, "\\|");
-    const exp = r.expected.length > 24 ? `${r.expected.slice(0, 8)}…${r.expected.slice(-8)}` : r.expected;
-    const obs = r.observed.length > 24 ? `${r.observed.slice(0, 8)}…${r.observed.slice(-8)}` : r.observed;
+    const exp =
+      r.expected.length > 24 ? `${r.expected.slice(0, 8)}…${r.expected.slice(-8)}` : r.expected;
+    const obs =
+      r.observed.length > 24 ? `${r.observed.slice(0, 8)}…${r.observed.slice(-8)}` : r.observed;
     lines.push(`| ${emoji(r.outcome)} | \`${r.id}\` | ${desc} | \`${exp}\` | \`${obs}\` |`);
   }
   const failures = rows.filter((r) => r.outcome === "fail");
@@ -299,10 +372,18 @@ function renderReport(rows: ReadonlyArray<RowResult>, elapsedMs: number): string
   lines.push("");
   lines.push("## Where to read further");
   lines.push("");
-  lines.push("- [`docs/research/2026-05-13-wittgenstein-research-program.md`](../../docs/research/2026-05-13-wittgenstein-research-program.md) — the three-track research program (engineering / research / hacker).");
-  lines.push("- [`docs/research/2026-05-13-delivery-and-componentization.md`](../../docs/research/2026-05-13-delivery-and-componentization.md) — the tiered delivery doctrine that puts this bench in context.");
-  lines.push("- [`docs/research/2026-05-13-verification-ladder.md`](../../docs/research/2026-05-13-verification-ladder.md) — the verification ladder the manifest spine + replay sit on.");
-  lines.push("- [`docs/hard-constraints.md`](../../docs/hard-constraints.md) — the load-bearing doctrine constraints.");
+  lines.push(
+    "- [`docs/research/2026-05-13-wittgenstein-research-program.md`](../../docs/research/2026-05-13-wittgenstein-research-program.md) — the three-track research program (engineering / research / hacker).",
+  );
+  lines.push(
+    "- [`docs/research/2026-05-13-delivery-and-componentization.md`](../../docs/research/2026-05-13-delivery-and-componentization.md) — the tiered delivery doctrine that puts this bench in context.",
+  );
+  lines.push(
+    "- [`docs/research/2026-05-13-verification-ladder.md`](../../docs/research/2026-05-13-verification-ladder.md) — the verification ladder the manifest spine + replay sit on.",
+  );
+  lines.push(
+    "- [`docs/hard-constraints.md`](../../docs/hard-constraints.md) — the load-bearing doctrine constraints.",
+  );
   lines.push("- [`docs/adrs/`](../../docs/adrs/) — every architecture decision, ratified.");
   lines.push("- [`docs/rfcs/`](../../docs/rfcs/) — every RFC, with red-team sections.");
   lines.push("");
