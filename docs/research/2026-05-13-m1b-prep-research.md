@@ -142,7 +142,7 @@ Source: [arXiv 2406.06525](https://arxiv.org/abs/2406.06525) and [FoundationVisi
 
 - **Tokenizer + class-conditional:** [huggingface.co/FoundationVision/LlamaGen](https://huggingface.co/FoundationVision/LlamaGen) (`vq_ds16_c2i.pt`, `vq_ds8_c2i.pt`, `c2i_B_256.pt`, `c2i_L_256.pt`, `c2i_XL_384L.pt`, `c2i_XXL_384.pt`, `c2i_3B_384.pt`).
 - **Text-conditional:** [huggingface.co/peizesun/llamagen_t2i](https://huggingface.co/peizesun/llamagen_t2i).
-- **Last release activity:** 2024-06-28 (t2i drop) and 2024-06-15 (vLLM support). Repo has been quiet since — no breaking checkpoint format changes to worry about, but also no upstream maintenance to free-ride on.
+- **Last release activity:** 2024-06-28 (t2i drop) and 2024-06-15 (vLLM support). Repo has been quiet since; no breaking checkpoint format changes were observed as of 2026-05-13, but re-validate before pinning weights because there is also no upstream maintenance to free-ride on.
 
 ### Inference cost (reported)
 
