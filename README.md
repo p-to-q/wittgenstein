@@ -36,12 +36,14 @@ text-first LLM
 
 | Modality | LLM-facing code layer | Local execution layer | Artifact |
 | --- | --- | --- | --- |
-| 🖼️ Image | Visual Seed Code (primary) + optional `Semantic IR` | Seed expander → frozen VQ decoder | PNG |
+| 🖼️ Image | Visual Seed Code (primary) + optional `Semantic IR` | Seed expander → frozen VQ decoder¹ | PNG |
 | 🔊 Audio | Route-specific audio code (speech / soundscape / music) | Procedural synth (default) + opt-in Kokoro speech | WAV |
 | 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion | CSV + interactive HTML |
 | 🎞️ Video | Composition spec | HyperFrames-shaped local render (M4 stub today; ratified lead path) | MP4 / HTML |
 
 Image, audio, and sensor produce real artifacts today; video is post-v0.3 work. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
+
+> ¹ **Image today renders a procedural placeholder.** The frozen VQ decoder bridge is the M1B blocker tracked in [#283](https://github.com/p-to-q/wittgenstein/issues/283); `wittgenstein image --dry-run` runs end-to-end and produces a PNG, but the path between seed code and pixels is procedural until M1B lands. See the **Project status** block immediately below for the full picture.
 
 The image codec's split between **Visual Seed Code** (primary, decoder-facing) and **`Semantic IR`** (support: concept activation, user inspection, optional conditioning) is a doctrine correction ratified by [ADR-0018](docs/adrs/0018-hybrid-image-code-and-visual-seed-token.md). `Semantic IR` is important support — pure seed output can be opaque, brittle, or hard to diagnose — but it is not the main image research object.
 
@@ -203,7 +205,7 @@ is locked in [`docs/glossary.md`](docs/glossary.md); the full layer mapping live
 ## Quickstart (30 seconds, no API key)
 
 ```bash
-cd polyglot-mini
+cd polyglot-mini    # the polyglot package lives here, not at repo root
 pip install -r requirements.txt
 python3 -m polyglot.cli sensor "ECG 72 bpm resting" --dry-run --out /tmp/ecg.json
 open /tmp/ecg.html    # self-contained interactive dashboard, zero deps
@@ -238,9 +240,10 @@ the codec design is stable. See [`docs/extending.md`](docs/extending.md) for the
 ## CLI
 
 ```bash
-# Python surface — full end-to-end, works today
+# Python surface — full end-to-end, works today (run from polyglot-mini/)
+cd polyglot-mini
 python3 -m polyglot.cli image  "stormy ocean at midnight"      --out ocean.png
-python3 -m polyglot.cli tts    "Cozy rainy afternoon."         --out voice.m4a
+python3 -m polyglot.cli audio  "Cozy rainy afternoon."         --out voice.m4a    # `tts` is a deprecated alias; prefer `audio`
 python3 -m polyglot.cli sensor "ECG 72 bpm resting" --dry-run  --out ecg.json
 
 # TypeScript surface — typed harness, manifest spine, CI-backed
@@ -346,7 +349,7 @@ nvm use && corepack enable && pnpm install && pnpm typecheck
 cd polyglot-mini && pip install -r requirements.txt
 ```
 
-Requirements: Node ≥ 20.11, pnpm ≥ 9.0, Python ≥ 3.10. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
+Requirements: Node ≥ 20.19 (pinned by `.nvmrc`), pnpm ≥ 9.0, Python ≥ 3.10. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
 for the full developer setup.
 
 ---
