@@ -1,11 +1,58 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import type { RenderCtx } from "@wittgenstein/schemas";
 import { describe, expect, it } from "vitest";
 import { imageCodec } from "../src/index.js";
 import { imageCodeReceipt } from "../src/image-code-receipt.js";
 import { adaptSceneToLatents } from "../src/pipeline/adapter.js";
 import { renderImagePipeline } from "../src/pipeline/index.js";
+
+// Shared test fixtures (#354). The silent logger + temp-dir RenderCtx builder
+// were duplicated 8+ times inline; lifting them here removes ~6 lines per
+// render-stage test and locks the shape once.
+const silentLogger = {
+  debug: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+} as const;
+
+async function makeRenderCtx(
+  options: {
+    runId?: string;
+    seed?: number | null;
+    label?: string;
+    logger?: RenderCtx["logger"];
+  } = {},
+): Promise<RenderCtx> {
+  const runDir = await mkdtemp(
+    resolve(tmpdir(), `wittgenstein-codec-image-${options.label ?? "test"}-`),
+  );
+  return {
+    runId: options.runId ?? "test-run",
+    runDir,
+    seed: options.seed ?? null,
+    outPath: resolve(runDir, "out.png"),
+    logger: options.logger ?? silentLogger,
+  };
+}
+
+// Logger that captures `warn`-channel messages into a caller-owned array while
+// silencing the other channels. Used by tests that assert specific warning
+// strings DO or DO NOT surface from the adapter / decode pipeline.
+function captureWarnLogger(warnings: string[]): RenderCtx["logger"] {
+  return {
+    debug: () => undefined,
+    info: () => undefined,
+    warn: (message) => warnings.push(message),
+    error: () => undefined,
+  };
+}
+
+// Two-pass acceptance-ledger cross-reference, lifted out of the inline
+// comment per #354 so the ledger location stays greppable from one place.
+const TWO_PASS_ACCEPTANCE_LEDGER_DOC = "docs/research/2026-05-07-vsc-acceptance-cases.md (#207)";
 
 describe("@wittgenstein/codec-image", () => {
   it("parses and enriches scene contract defaults", () => {
@@ -222,21 +269,22 @@ describe("@wittgenstein/codec-image", () => {
     }
   });
 
-  // Cases below cover the two-pass acceptance ledger from
-  // docs/research/2026-05-07-vsc-acceptance-cases.md (#207). They lock the
+  // Cases below cover the two-pass acceptance ledger — see
+  // `TWO_PASS_ACCEPTANCE_LEDGER_DOC` at the top of the file. They lock the
   // current codec contract: `mode` is preserved on the receipt as the
   // declared lane, while `imageCodePath` reflects which decoder-facing
   // layer actually fired. Mode-driven runtime short-circuit (true two-pass
   // staging) is future work — these tests document today's behavior so a
   // future implementation slice has a regression baseline.
 
-  it("two-pass case 8 — pass-1-only (semantic only with mode tag) routes to semantic-fallback", () => {
-    // Pass 1 of two-pass-compile: model emits mode tag + nested semantic only.
-    // Today the codec parses successfully; receipt records the declared mode,
-    // and the path is `semantic-fallback` because no decoder-facing layer is
-    // present yet. Future short-circuit work would prevent adapter dispatch.
-    const result = imageCodec.parse(
-      JSON.stringify({
+  // Cases 8 + 8b share the same semantic-fallback verdict; the only varying
+  // surface is the semantic-layer shape (nested `semantic` vs legacy top-level)
+  // and the resulting `semanticSource` receipt field. Parametrized per #354.
+  it.each([
+    {
+      caseId: "case 8",
+      description: "pass-1-only with nested semantic field",
+      sceneJson: {
         mode: "two-pass-compile",
         semantic: {
           intent: "Calm forest path at golden hour",
@@ -253,20 +301,47 @@ describe("@wittgenstein/codec-image", () => {
           },
           constraints: { mustHave: ["natural light"], negative: ["text"] },
         },
-      }),
-    );
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.mode).toBe("two-pass-compile");
-      expect(result.value.seedCode).toBeUndefined();
-      expect(result.value.coarseVq).toBeUndefined();
-      expect(result.value.providerLatents).toBeUndefined();
-      const receipt = imageCodeReceipt(result.value);
-      expect(receipt.mode).toBe("two-pass-compile");
-      expect(receipt.path).toBe("semantic-fallback");
-      expect(receipt.semanticSource).toBe("emitted");
-    }
-  });
+      },
+      expectedSemanticSource: "emitted",
+    },
+    {
+      caseId: "case 8b",
+      description: "pass-1 with legacy top-level semantic shape",
+      sceneJson: {
+        mode: "two-pass-compile",
+        intent: "Calm forest path at golden hour",
+        subject: "forest path",
+        composition: {
+          framing: "wide shot",
+          camera: "natural",
+          depthPlan: ["foreground", "midground", "background"],
+        },
+        lighting: { mood: "warm", key: "golden" },
+        style: {
+          references: ["landscape photography"],
+          palette: ["amber", "moss", "umber"],
+        },
+        constraints: { mustHave: [], negative: [] },
+      },
+      expectedSemanticSource: "legacy-top-level",
+    },
+  ])(
+    "two-pass $caseId — $description routes to semantic-fallback",
+    ({ sceneJson, expectedSemanticSource }) => {
+      const result = imageCodec.parse(JSON.stringify(sceneJson));
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.mode).toBe("two-pass-compile");
+        expect(result.value.seedCode).toBeUndefined();
+        expect(result.value.coarseVq).toBeUndefined();
+        expect(result.value.providerLatents).toBeUndefined();
+        const receipt = imageCodeReceipt(result.value);
+        expect(receipt.mode).toBe("two-pass-compile");
+        expect(receipt.path).toBe("semantic-fallback");
+        expect(receipt.semanticSource).toBe(expectedSemanticSource);
+      }
+    },
+  );
 
   it("two-pass case 9 — pass-2 with seedCode routes to visual-seed-code", () => {
     // Pass 2 of two-pass-compile: model echoes mode tag and emits the
@@ -332,36 +407,7 @@ describe("@wittgenstein/codec-image", () => {
     }
   });
 
-  it("two-pass case 8b — pass-1 with legacy top-level semantic still routes correctly", () => {
-    // Variant of case 8 where pass-1 uses the legacy top-level semantic
-    // shape instead of nested `semantic`. Should still parse, set
-    // semanticSource: "legacy-top-level", and route to semantic-fallback.
-    const result = imageCodec.parse(
-      JSON.stringify({
-        mode: "two-pass-compile",
-        intent: "Calm forest path at golden hour",
-        subject: "forest path",
-        composition: {
-          framing: "wide shot",
-          camera: "natural",
-          depthPlan: ["foreground", "midground", "background"],
-        },
-        lighting: { mood: "warm", key: "golden" },
-        style: {
-          references: ["landscape photography"],
-          palette: ["amber", "moss", "umber"],
-        },
-        constraints: { mustHave: [], negative: [] },
-      }),
-    );
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      const receipt = imageCodeReceipt(result.value);
-      expect(receipt.mode).toBe("two-pass-compile");
-      expect(receipt.path).toBe("semantic-fallback");
-      expect(receipt.semanticSource).toBe("legacy-top-level");
-    }
-  });
+  // (case 8b parametrized above with case 8.)
 
   it("renders placeholder latents into a PNG artifact", async () => {
     const parsed = imageCodec.parse("{}");
@@ -370,24 +416,12 @@ describe("@wittgenstein/codec-image", () => {
       throw new Error("image parse unexpectedly failed in test");
     }
 
-    const runDir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-"));
-    const outPath = resolve(runDir, "output.png");
-    const result = await imageCodec.render(parsed.value, {
-      runId: "test-run",
-      runDir,
-      seed: null,
-      outPath,
-      logger: {
-        debug: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: () => undefined,
-      },
-    });
+    const ctx = await makeRenderCtx({ label: "placeholder" });
+    const result = await imageCodec.render(parsed.value, ctx);
 
     expect(result.mimeType).toBe("image/png");
     expect(result.bytes).toBeGreaterThan(0);
-    const bytes = await readFile(outPath);
+    const bytes = await readFile(ctx.outPath);
     expect(Array.from(bytes.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
 
@@ -426,21 +460,9 @@ describe("@wittgenstein/codec-image", () => {
     if (!parsed.ok) {
       throw new Error("parse failed");
     }
-    const runDir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-pl-"));
-    const outPath = resolve(runDir, "out.png");
-    await imageCodec.render(parsed.value, {
-      runId: "pl-test",
-      runDir,
-      seed: null,
-      outPath,
-      logger: {
-        debug: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: () => undefined,
-      },
-    });
-    const bytes = await readFile(outPath);
+    const ctx = await makeRenderCtx({ runId: "pl-test", label: "pl" });
+    await imageCodec.render(parsed.value, ctx);
+    const bytes = await readFile(ctx.outPath);
     expect(Array.from(bytes.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
 });
@@ -459,24 +481,12 @@ describe("image pipeline (neural decode)", () => {
       return;
     }
 
-    const runDir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-pipeline-"));
-    const outPath = resolve(runDir, "out.png");
-    const result = await renderImagePipeline(parsed.value, {
-      runId: "test-run",
-      runDir,
-      seed: null,
-      outPath,
-      logger: {
-        debug: () => {},
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-      },
-    });
+    const ctx = await makeRenderCtx({ label: "pipeline" });
+    const result = await renderImagePipeline(parsed.value, ctx);
 
     expect(result.mimeType).toBe("image/png");
     expect(result.bytes).toBeGreaterThan(0);
-    const bytes = await readFile(outPath);
+    const bytes = await readFile(ctx.outPath);
     expect(Array.from(bytes.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
 
@@ -507,20 +517,11 @@ describe("image pipeline (neural decode)", () => {
       return;
     }
 
-    const runDir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-coarse-"));
-    const outPath = resolve(runDir, "out.png");
-    await renderImagePipeline(parsed.value, {
-      runId: "test-run",
-      runDir,
-      seed: null,
-      outPath,
-      logger: {
-        debug: () => {},
-        info: () => {},
-        warn: (message) => warnings.push(message),
-        error: () => {},
-      },
+    const ctx = await makeRenderCtx({
+      label: "coarse",
+      logger: captureWarnLogger(warnings),
     });
+    await renderImagePipeline(parsed.value, ctx);
 
     expect(warnings.some((message) => message.includes("placeholder seed-expansion adapter"))).toBe(
       false,
@@ -552,18 +553,10 @@ describe("image pipeline (neural decode)", () => {
       return;
     }
 
-    const { latents, outcome } = await adaptSceneToLatents(parsed.value, {
-      runId: "coarse-preserve",
-      runDir: await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-preserve-")),
-      seed: null,
-      outPath: "out.png",
-      logger: {
-        debug: () => {},
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-      },
-    });
+    const { latents, outcome } = await adaptSceneToLatents(
+      parsed.value,
+      await makeRenderCtx({ runId: "coarse-preserve", label: "preserve" }),
+    );
 
     expect(latents.tokens.slice(0, 4)).toEqual([700, 700, 701, 701]);
     expect(outcome).toBe("coarse-vq");
@@ -605,20 +598,11 @@ describe("image pipeline (neural decode)", () => {
       return;
     }
 
-    const runDir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-seed-"));
-    const outPath = resolve(runDir, "out.png");
-    await renderImagePipeline(parsed.value, {
-      runId: "test-run",
-      runDir,
-      seed: null,
-      outPath,
-      logger: {
-        debug: () => {},
-        info: () => {},
-        warn: (message) => warnings.push(message),
-        error: () => {},
-      },
+    const ctx = await makeRenderCtx({
+      label: "seed",
+      logger: captureWarnLogger(warnings),
     });
+    await renderImagePipeline(parsed.value, ctx);
 
     expect(warnings.some((message) => message.includes("placeholder seed-expansion adapter"))).toBe(
       false,
@@ -634,23 +618,11 @@ describe("image pipeline (neural decode)", () => {
  * declared but failed validation; visual-seed-code ran instead."
  */
 describe("image adapterOutcome (#247-style observability)", () => {
-  const silentLogger = {
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-  } as const;
-
   async function adaptOutcome(specJson: string): Promise<string> {
     const parsed = imageCodec.parse(specJson);
     if (!parsed.ok) throw new Error("parse failed");
-    const { outcome } = await adaptSceneToLatents(parsed.value, {
-      runId: "outcome-test",
-      runDir: await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-outcome-")),
-      seed: 7,
-      outPath: "out.png",
-      logger: silentLogger,
-    });
+    const ctx = await makeRenderCtx({ runId: "outcome-test", seed: 7, label: "outcome" });
+    const { outcome } = await adaptSceneToLatents(parsed.value, ctx);
     return outcome;
   }
 
@@ -762,14 +734,12 @@ describe("image adapterOutcome (#247-style observability)", () => {
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
 
-    const dir = await mkdtemp(resolve(tmpdir(), "wittgenstein-codec-image-renderpath-"));
-    const result = await renderImagePipeline(parsed.value, {
+    const ctx = await makeRenderCtx({
       runId: "renderpath-pipeline",
-      runDir: dir,
       seed: 7,
-      outPath: resolve(dir, "out.png"),
-      logger: silentLogger,
+      label: "renderpath",
     });
+    const result = await renderImagePipeline(parsed.value, ctx);
 
     expect((result.metadata as { renderPath?: string }).renderPath).toBe("coarse-vq");
   });
