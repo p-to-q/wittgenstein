@@ -1,14 +1,25 @@
-import { access, mkdir, stat, writeFile } from "node:fs/promises";
-import { dirname, extname, resolve as resolvePath } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+// Sensor render orchestrator — expands a sensor signal spec into samples via
+// the operator strategy registry, writes the JSON/CSV sidecars, and runs the
+// Loupe dashboard renderer for the HTML companion.
+//
+// Operator strategies live under `./operators/` (extracted per #326 / #288).
+// The Loupe fallback chain lives in `./loupe-renderer.ts`. This file owns
+// orchestration only; the per-operator math and the dashboard plumbing are
+// no longer mixed into the same module.
+
+import { mkdir, stat, writeFile } from "node:fs/promises";
+import { dirname, extname } from "node:path";
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
-import type { SensorOperator, SensorSignalSpec } from "./schema.js";
+import type { SensorSignalSpec } from "./schema.js";
+import { dispatchOperator } from "./operators/index.js";
+import { renderLoupeDashboard, type SensorRenderPath } from "./loupe-renderer.js";
 
 export interface SensorSample {
   timeSec: number;
   value: number;
 }
+
+export type { SensorRenderPath };
 
 export async function renderSignalBundle(
   spec: SensorSignalSpec,
@@ -63,8 +74,6 @@ export async function renderSignalBundle(
     },
   };
 }
-
-export type SensorRenderPath = "loupe-script" | "loupe-cli" | "fallback-static-html";
 
 export function makeEcgSignal(
   sampleRateHz: number,
@@ -156,180 +165,17 @@ function expandSensorAlgorithm(
   // operator parameters inside a patch are interpreted patch-local per the
   // research note (#239) and #247 contract decision.
   for (const operator of spec.operators) {
-    expandOperator(operator, signal, 0, frameCount, sampleRateHz, rng, 0);
+    dispatchOperator(operator, {
+      signal,
+      startFrame: 0,
+      endFrame: frameCount,
+      sampleRateHz,
+      rng,
+      timeOriginFrame: 0,
+    });
   }
 
   return signal;
-}
-
-/**
- * Expand a single operator over `[startFrame, endFrame)`.
- *
- * `timeOriginFrame` defines the local zero of the operator's time axis. At top
- * level it is 0 (operators see absolute time). Inside a patch it is the patch
- * start, so `step.atSec`, `pulse.centerSec`, `oscillator.phaseRad`,
- * `drift.slopePerSec`, and `ecgTemplate` phase are all measured relative to the
- * patch boundary — the patch-local contract called out in
- * `docs/research/2026-05-07-sensor-patch-grammar.md` and pinned by #247.
- *
- * Noise has no time dependence and is unaffected by `timeOriginFrame`; it
- * continues to consume the parent RNG sequentially.
- */
-function expandOperator(
-  operator: SensorOperator,
-  signal: Float32Array,
-  startFrame: number,
-  endFrame: number,
-  sampleRateHz: number,
-  rng: () => number,
-  timeOriginFrame: number,
-): void {
-  if (operator.type === "oscillator") {
-    for (let i = startFrame; i < endFrame; i += 1) {
-      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
-      signal[i] =
-        (signal[i] ?? 0) +
-        Math.sin(2 * Math.PI * operator.frequencyHz * localTimeSec + operator.phaseRad) *
-          operator.amplitude;
-    }
-    return;
-  }
-
-  if (operator.type === "noise") {
-    const span = endFrame - startFrame;
-    const noise = operator.color === "pink" ? pinkNoise(span, rng) : whiteNoise(span, rng);
-    for (let i = 0; i < span; i += 1) {
-      signal[startFrame + i] = (signal[startFrame + i] ?? 0) + (noise[i] ?? 0) * operator.amplitude;
-    }
-    return;
-  }
-
-  if (operator.type === "drift") {
-    for (let i = startFrame; i < endFrame; i += 1) {
-      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
-      signal[i] = (signal[i] ?? 0) + localTimeSec * operator.slopePerSec;
-    }
-    return;
-  }
-
-  if (operator.type === "pulse") {
-    const start = Math.max(
-      startFrame,
-      timeOriginFrame + Math.floor((operator.centerSec - operator.widthSec / 2) * sampleRateHz),
-    );
-    const end = Math.min(
-      endFrame,
-      timeOriginFrame + Math.ceil((operator.centerSec + operator.widthSec / 2) * sampleRateHz),
-    );
-    for (let i = start; i < end; i += 1) {
-      const phase = (i - start) / Math.max(1, end - start);
-      signal[i] = (signal[i] ?? 0) + Math.sin(Math.PI * phase) * operator.amplitude;
-    }
-    return;
-  }
-
-  if (operator.type === "step") {
-    const start = Math.max(startFrame, timeOriginFrame + Math.floor(operator.atSec * sampleRateHz));
-    for (let i = start; i < endFrame; i += 1) {
-      signal[i] = (signal[i] ?? 0) + operator.amplitude;
-    }
-    return;
-  }
-
-  if (operator.type === "ecgTemplate") {
-    const beatPeriod = 60 / operator.bpm;
-    for (let i = startFrame; i < endFrame; i += 1) {
-      const localTimeSec = (i - timeOriginFrame) / sampleRateHz;
-      const phase = (localTimeSec % beatPeriod) / beatPeriod;
-      const p = Math.exp(-Math.pow((phase - 0.16) * 22, 2)) * 0.08;
-      const qrs =
-        Math.exp(-Math.pow((phase - 0.34) * 55, 2)) * 0.92 -
-        Math.exp(-Math.pow((phase - 0.31) * 80, 2)) * 0.22;
-      const t = Math.exp(-Math.pow((phase - 0.58) * 15, 2)) * 0.18;
-      signal[i] = (signal[i] ?? 0) + (p + qrs + t) * operator.amplitude;
-    }
-    return;
-  }
-
-  // operator.type === "patchGrammar"
-  expandPatchGrammar(operator, signal, startFrame, endFrame, sampleRateHz, rng);
-}
-
-/**
- * Expand a patchGrammar operator across `[startFrame, endFrame)`.
- *
- * Each patch occupies `floor(patchLengthSec * sampleRateHz)` consecutive frames,
- * starting from `startFrame`. Patches that would extend past `endFrame` are
- * truncated; patches whose start frame is past `endFrame` are skipped. Within
- * each patch:
- *   - Pre-patch signal values in the patch range are snapshotted.
- *   - Inner operators run with `timeOriginFrame = patchStart` so all time-based
- *     parameters (oscillator phase reference, drift origin, step.atSec,
- *     pulse.centerSec, ecgTemplate phase) are interpreted patch-local. Noise
- *     consumption is sequential against the parent RNG so a single-patch
- *     full-duration `patchGrammar` stays byte-identical to the equivalent flat
- *     operator list (the recursion-seam invariant).
- *   - If `affineNormalize` is set, the patch's *contribution* (post-pre) is
- *     min-max normalized to `[minOutput, maxOutput]` before being added back
- *     onto the pre-patch values. The schema rejects `minOutput >= maxOutput`
- *     so a degenerate range can never reach this code (#247 item 4).
- *
- * Nested `patchGrammar` is rejected at the schema level (#247 item 3); inner
- * operators are typed as `SensorBaseOperator` so this function never recurses
- * into another patchGrammar.
- */
-function expandPatchGrammar(
-  operator: Extract<SensorOperator, { type: "patchGrammar" }>,
-  signal: Float32Array,
-  startFrame: number,
-  endFrame: number,
-  sampleRateHz: number,
-  rng: () => number,
-): void {
-  const patchFrames = Math.max(1, Math.floor(operator.patchLengthSec * sampleRateHz));
-  for (let patchIdx = 0; patchIdx < operator.patches.length; patchIdx += 1) {
-    const patch = operator.patches[patchIdx];
-    if (!patch) {
-      continue;
-    }
-    const patchStart = startFrame + patchIdx * patchFrames;
-    if (patchStart >= endFrame) {
-      break;
-    }
-    const patchEnd = Math.min(endFrame, patchStart + patchFrames);
-
-    const span = patchEnd - patchStart;
-    const preValues = new Float32Array(span);
-    for (let i = 0; i < span; i += 1) {
-      preValues[i] = signal[patchStart + i] ?? 0;
-    }
-
-    for (const inner of patch.operators) {
-      expandOperator(inner, signal, patchStart, patchEnd, sampleRateHz, rng, patchStart);
-    }
-
-    if (patch.affineNormalize) {
-      const contribution = new Float32Array(span);
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = 0; i < span; i += 1) {
-        const c = (signal[patchStart + i] ?? 0) - (preValues[i] ?? 0);
-        contribution[i] = c;
-        if (c < min) min = c;
-        if (c > max) max = c;
-      }
-      const range = max - min;
-      const targetMin = patch.affineNormalize.minOutput;
-      const targetMax = patch.affineNormalize.maxOutput;
-      const targetRange = targetMax - targetMin;
-      const fallbackCenter = (targetMin + targetMax) / 2;
-      for (let i = 0; i < span; i += 1) {
-        const normalized =
-          range > 0 ? ((contribution[i]! - min) / range) * targetRange + targetMin : fallbackCenter;
-        signal[patchStart + i] = (preValues[i] ?? 0) + normalized;
-      }
-    }
-  }
 }
 
 function samplesToRows(samples: Float32Array, sampleRateHz: number): SensorSample[] {
@@ -341,60 +187,6 @@ function samplesToRows(samples: Float32Array, sampleRateHz: number): SensorSampl
 
 function toCsv(rows: SensorSample[]): string {
   return ["timeSec,value", ...rows.map((row) => `${row.timeSec},${row.value}`)].join("\n");
-}
-
-const moduleDir = dirname(fileURLToPath(import.meta.url));
-
-async function renderLoupeDashboard(
-  csvPath: string,
-  htmlPath: string,
-  spec: SensorSignalSpec,
-): Promise<{ htmlReady: boolean; renderPath: SensorRenderPath }> {
-  // Search for loupe.py: repo root → package dir → cwd → polyglot-mini sub-project
-  const candidates = [
-    resolvePath(moduleDir, "../../../../loupe.py"), // repo root
-    resolvePath(moduleDir, "../loupe.py"), // package root
-    resolvePath(process.cwd(), "loupe.py"), // cwd
-    resolvePath(process.cwd(), "polyglot-mini/loupe.py"), // sub-project
-  ];
-  let loupePath: string | null = null;
-  for (const c of candidates) {
-    try {
-      await access(c);
-      loupePath = c;
-      break;
-    } catch {
-      /* skip */
-    }
-  }
-  if (!loupePath) {
-    // Try `loupe` on PATH
-    try {
-      await spawnChecked("python3", ["-m", "loupe_cli", csvPath, "-o", htmlPath]);
-      return { htmlReady: true, renderPath: "loupe-cli" };
-    } catch {
-      /* continue to fallback */
-    }
-  } else {
-    try {
-      await spawnChecked("python3", [loupePath, csvPath, "-o", htmlPath]);
-      return { htmlReady: true, renderPath: "loupe-script" };
-    } catch {
-      /* continue to fallback */
-    }
-  }
-  const fallbackHtml = `<!doctype html>
-<html lang="en">
-<meta charset="utf-8" />
-<title>${spec.signal} preview</title>
-<body style="font-family: ui-monospace, monospace; padding: 24px; background: #111; color: #f5f5f5;">
-  <h1>${spec.signal} preview</h1>
-  <p>Loupe was unavailable, so Wittgenstein wrote the raw CSV sidecar instead.</p>
-  <p>Open <code>${csvPath}</code> or rerun with Python 3 available to get the interactive dashboard.</p>
-</body>
-</html>`;
-  await writeFile(htmlPath, fallbackHtml);
-  return { htmlReady: true, renderPath: "fallback-static-html" };
 }
 
 function ensureExtension(path: string, ext: string): string {
@@ -411,37 +203,4 @@ function createRng(seed: number): () => number {
     state = (state * 1103515245 + 12345) >>> 0;
     return state / 0xffffffff;
   };
-}
-
-function whiteNoise(frameCount: number, rng: () => number): Float32Array {
-  const samples = new Float32Array(frameCount);
-  for (let i = 0; i < frameCount; i += 1) {
-    samples[i] = rng() * 2 - 1;
-  }
-  return samples;
-}
-
-function pinkNoise(frameCount: number, rng: () => number): Float32Array {
-  const white = whiteNoise(frameCount, rng);
-  const pink = new Float32Array(frameCount);
-  let prev = 0;
-  for (let i = 0; i < frameCount; i += 1) {
-    prev = 0.985 * prev + 0.15 * (white[i] ?? 0);
-    pink[i] = prev;
-  }
-  return pink;
-}
-
-async function spawnChecked(command: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolvePromise, reject) => {
-    const child = spawn(command, args, { stdio: "ignore" });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolvePromise();
-        return;
-      }
-      reject(new Error(`${command} exited with code ${code ?? "unknown"}`));
-    });
-  });
 }
