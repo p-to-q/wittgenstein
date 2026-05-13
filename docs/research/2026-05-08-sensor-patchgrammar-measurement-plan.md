@@ -147,7 +147,7 @@ The measurement must compare like-with-like. patchGrammar with 50 patches vs fla
 8. Write a short results note, regardless of pass/fail.
 ```
 
-The manifest spine already records seed + parameters per generation, so re-running step 2 from a fresh checkout produces identical synthetic samples.
+The manifest spine already records seed + parameters per generation, so re-running step 2 against the same codec version on the same platform produces bitwise-identical synthetic samples. Cross-platform parity is structural — same sample count, same channels, same parameter manifest — not byte-equal, matching the parity contract used by the existing sensor goldens. The results-slice PR must pin the codec git SHA + Node/Python versions so the bitwise claim is reproducible.
 
 ## What "pass" / "fail" looks like
 
@@ -178,7 +178,7 @@ A re-run by a third party should produce the same numbers within statistical noi
 
 ## Open methodology questions (to resolve before running)
 
-1. **Sample size.** 300 per config is a guess — small enough to be cheap, large enough for stable means. If first runs show high variance, scale up. The pass criterion uses absolute thresholds, not significance tests, so sample-size choice is operational, not statistical.
+1. **Sample size.** Pre-registered: **n = 300 per config for the primary run.** Pre-registered escalation rule: if the observed per-config standard deviation of *either* primary metric (Welch spectral distance or augmentation F1) exceeds 15% of its sample mean after the primary run, automatically re-run all configs at **n = 1000** and use the n = 1000 result as the verdict. Any escalation beyond n = 1000 is post-registered and must be documented as such in the results note (with the reason and the prior value preserved). The pass criterion uses absolute thresholds, not significance tests, so this sample-size rule is operational pre-commitment rather than statistical power analysis.
 2. **Classifier complexity.** Logistic regression on rolling features is the simplest baseline; a 1D-CNN is the natural step up. Pick simplest viable; document the choice.
 3. **Held-out fraction.** Standard 70/10/20 train/val/test split, stratified per class.
 4. **Real-vs-synthetic mix in `*_augmented` configs.** Default 1:1 (real:synthetic). Document the mix in the results note.
