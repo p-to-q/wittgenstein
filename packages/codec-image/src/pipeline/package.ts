@@ -29,7 +29,8 @@ export function toRenderResult(art: ImageArtifact): RenderResult {
       codec: art.metadata.codec,
       route: art.metadata.route,
       llmTokens: art.metadata.llmTokens,
-      costUsd: art.metadata.costUsd,
+      costUsd: art.metadata.costUsd ?? 0,
+      ...(art.metadata.costUsdReason ? { costUsdReason: art.metadata.costUsdReason } : {}),
       durationMs: art.metadata.durationMs,
       seed: art.metadata.seed,
       // Outcome of the adapter fall-through (which tier actually fired) — not

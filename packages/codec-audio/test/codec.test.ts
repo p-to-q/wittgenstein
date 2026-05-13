@@ -58,6 +58,8 @@ describe("@wittgenstein/codec-audio", () => {
     expect(art.mime).toBe("audio/wav");
     expect(art.outPath.endsWith(".wav")).toBe(true);
     expect(art.metadata.route).toBe("speech");
+    expect(art.metadata.costUsd).toBeNull();
+    expect(art.metadata.costUsdReason).toBe("no-llm-call");
     expect(art.metadata.audioRender).toMatchObject({
       sampleRateHz: 22_050,
       channels: 1,

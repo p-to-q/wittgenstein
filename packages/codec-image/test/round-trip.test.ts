@@ -38,6 +38,8 @@ describe("image v2 round trip", () => {
     );
     expect(art.mime).toBe("image/png");
     expect(art.metadata.route).toBe("raster");
+    expect(art.metadata.costUsd).toBeNull();
+    expect(art.metadata.costUsdReason).toBe("no-llm-call");
     expect(art.metadata.imageCode).toMatchObject({
       mode: "one-shot-vsc",
       path: "visual-seed-code",

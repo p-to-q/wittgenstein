@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type {
+  CostUsdReason,
   ImageRequest,
   RenderCtx,
   RenderResult,
@@ -36,7 +37,8 @@ interface ImageCodecLlmService {
   }): Promise<{
     text: string;
     tokens: { input: number; output: number };
-    costUsd: number;
+    costUsd: number | null;
+    costUsdReason?: CostUsdReason;
     raw?: unknown;
   }>;
 }
@@ -58,7 +60,8 @@ interface AdaptedImagePayload {
   readonly promptExpanded: string;
   readonly llmOutputRaw: string;
   readonly llmTokens: { input: number; output: number };
-  readonly costUsd: number;
+  readonly costUsd: number | null;
+  readonly costUsdReason?: CostUsdReason;
 }
 
 const standardSchema = toStandardSchema(ImageRequestSchema);
@@ -171,7 +174,8 @@ function asScenePlan(ir: codecV2.IR): {
   promptExpanded: string;
   llmOutputRaw: string;
   llmTokens: { input: number; output: number };
-  costUsd: number;
+  costUsd: number | null;
+  costUsdReason?: CostUsdReason;
 } {
   if (!codecV2.isTextIR(ir) || !ir.plan) {
     throw new Error("ImageCodec expected TextIR with ImageSceneSpec plan.");
@@ -181,7 +185,8 @@ function asScenePlan(ir: codecV2.IR): {
     promptExpanded: string;
     llmOutputRaw: string;
     llmTokens: { input: number; output: number };
-    costUsd: number;
+    costUsd: number | null;
+    costUsdReason?: CostUsdReason;
   };
 }
 
@@ -222,7 +227,8 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
           promptExpanded,
           llmOutputRaw,
           llmTokens: { input: 0, output: 0 },
-          costUsd: 0,
+          costUsd: null,
+          costUsdReason: "no-llm-call",
         },
       };
     }
@@ -264,6 +270,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         llmOutputRaw: generation.text,
         llmTokens: generation.tokens,
         costUsd: generation.costUsd,
+        ...(generation.costUsdReason ? { costUsdReason: generation.costUsdReason } : {}),
       },
     };
   }
@@ -286,6 +293,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         llmOutputRaw: expanded.llmOutputRaw,
         llmTokens: expanded.llmTokens,
         costUsd: expanded.costUsd,
+        ...(expanded.costUsdReason ? { costUsdReason: expanded.costUsdReason } : {}),
       } satisfies AdaptedImagePayload,
     };
   }
@@ -313,6 +321,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         warnings: [],
         llmTokens: payload.llmTokens,
         costUsd: payload.costUsd,
+        ...(payload.costUsdReason ? { costUsdReason: payload.costUsdReason } : {}),
         durationMs: Math.max(0, ctx.clock.now()),
         seed: ctx.seed,
         promptExpanded: payload.promptExpanded,

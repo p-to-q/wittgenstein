@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import type { AudioRequest, RenderCtx } from "@wittgenstein/schemas";
+import type { AudioRequest, CostUsdReason, RenderCtx } from "@wittgenstein/schemas";
 import { Modality, codecV2 } from "@wittgenstein/schemas";
 import {
   AudioPlanSchema,
@@ -30,7 +30,8 @@ interface AudioCodecLlmService {
   }): Promise<{
     text: string;
     tokens: { input: number; output: number };
-    costUsd: number;
+    costUsd: number | null;
+    costUsdReason?: CostUsdReason;
     raw?: unknown;
   }>;
 }
@@ -50,7 +51,8 @@ interface AudioPlanPayload {
   readonly promptExpanded: string;
   readonly llmOutputRaw: string;
   readonly llmTokens: { input: number; output: number };
-  readonly costUsd: number;
+  readonly costUsd: number | null;
+  readonly costUsdReason?: CostUsdReason;
 }
 
 const standardSchema = toStandardSchema(AudioRequestSchema);
@@ -282,7 +284,8 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
           promptExpanded,
           llmOutputRaw,
           llmTokens: { input: 0, output: 0 },
-          costUsd: 0,
+          costUsd: null,
+          costUsdReason: "no-llm-call",
         } satisfies AudioPlanPayload,
       };
     }
@@ -325,6 +328,7 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
         llmOutputRaw: generation.text,
         llmTokens: generation.tokens,
         costUsd: generation.costUsd,
+        ...(generation.costUsdReason ? { costUsdReason: generation.costUsdReason } : {}),
       } satisfies AudioPlanPayload,
     };
   }
@@ -403,6 +407,7 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
         warnings: [],
         llmTokens: payload.llmTokens,
         costUsd: payload.costUsd,
+        ...(payload.costUsdReason ? { costUsdReason: payload.costUsdReason } : {}),
         durationMs: Math.max(0, ctx.clock.now() - startedAt),
         seed: ctx.seed,
         promptExpanded: payload.promptExpanded,

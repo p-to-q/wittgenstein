@@ -1,5 +1,5 @@
 import type { ImageSceneSpec } from "./schema.js";
-import type { codecV2 } from "@wittgenstein/schemas";
+import type { CostUsdReason, codecV2 } from "@wittgenstein/schemas";
 
 export type ImageCodePath =
   | "provider-latents"
@@ -53,7 +53,8 @@ export interface ImageArtifactMetadata extends codecV2.BaseArtifactMetadata {
   readonly route: "raster";
   warnings: codecV2.CodecWarning[];
   readonly llmTokens: { input: number; output: number };
-  readonly costUsd: number;
+  readonly costUsd: number | null;
+  readonly costUsdReason?: CostUsdReason;
   readonly durationMs: number;
   readonly seed: number | null;
   readonly promptExpanded: string | null;
