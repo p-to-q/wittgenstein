@@ -54,6 +54,17 @@ export const RunManifestSchema = z
     llmOutputRaw: z.string().nullable(),
     llmOutputParsed: z.unknown().nullable(),
 
+    /**
+     * The full validated `WittgensteinRequest` the harness ran, recorded
+     * so `wittgenstein replay <manifest>` can reconstruct and re-execute
+     * the run without consulting external state (Issue #384).
+     *
+     * Optional for backward compatibility — manifests written before this
+     * field was added still validate. Replay refuses missing-request
+     * manifests with a clear error.
+     */
+    request: z.unknown().optional(),
+
     artifactPath: z.string().nullable(),
     artifactSha256: z.string().nullable(),
     audioRender: AudioRenderManifestSchema.optional(),

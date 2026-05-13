@@ -9,6 +9,7 @@ import { registerSvgCommand } from "./commands/svg.js";
 import { registerAsciipngCommand } from "./commands/asciipng.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerAnimateHtmlCommand } from "./commands/animate-html.js";
+import { registerReplayCommand } from "./commands/replay.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -28,6 +29,7 @@ export function createProgram(): Command {
   registerAsciipngCommand(program);
   registerDoctorCommand(program);
   registerAnimateHtmlCommand(program);
+  registerReplayCommand(program);
 
   return program;
 }

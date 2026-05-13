@@ -117,6 +117,9 @@ export class Wittgenstein {
       promptExpanded,
       llmOutputRaw: null,
       llmOutputParsed: null,
+      // Record the full request so `wittgenstein replay <manifest>` can
+      // reconstruct the run without consulting external state (Issue #384).
+      request,
       artifactPath: null,
       artifactSha256: null,
       startedAt: startedAt.toISOString(),
