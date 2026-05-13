@@ -64,3 +64,6 @@ polyglot-mini/**/*.pyc
 # Mac Finder duplicate suffix patterns
 * copy*
 *\ copy*
+
+# reviewer-bench output (generated, not committed)
+examples/reviewer-bench/report.md

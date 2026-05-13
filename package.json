@@ -38,6 +38,7 @@
     "demo:tts": "pnpm --filter @wittgenstein/cli exec wittgenstein tts \"Hackathon voiceover for the Wittgenstein launch\" --dry-run --ambient city --out artifacts/demo/hackathon-tts.wav",
     "demo:sensor": "pnpm --filter @wittgenstein/cli exec wittgenstein sensor \"synthetic ecg trace for loupe dashboard\" --dry-run --out artifacts/demo/hackathon-sensor.json",
     "smoke:cli": "pnpm --filter @wittgenstein/cli run smoke",
+    "reviewer-bench": "node --import tsx examples/reviewer-bench/run.ts",
     "dev:site": "pnpm --filter @wittgenstein/site dev",
     "dev:presentation": "pnpm --filter @wittgenstein/presentation dev",
     "dev:wittgenstein-kimi": "cd apps/wittgenstein-kimi && pnpm dev"

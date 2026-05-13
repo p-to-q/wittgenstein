@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "reviewer-bench/v0",
+  "_comment": "Pinned SHA-256 receipts for the reviewer-bench. To regenerate: run scripts/reviewer-bench-pin.ts and copy the values it prints. Update on any intentional change to a deterministic-by-construction route's output.",
+  "receipts": [
+    {
+      "id": "sensor-ecg",
+      "route": "sensor",
+      "args": [
+        "sensor",
+        "ECG 72 bpm resting",
+        "--dry-run",
+        "--seed",
+        "42"
+      ],
+      "artifactBasename": "out.html",
+      "sha256": "dbbf8ccae0815fac2801e132224623c4f641082732cdc8938b942abb48e27d14",
+      "description": "sensor route, ECG dry-run @ seed 42 — HTML artifact byte-stable"
+    },
+    {
+      "id": "svg-local",
+      "route": "svg",
+      "args": [
+        "svg",
+        "deterministic circle pattern",
+        "--source",
+        "local",
+        "--seed",
+        "42"
+      ],
+      "artifactBasename": "out.svg",
+      "sha256": "ad3b1975a427af14908d0306df64d61af74ce0e782f690d35c666173632b1e53",
+      "description": "svg-local, pure deterministic vector art @ seed 42"
+    },
+    {
+      "id": "svg-local-replay",
+      "route": "svg",
+      "args": [
+        "svg",
+        "replay smoke target",
+        "--source",
+        "local",
+        "--seed",
+        "1234"
+      ],
+      "artifactBasename": "out.svg",
+      "sha256": "aedfc7164cc386878a3ac679e8db00ddd1924013914b22dc3e4eb10ff9fef6d3",
+      "description": "svg-local replay target (different seed to isolate from svg-local row)"
+    },
+    {
+      "id": "sensor-replay",
+      "route": "sensor",
+      "args": [
+        "sensor",
+        "replay smoke target ECG",
+        "--dry-run",
+        "--seed",
+        "1234"
+      ],
+      "artifactBasename": "out.html",
+      "sha256": "7fe25f0e0e06d87dc8028e92a867295285e6f44273a921b17d116f7b903ac742",
+      "description": "sensor replay target (different seed to isolate from sensor-ecg row)"
+    }
+  ]
+}
