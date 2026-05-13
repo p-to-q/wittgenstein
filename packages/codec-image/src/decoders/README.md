@@ -33,11 +33,11 @@ the place where the cache-or-fetch + sha256-verify of weights happens.
 
 ## Candidate families
 
-| Family       | Status        | Tracker | Audit doc                                                                                                                 |
-| ------------ | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `llamagen`   | M1B canonical target — interface locked; impl gated on #334 / #335 | #329    | [`2026-05-13-audit-vqgan-class.md`](../../../../docs/research/2026-05-13-audit-vqgan-class.md)                             |
-| `seed`      | alternate (OpenMAGVIT2 / SEED-Voken / similar) | #331    | [`2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md`](../../../../docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md) |
-| `dvae`       | future — for smaller ablations + eval tooling | —       | —                                                                                                                         |
+| Family     | Status                                                             | Tracker | Audit doc                                                                                                                            |
+| ---------- | ------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `llamagen` | M1B canonical target — interface locked; impl gated on #334 / #335 | #329    | [`2026-05-13-audit-vqgan-class.md`](../../../../docs/research/2026-05-13-audit-vqgan-class.md)                                       |
+| `seed`     | alternate (OpenMAGVIT2 / SEED-Voken / similar)                     | #331    | [`2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md`](../../../../docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md) |
+| `dvae`     | future — for smaller ablations + eval tooling                      | —       | —                                                                                                                                    |
 
 All bridges here are intended to be **frozen pretrained decoders**, not
 generators (ADR-0005). Training a decoder from scratch is out of scope
@@ -62,10 +62,10 @@ for v0.x.
    - Build ONNX session (default tier `node-onnx-cpu`).
    - Return an object satisfying `ImageDecoderBridge` with `capabilities`
      filled from the manifest + measured-at-load determinism class.
-3. Wire `../pipeline/decoder.ts` to call the bridge before falling back
-   to the procedural placeholder (the placeholder stays in place as the
-   `decoder-unavailable` fallback per the no-silent-fallbacks doctrine —
-   bridge load failure surfaces as a structured warning + receipt note).
+3. Wire `../pipeline/decoder.ts` to call the bridge and stop on bridge-load
+   failure with a structured error, manifest receipt, and warning. Do not route
+   bridge failure into the procedural placeholder; M1B must not create a second
+   raster shipping path.
 4. Add `wittgenstein replay` smoke test using the wired bridge (#388
    already supports svg-local; adding image requires the bridge).
 5. Update `docs/research/2026-05-13-m1b-prep-research.md` with the actual
