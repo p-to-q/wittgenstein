@@ -92,13 +92,13 @@ Per the audit-plan template:
 
 **Status:** This audit cannot verify Gate C empirically — the verdict requires a Python environment with PyTorch, the LlamaGen VQ tokenizer downloaded, and at least two CPU runs of `encode → decode → re-encode` with byte-comparison. This is an implementation task, not a research-note task.
 
-**Recommended next action:** open a small implementation issue titled `[m1b audit] VQGAN-class Gate C (determinism) — empirical round-trip` that:
+**Follow-up issue filed:** [#334](https://github.com/p-to-q/wittgenstein/issues/334) — `[m1b audit] VQGAN-class Gate C (determinism) — empirical round-trip`. The issue scopes:
 
-1. Pins a specific LlamaGen VQ tokenizer revision SHA.
-2. Runs `encode → decode → re-encode` 3× on the same input image, on the same machine, with the same seed.
-3. Reports byte-equality across the three runs.
-4. Repeats on a second machine if available; documents the cross-platform parity class.
-5. Closes Gate C with the empirical result.
+1. Pin a specific LlamaGen VQ tokenizer revision SHA.
+2. Run `encode → decode → re-encode` 3× on the same input image, on the same machine, with the same seed.
+3. Report byte-equality across the three runs.
+4. Repeat on a second machine if available; document the cross-platform parity class.
+5. Close Gate C with the empirical result.
 
 This follow-up is **expected** by the audit plan; the absence here is honest reporting, not a gate failure.
 
@@ -108,15 +108,15 @@ The LlamaGen README does not mention ONNX export, transformers.js compatibility,
 
 **Status:** This audit cannot verify Gate D empirically — the verdict requires attempting a minimal ONNX export of just the VQ tokenizer's decoder half (encoder is needed only for offline tooling) and timing CPU inference for a 256² image.
 
-**Recommended next action:** open a small implementation issue titled `[m1b audit] VQGAN-class Gate D (Node / ONNX / CPU feasibility)` that:
+**Follow-up issue filed:** [#335](https://github.com/p-to-q/wittgenstein/issues/335) — `[m1b audit] VQGAN-class Gate D (Node / ONNX / CPU feasibility) — empirical export + benchmark`. The issue scopes:
 
-1. Pins the same LlamaGen VQ tokenizer revision SHA as Gate C.
-2. Attempts an ONNX export of the decoder half via PyTorch's `torch.onnx.export`. If the export breaks on any layer, names the layer.
-3. If export succeeds, runs the ONNX model via `onnxruntime` CPU-only on a typical laptop and times a single 256² decode.
-4. Reports: export feasibility + inference latency.
-5. Closes Gate D with the empirical result.
+1. Pin the same LlamaGen VQ tokenizer revision SHA as Gate C (or a separate pin if Gate C hasn't started — record both either way).
+2. Attempt an ONNX export of the decoder half via PyTorch's `torch.onnx.export`. If the export breaks on any layer, name the layer + error.
+3. If export succeeds, run the ONNX model via `onnxruntime` CPU-only on a typical laptop and time a single 256² decode.
+4. Report: export feasibility + inference latency + RAM footprint.
+5. Close Gate D with the empirical result.
 
-If Gate D fails (e.g. unrunnable export, or CPU latency exceeds 5 minutes), the falsifies-recommendation criterion in the audit plan triggers: VQGAN-class is no longer the recommended Priority 1.
+If Gate D fails (e.g. unrunnable export, or CPU latency exceeds 5 minutes), the falsifies-recommendation criterion in the audit plan triggers: VQGAN-class is no longer the recommended Priority 1, and audit work should pivot to FSQ ([#330](https://github.com/p-to-q/wittgenstein/issues/330)) or OpenMAGVIT2 ([#331](https://github.com/p-to-q/wittgenstein/issues/331)).
 
 ## Overall verdict
 
@@ -137,8 +137,8 @@ What this audit DOES establish:
 
 ## Next-action recommendations
 
-1. **File two small follow-up issues** for Gates C and D, scoped as the empirical implementation work named above. Each is `size/s`, `priority/p1`, `stage/m1-image`, `slice/implementation`.
-2. **Until Gates C and D land:** do NOT begin wiring `loadLlamagenDecoderBridge`. Per the audit plan: "M1B unblocks when at least one candidate clears **all four gates**."
+1. **Follow-up issues filed:** [#334](https://github.com/p-to-q/wittgenstein/issues/334) (Gate C — determinism) and [#335](https://github.com/p-to-q/wittgenstein/issues/335) (Gate D — ONNX / CPU feasibility). Each is `size/s`, `priority/p1`, `stage/m1-image`, `slice/implementation`. Both require local PyTorch and a copy of the LlamaGen VQ tokenizer weights.
+2. **Until #334 and #335 close:** do NOT begin wiring `loadLlamagenDecoderBridge`. Per the audit plan: "M1B unblocks when at least one candidate clears **all four gates**."
 3. **alpha.2 cut question (open for maintainer decision):** the exec-plan annotation in [PR #293](https://github.com/p-to-q/wittgenstein/pull/293) names two defensible paths — (a) cut alpha.2 now with M1B's blocker explicitly named in release notes, OR (b) hold alpha.2 until Gates C and D close. This audit reduces the uncertainty: the license and weights risk is now retired; only operational risk remains. The maintainer can weigh whether retired-license + retired-weights is enough confidence to cut, or whether the empirical determinism / ONNX work should land first.
 
 ## Sources verified 2026-05-13
