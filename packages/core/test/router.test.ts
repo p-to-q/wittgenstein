@@ -10,6 +10,7 @@ function fakeCodec(modality: WittgensteinRequest["modality"]) {
     modality,
     schema: undefined as never,
     expand: () => ({}) as never,
+    parse: () => ({ ok: true as const, value: {} }) as never,
     render: () => ({}) as never,
   } as never;
 }
@@ -51,6 +52,7 @@ describe("routeRequest", () => {
       modality: "image" as const,
       schema: undefined as never,
       expand: () => ({}) as never,
+      parse: () => ({ ok: true as const, value: {} }) as never,
       render: () => {
         renderCalls += 1;
         return {} as never;
