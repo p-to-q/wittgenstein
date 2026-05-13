@@ -14,9 +14,9 @@ tracks: [#330, #331, #332, #333, #283, #70]
 
 | Priority | Candidate | Gate A (License) | Gate B (Weights) | Gate C / D | Verdict |
 |---|---|---|---|---|---|
-| 2 | FSQ | ✅ Apache-2.0 (community impl) | ⚠️ N/A — algorithm, not a packaged tokenizer | trivially likely-pass | **different shape; see §FSQ** |
-| 3 | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0 | ⚠️ PARTIAL — claims released, no direct HF URL surfaced | local compute | **PASS pending verification** |
-| 4 | TiTok / 1d-tokenizer | ✅ Apache-2.0 | ⚠️ PARTIAL — "HuggingFace support" claimed, URLs not in README | local compute | **PASS pending verification; schema RFC still trips on integration** |
+| 2 | FSQ | ✅ Apache-2.0 (community impl) | ⚠️ N/A — algorithm, not a packaged tokenizer | quantization primitive likely-expressible; full tokenizer pipeline not validated | **different shape; see §FSQ** |
+| 3 | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0 | ⚠️ PARTIAL — claims released, no direct HF URL surfaced | requires local compute | **provisional / unresolved pending Gate B URL verification + Gate C/D** |
+| 4 | TiTok / 1d-tokenizer | ✅ Apache-2.0 | ⚠️ PARTIAL — "HuggingFace support" claimed, URLs not in README | requires local compute | **provisional / unresolved pending Gate B URL verification + Gate C/D + schema RFC** |
 | 5 | MaskBit | ⚠️ **NUANCED**: code Apache-2.0, weights **"research purposes only"** | ✅ Multiple HF repos | local compute | **gated by weights-license carve-out** |
 
 **The most important finding** is on MaskBit (#333): its README explicitly carves weights out from code, marking the trained checkpoints as "research purposes only." That's a real legal restriction for Wittgenstein's open-source / redistribution posture — Gate A doesn't cleanly PASS for MaskBit even though the code is Apache-2.0. This is the first candidate we've audited with an explicit weights/code license divergence.
@@ -44,7 +44,7 @@ This changes the four-gate audit:
   - Net: licensing is **PASS** at the algorithm-implementation level, but there is no Apache-2.0 "FSQ tokenizer with weights" to drop in.
 - **Gate B (Weights):** **Not applicable.** FSQ has no pretrained weights distinct from whatever surrounding model is trained alongside it.
 - **Gate C (Determinism):** **inferred-likely-pass.** FSQ is structural rounding — no codebook lookup, no learned quantizer state — so deterministic round-trip is essentially free once the surrounding model is deterministic.
-- **Gate D (Node / ONNX / CPU):** **trivially clears.** The quantization step is rounding + clamping; any framework can express it.
+- **Gate D (Node / ONNX / CPU):** **quantization primitive likely-expressible; full pipeline unconfirmed.** Only the quantization step (rounding + clamping) is structurally trivial to express in any framework. Whether a full FSQ-using encoder-decoder pipeline (the surrounding network architecture, attention layers, training-time ops) exports cleanly to ONNX or runs in <30s on CPU is **not validated by this audit** — that depends on the specific encoder-decoder shape chosen, which doesn't exist yet. End-to-end Node/ONNX/CPU feasibility is deferred to whichever architecture is picked under the training-prep follow-up.
 
 ### What "wiring FSQ" actually means for M1B
 
@@ -175,12 +175,26 @@ After this audit pass plus the VQGAN-class audit:
 
 ## Sources verified 2026-05-13
 
-- `https://api.github.com/repos/bytedance/1d-tokenizer/license` — Apache-2.0
-- `https://api.github.com/repos/markweberdev/maskbit/license` — Apache-2.0
-- `https://api.github.com/repos/TencentARC/SEED-Voken/license` — Apache-2.0 (handles redirect from `TencentARC/Open-MAGVIT2`)
-- `https://api.github.com/repos/Nikolai10/FSQ/license` — Apache-2.0
-- `https://api.github.com/repos/duchenzhuang/FSQ-pytorch/license` — 404 (repo no longer exists)
-- READMEs for `bytedance/1d-tokenizer`, `markweberdev/maskbit`, `TencentARC/SEED-Voken`, `Nikolai10/FSQ` — weights / params / ONNX / license sections
+License-blob evidence (immutable — blob SHAs are git object IDs and don't change):
+
+| Repo | License | Blob SHA |
+|---|---|---|
+| `bytedance/1d-tokenizer` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `markweberdev/maskbit` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `TencentARC/SEED-Voken` (redirect target from `TencentARC/Open-MAGVIT2`) | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `Nikolai10/FSQ` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `duchenzhuang/FSQ-pytorch` | 404 at audit time (repo no longer exists) | — |
+
+The four blob SHAs are identical because all four use the OSI-template Apache-2.0 text verbatim.
+
+README content evidence (mutable — these were the README contents at HEAD-of-default-branch on 2026-05-13; a future re-fetch may differ):
+
+- `https://raw.githubusercontent.com/bytedance/1d-tokenizer/main/README.md`
+- `https://raw.githubusercontent.com/markweberdev/maskbit/main/README.md`
+- `https://raw.githubusercontent.com/TencentARC/SEED-Voken/main/README.md`
+- `https://raw.githubusercontent.com/Nikolai10/FSQ/master/README.md`
+
+**The wiring slice must re-verify README claims at fetch time** — specifically the MaskBit "research purposes only" weights wording and any HuggingFace URLs surfaced in linked sub-docs. Per the per-candidate audit-plan template, weights SHA-pinning and license terms are recorded in the manifest at the time of download, not at audit time.
 
 ## Cross-references
 
