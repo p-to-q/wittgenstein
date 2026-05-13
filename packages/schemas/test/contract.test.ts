@@ -459,4 +459,105 @@ describe("@wittgenstein/schemas", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  // Schema-boundary negative cases (#383). The cases above cover known
+  // invariants (artifact evidence, error payload, route literals, cost
+  // contradictions). These cases pin the broader "wrong-type / missing /
+  // out-of-range" surface so a future schema relaxation can't quietly
+  // accept ill-formed input.
+  const okManifestFields = () => ({
+    runId: "run-x",
+    gitSha: "abc123",
+    lockfileHash: "def456",
+    nodeVersion: process.version,
+    wittgensteinVersion: "0.0.0",
+    command: "wittgenstein image",
+    args: ["test"],
+    seed: 7,
+    codec: "image",
+    llmProvider: "anthropic",
+    llmModel: "claude-opus-4-7",
+    llmTokens: { input: 1, output: 2 },
+    costUsd: 0,
+    promptRaw: "test",
+    promptExpanded: "test",
+    llmOutputRaw: "{}",
+    llmOutputParsed: {},
+    artifactPath: "/tmp/out.png",
+    artifactSha256: "sha256",
+    startedAt: new Date().toISOString(),
+    durationMs: 10,
+    ok: true,
+    error: null,
+  });
+
+  it("rejects manifest with wrong-type runId (number)", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), runId: 42 });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with missing runId", () => {
+    const fields: Record<string, unknown> = { ...okManifestFields() };
+    delete fields.runId;
+    const parsed = RunManifestSchema.safeParse(fields);
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with non-integer seed", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), seed: 3.14 });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with negative durationMs", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), durationMs: -5 });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with negative costUsd", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), costUsd: -0.01 });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with negative llmTokens.input", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      llmTokens: { input: -1, output: 2 },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with non-integer llmTokens.output", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      llmTokens: { input: 1, output: 2.5 },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with wrong-type args (string instead of array)", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), args: "prompt" });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with wrong-type ok flag (string)", () => {
+    const parsed = RunManifestSchema.safeParse({ ...okManifestFields(), ok: "true" });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects manifest with invalid cost reason enum value", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      costUsd: null,
+      costUsdReason: "made-up-reason",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts a minimal happy-path manifest (positive control)", () => {
+    // Defends against regression: if the okManifestFields fixture stops
+    // being a valid manifest, the negative tests above lose their
+    // meaning (they'd be rejected for the wrong reason).
+    const parsed = RunManifestSchema.safeParse(okManifestFields());
+    expect(parsed.success).toBe(true);
+  });
 });

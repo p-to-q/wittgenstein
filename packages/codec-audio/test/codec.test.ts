@@ -209,3 +209,97 @@ describe("@wittgenstein/codec-audio", () => {
     expect(warnings).toEqual([]);
   });
 });
+
+// Schema-boundary negative tests (#383). The audio plan parser MUST reject
+// malformed input with a structured error code, never silently succeed.
+// These tests pin that contract so a future schema change doesn't quietly
+// regress to "accept anything."
+describe("parseAudioPlan — negative input cases (Issue #383)", () => {
+  it("returns AUDIO_SCHEMA_PARSE_FAILED for non-JSON input", () => {
+    const result = parseAudioPlan("not-json-at-all");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_PARSE_FAILED");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for an unknown route", () => {
+    const result = parseAudioPlan(JSON.stringify({ route: "telepathy" }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for wrong-type route", () => {
+    const result = parseAudioPlan(JSON.stringify({ route: 42 }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for an unknown ambient category", () => {
+    const result = parseAudioPlan(
+      JSON.stringify({ route: "speech", ambient: { category: "subway", level: 0.5 } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for ambient level out of range", () => {
+    const result = parseAudioPlan(
+      JSON.stringify({ route: "speech", ambient: { category: "rain", level: 1.7 } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for negative ambient level", () => {
+    const result = parseAudioPlan(
+      JSON.stringify({ route: "speech", ambient: { category: "rain", level: -0.1 } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for negative bpm in music", () => {
+    const result = parseAudioPlan(JSON.stringify({ route: "music", music: { bpm: -10 } }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for negative timeline atSec", () => {
+    const result = parseAudioPlan(
+      JSON.stringify({ route: "speech", timeline: [{ atSec: -1, event: "start" }] }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns AUDIO_SCHEMA_INVALID for timeline missing event field", () => {
+    const result = parseAudioPlan(JSON.stringify({ route: "speech", timeline: [{ atSec: 0 }] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("AUDIO_SCHEMA_INVALID");
+    }
+  });
+
+  it("accepts an empty object (all fields default)", () => {
+    // Positive control: the schema's defaults make `{}` valid. If a future
+    // change makes any field required-without-default, this test fails and
+    // forces an explicit decision.
+    const result = parseAudioPlan("{}");
+    expect(result.ok).toBe(true);
+  });
+});

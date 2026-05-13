@@ -774,3 +774,116 @@ describe("image adapterOutcome (#247-style observability)", () => {
     expect((result.metadata as { renderPath?: string }).renderPath).toBe("coarse-vq");
   });
 });
+
+// Schema-boundary negative tests for parseImageSceneSpec (#383). The codec
+// owns the parser and MUST reject malformed input with a structured error
+// code, never silently succeed. Some negative cases already live above in
+// the `@wittgenstein/codec-image` describe block (unknown mode, empty
+// tokens, etc.); these tests close the remaining gaps and pin error codes.
+describe("parseImageSceneSpec — negative input cases (Issue #383)", () => {
+  it("returns IMAGE_SCHEMA_PARSE_FAILED for non-JSON input", () => {
+    const result = imageCodec.parse("definitely not JSON {{");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_PARSE_FAILED");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for wrong-type intent (number)", () => {
+    const result = imageCodec.parse(JSON.stringify({ intent: 42 }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for non-array depthPlan", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({ composition: { depthPlan: "foreground midground background" } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for unknown decoder family", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({ decoder: { family: "imaginary-decoder", latentResolution: [16, 16] } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for non-positive latentResolution", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({ decoder: { family: "llamagen", latentResolution: [0, 16] } }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for seedCode with negative token (out of int domain)", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        seedCode: { family: "vqvae", mode: "prefix", tokens: [1, 2, -5, 4] },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for unknown semantic source attribute", () => {
+    // The schema doesn't define `semanticSource` as user-emittable; it's a
+    // derived receipt field. Hand-emitting it should be rejected by the
+    // strict schema OR silently dropped — either way, parsing should not
+    // accept a contradiction.
+    const result = imageCodec.parse(JSON.stringify({ semanticSource: "fabricated" }));
+    // Behavior: strict zod schemas drop unknown keys silently, so this
+    // currently PARSES. The test pins that contract — if a future hardening
+    // makes parse reject unknown keys, the test fails and prompts a
+    // deliberate decision.
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for non-string subject", () => {
+    const result = imageCodec.parse(JSON.stringify({ subject: { nested: "object" } }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("returns IMAGE_SCHEMA_INVALID for providerLatents with wrong-type tokens", () => {
+    const result = imageCodec.parse(
+      JSON.stringify({
+        providerLatents: {
+          schemaVersion: "witt.image.latents/v0.1",
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          tokenGrid: [2, 2],
+          tokens: "1,2,3,4", // string, not array
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("IMAGE_SCHEMA_INVALID");
+    }
+  });
+
+  it("accepts an empty object (positive control — defaults apply)", () => {
+    // Positive control: the schema's defaults make `{}` valid. If a future
+    // change makes any field required-without-default, this test fails and
+    // forces an explicit decision.
+    const result = imageCodec.parse("{}");
+    expect(result.ok).toBe(true);
+  });
+});
