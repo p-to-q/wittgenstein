@@ -53,7 +53,10 @@ describe("codec-image golden parity (Issue #347)", () => {
           sidecar: codecV2.createRunSidecar(),
           services: { dryRun: true, telemetry: { writeText: async () => {} } },
           fork: () => {
-            throw new Error("unused");
+            throw Object.assign(
+              new Error("Nested fork is not exercised by the golden test."),
+              { code: "UNEXPECTED_NESTED_FORK" as const },
+            );
           },
         }),
       },
