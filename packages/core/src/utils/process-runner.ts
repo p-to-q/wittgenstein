@@ -1,12 +1,8 @@
-// Generic subprocess runner with timeout + stdout/stderr buffering. Extracted
-// from `hyperframes-wrapper.ts` per #327 / #288 so the timeout boundary, the
-// output buffering, and the structured-error extraction are no longer tangled
-// with HyperFrames-specific code.
-//
-// Kept inside `packages/codec-video/src/` for now; if a second codec needs the
-// same shape (likely once audio's Kokoro subprocess wiring is touched), this
-// can lift to `packages/core/src/utils/` as a follow-up — flagged but not
-// done here to keep the refactor surgical.
+// Generic subprocess runner with timeout + stdout/stderr buffering. Lifted
+// from `packages/codec-video/src/process-runner.ts` per Issue #356 so future
+// codec subprocess work (e.g. audio's Kokoro path) can reuse the timeout
+// boundary, bounded output capture, and structured-error extraction without
+// re-implementing them. Original extraction context: #327 / #288.
 
 import { spawn } from "node:child_process";
 

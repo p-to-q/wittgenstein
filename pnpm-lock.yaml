@@ -346,6 +346,9 @@ importers:
 
   packages/codec-video:
     dependencies:
+      '@wittgenstein/core':
+        specifier: workspace:*
+        version: link:../core
       '@wittgenstein/schemas':
         specifier: workspace:*
         version: link:../schemas

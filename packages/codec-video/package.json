@@ -15,6 +15,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@wittgenstein/core": "workspace:*",
     "@wittgenstein/schemas": "workspace:*",
     "zod": "^3.23.8"
   }
