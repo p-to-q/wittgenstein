@@ -15,14 +15,42 @@
  */
 
 import { execFile } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { resolve, dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
+const npmCacheDir = mkdtempSync(join(tmpdir(), "wittgenstein-npm-pack-cache-"));
+let npmCacheRemoved = false;
+
+function removeNpmCacheDir() {
+  if (npmCacheRemoved) return;
+  npmCacheRemoved = true;
+  try {
+    rmSync(npmCacheDir, { recursive: true, force: true });
+  } catch {
+    // Best-effort cleanup; a temp-cache removal failure should not mask the guard result.
+  }
+}
+
+process.once("exit", removeNpmCacheDir);
+process.once("SIGINT", () => {
+  removeNpmCacheDir();
+  process.exit(130);
+});
+process.once("SIGTERM", () => {
+  removeNpmCacheDir();
+  process.exit(143);
+});
+process.once("uncaughtException", (error) => {
+  removeNpmCacheDir();
+  throw error;
+});
 
 /** Per-file patterns that MUST NOT appear in any published tarball. */
 const FORBIDDEN_PATTERNS = [
@@ -62,7 +90,15 @@ async function tarballFiles(packageDir) {
   const { stdout } = await execFileAsync(
     "npm",
     ["pack", "--dry-run", "--json", "--loglevel=silent"],
-    { cwd: packageDir, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+    {
+      cwd: packageDir,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        npm_config_cache: npmCacheDir,
+      },
+      maxBuffer: 32 * 1024 * 1024,
+    },
   );
   // `npm pack` runs the package's `prepack` script and that script's stdout
   // (e.g. "> @wittgenstein/cli@0.1.0 build" then tsc output) bleeds into the
@@ -78,24 +114,50 @@ async function tarballFiles(packageDir) {
   return parsed[0].files ?? [];
 }
 
+async function buildPackageClosure(packageName) {
+  // `npm pack` runs each package's prepack script from a clean CI workspace.
+  // Build workspace dependencies first so package-reference d.ts files exist.
+  await execFileAsync("pnpm", ["--filter", `${packageName}...`, "build"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+}
+
 async function main() {
   const packages = await findPublishablePackages();
   if (packages.length === 0) {
-    process.stdout.write(
-      "ℹ no publishable packages (every packages/*/package.json is private).\n",
-    );
+    process.stdout.write("ℹ no publishable packages (every packages/*/package.json is private).\n");
     process.exit(0);
   }
 
   const leaks = [];
+  const packFailures = [];
   for (const pkg of packages) {
     let files;
     try {
+      await buildPackageClosure(pkg.name);
+    } catch (error) {
+      packFailures.push({
+        package: pkg.name,
+        phase: "workspace build",
+        error: error?.message ?? String(error),
+        stdout: error?.stdout ?? "",
+        stderr: error?.stderr ?? "",
+      });
+      continue;
+    }
+
+    try {
       files = await tarballFiles(pkg.dir);
     } catch (error) {
-      process.stderr.write(
-        `! could not run npm pack for ${pkg.name}: ${error?.message ?? String(error)}\n`,
-      );
+      packFailures.push({
+        package: pkg.name,
+        phase: "npm pack dry-run",
+        error: error?.message ?? String(error),
+        stdout: error?.stdout ?? "",
+        stderr: error?.stderr ?? "",
+      });
       continue;
     }
 
@@ -123,6 +185,24 @@ async function main() {
     }
   }
 
+  if (packFailures.length > 0) {
+    process.stderr.write(`✗ ${packFailures.length} publishability failure(s):\n\n`);
+    for (const failure of packFailures) {
+      process.stderr.write(`  [${failure.package}] ${failure.phase}\n    → ${failure.error}\n`);
+      if (failure.stderr) {
+        process.stderr.write(`    stderr:\n${indent(failure.stderr.slice(0, 2000), "      ")}\n`);
+      }
+      if (failure.stdout) {
+        process.stderr.write(`    stdout:\n${indent(failure.stdout.slice(0, 2000), "      ")}\n`);
+      }
+    }
+    process.stderr.write(
+      "\nThe publish-surface guard must inspect every publishable tarball. A failed\n" +
+        "npm pack dry-run is a guard failure, not a skipped package.\n",
+    );
+    process.exit(1);
+  }
+
   if (leaks.length === 0) {
     process.stdout.write(
       `✓ ${packages.length} publishable package(s) clean — no research/, bench/, examples/, large binaries.\n`,
@@ -140,6 +220,14 @@ async function main() {
       "  research/training/README.md\n",
   );
   process.exit(1);
+}
+
+function indent(text, prefix) {
+  return text
+    .trimEnd()
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
 }
 
 main().catch((error) => {
