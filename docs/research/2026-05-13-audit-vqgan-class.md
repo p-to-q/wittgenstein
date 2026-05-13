@@ -43,11 +43,13 @@ The LlamaGen README states:
 
 > "The majority of this project is licensed under MIT License. Portions of the project are available under separate license of referred projects."
 
-There is **no explicit carve-out** that distinguishes weights from code, so MIT covers both by default. The `taming-transformers` README similarly does not separately license weights. The "portions of the project are available under separate license of referred projects" caveat in LlamaGen typically means: the *training data* may carry its own terms, which does not affect our use of the trained VQ tokenizer at inference. The wiring slice should re-verify this at fetch time as part of the actual weights download.
+There is **no explicit carve-out** that distinguishes weights from code in either README; MIT appears to cover both at the project level. The `taming-transformers` README similarly does not separately license its weights. The "portions of the project are available under separate license of referred projects" caveat in LlamaGen is **unverified until checked at fetch time** and is subject to artifact-by-artifact license / terms verification (notably for the VQ tokenizer file from `huggingface.co/FoundationVision/LlamaGen` and any `taming-transformers` weight bundle mirrored from k00.fr / heibox.uni-heidelberg.de / ommer-lab.com). This audit does **not** establish legal effect for our use of those specific artifacts; it only establishes that the project-level READMEs do not carve out weight-specific restrictions.
 
-### Verdict — Gate A: **PASS** for both code and weights
+**Action item for the wiring slice:** during the actual weights download, re-read the model card / accompanying terms text for the specific revision pulled, record the verified terms + SHA-256 in the manifest, and surface any artifact-level term that materially differs from the project-level MIT framing. Do not assume the project-level claim extends to a specific checkpoint without confirming.
 
-Both `taming-transformers` (the VQGAN lineage) and `LlamaGen` (the codec's named-default decoder family) carry MIT licenses with no weights carve-out. The "Apache / MIT / BSD at the actual LICENSE file" gate criterion is satisfied.
+### Verdict — Gate A: **PASS** at the project / README level
+
+Both `taming-transformers` (the VQGAN lineage) and `LlamaGen` (the codec's named-default decoder family) carry MIT `LICENSE` files at the repo root with permissive terms. The "Apache / MIT / BSD at the actual LICENSE file" gate criterion is satisfied at the project level. Artifact-level terms remain to be re-verified at fetch time per the action item above.
 
 ## Gate B — Weights availability + SHA-pinning → **PASS** (LlamaGen) / **PARTIAL** (taming-transformers upstream)
 
