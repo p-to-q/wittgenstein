@@ -29,6 +29,11 @@ module.exports = {
       { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
     ],
     "@typescript-eslint/consistent-type-imports": "warn",
+    // Disabled because we lean on TypeScript strict mode + vitest coverage to
+    // catch misused-promise patterns. The rule produces too many false positives
+    // on intentional async callback shapes (vitest beforeEach, promise-returning
+    // event handlers) to be useful as a hard gate. Re-enable selectively via
+    // inline `eslint-disable-next-line` if a specific path is high-risk.
     "@typescript-eslint/no-misused-promises": "off",
     "@typescript-eslint/naming-convention": [
       "warn",
