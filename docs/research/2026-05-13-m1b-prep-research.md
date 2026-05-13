@@ -174,7 +174,7 @@ For M1B's first cut:
 1. Define the Visual Seed Code as the LlamaGen 16×16 token grid downsampled by k=2 (so 8×8=64 seed tokens) or k=4 (4×4=16 seed tokens).
 2. The L4 adapter is a fixed PixelShuffle-style replicate to 16×16 (no learnable weights). The decoder smooths spatial discontinuities.
 3. Measure rFID, PSNR, LPIPS against the ground-truth-tokenized latent. If quality is unacceptable at k=4, fall back to k=2; if still unacceptable, promote to MaskGIT-style fill-in (path B).
-4. The learned MaskGIT adapter, when needed, trains on (seed, full-grid) pairs extracted from ImageNet via the LlamaGen tokenizer. Training set is finite (1.28M ImageNet images → 1.28M (seed, grid) pairs), bridge net is small (e.g., 6-layer transformer, 256-dim), training fits on a single GPU-day.
+4. The learned MaskGIT adapter, when needed, trains on (seed, full-grid) pairs extracted from ImageNet via the LlamaGen tokenizer. Training set is finite (1.28M ImageNet images → 1.28M (seed, grid) pairs), bridge net is small (e.g., 6-layer transformer, 256-dim), and training is estimated to fit on a single GPU-day pending measurement in the adapter sweep.
 
 The "start deterministic" call is load-bearing because (i) it ships M1B with zero training; (ii) it makes the per-platform determinism trivial (no sampling); (iii) it produces a hard empirical baseline against which any learned adapter must justify itself.
 
