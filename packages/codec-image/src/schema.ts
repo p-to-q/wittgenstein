@@ -3,6 +3,7 @@ import type { ImageRequest, Result } from "@wittgenstein/schemas";
 import { ImageRequestSchema } from "@wittgenstein/schemas";
 
 export const DecoderFamilySchema = z.enum(["llamagen", "seed", "dvae"]);
+export type DecoderFamily = z.infer<typeof DecoderFamilySchema>;
 export const ImageSceneSpecVersionSchema = z.literal("witt.image.spec/v0.1");
 export const ImageSeedCodeVersionSchema = z.literal("witt.image.seed/v0.1");
 export const ImageCoarseVqVersionSchema = z.literal("witt.image.coarse-vq/v0.1");
