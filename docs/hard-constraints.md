@@ -71,9 +71,10 @@ it needs an RFC + ADR before it lands — not a PR comment.
   permissive (Apache-2.0 / MIT / BSD-style) license. Research-only
   weights disqualify a candidate from the canonical path, even if its
   code is permissive. Research and benchmarking use is opt-in via the
-  `--allow-research-weights` CLI flag; any such run records
-  `license.weightsRestriction: "research-only"` on the manifest.
-  Receipts must be honest about redistribution constraints.
+  `--allow-research-weights` CLI flag (enforcement tracked at
+  [#376](https://github.com/p-to-q/wittgenstein/issues/376)); once that
+  lands, any such run must record `license.weightsRestriction: "research-only"`
+  on the manifest. Receipts must be honest about redistribution constraints.
 
 ## Out of scope (v0.2)
 
