@@ -50,7 +50,7 @@ The audit avoids speculative refactors: each refactor seam is one named extracti
 
 **Refactor seam:** extract the procedural landscape renderer (`buildSceneProfile`, `renderSky`, `renderTerrain`, palette switching, magic-salt constants) into `packages/codec-image/src/pipeline/landscape-renderer.ts`. The main decoder file then becomes a thin field-→-pixel bridge that imports the landscape renderer.
 
-**Why strong:** procedural rendering with 7+ magic-number constants, zero cohesion between noise-field operations and pixel-render loop, and the placeholder decoder seam is currently doing real rendering work that should not live alongside the eventual frozen-decoder bridge.
+**Why strong:** procedural rendering with 7+ magic-number constants, zero cohesion between noise-field operations and pixel-render loop, and the placeholder decoder seam is currently doing real rendering work that should not live alongside the proposed frozen-decoder bridge direction (the bridge itself is ratified doctrine via ADR-0005 / ADR-0008 but its implementation is unwired today — `loadLlamagenDecoderBridge` throws `NotImplementedError`; M1B wiring is gated on the per-candidate audits at #283). The extraction is worth doing now precisely so the placeholder/landscape work does not accumulate further coupling with the eventual bridge wiring.
 
 ### 2. `packages/codec-sensor/src/render.ts` (447 lines) — verdict: **strong**
 
