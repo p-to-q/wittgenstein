@@ -23,6 +23,7 @@ Architecture Decision Records capture decisions that should survive chat history
 - 0017 orchestration workflow contract — ratifies Brief K §Verdict 1; adds `WORKFLOW.md` at the repo root as the Symphony-shaped agent-dispatch contract; runtime stays unspecified at v0.3
 - 0018 visual seed code image route — ratifies the image-route correction from `scene-spec JSON as terminal image IR` toward `Visual Seed Token + optional Semantic IR + seed expansion + frozen decoder`; keeps one image path and decoder-not-generator doctrine intact while promoting `Visual Seed Token` to first-class status
 - 0019 queue label prefixes — allows `priority/*`, `size/*`, and `stage/*` queue-management labels on top of the semantic label taxonomy
+- 0020 code/weights license divergence policy — canonical M-phase path requires permissive code AND weights; research-only weights are opt-in via `--allow-research-weights` with manifest disclosure (ratifies the 2026-05-13 governance note opened via #353)
 
 ## Lanes
 

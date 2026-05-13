@@ -64,6 +64,17 @@ it needs an RFC + ADR before it lands — not a PR comment.
   Hacker pass (`docs/tracks.md`).
 - **No second image path, new operator, or new modality without an RFC.**
 
+## Licensing
+
+- **Code/weights license divergence is conditionally permitted** (ADR-0020).
+  The canonical M-phase path requires **both** code AND weights under a
+  permissive (Apache-2.0 / MIT / BSD-style) license. Research-only
+  weights disqualify a candidate from the canonical path, even if its
+  code is permissive. Research and benchmarking use is opt-in via the
+  `--allow-research-weights` CLI flag; any such run records
+  `license.weightsRestriction: "research-only"` on the manifest.
+  Receipts must be honest about redistribution constraints.
+
 ## Out of scope (v0.2)
 
 - Trained model weights of any kind we author ourselves (frozen
