@@ -6,19 +6,110 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0-alpha.2] — 2026-05-13 — campaign sweep, audit ratification, AI-shape refactors
+
+This prerelease packages the trust-surface advances from the May-2026
+maintainer-onboarding campaign: per-candidate M1B audits, AI-shape audit
+follow-ups, operating-doc drift correction, and three module-extraction
+refactors. The image trained projector (M1B) remains the named blocker; see
+[#283](https://github.com/p-to-q/wittgenstein/issues/283) and [#329](https://github.com/p-to-q/wittgenstein/issues/329).
+
 ### Added
 
-- Added a committed CodeRabbit repository configuration (`.coderabbit.yaml`) so PR
+- Per-candidate radar audit protocol ratified (`docs/research/2026-05-08-radar-audit-plan.md`,
+  via PR #322). Decomposed `#283` into five per-candidate sub-issues
+  (#329 VQGAN-class, #330 FSQ, #331 OpenMAGVIT2, #332 TiTok, #333 MaskBit)
+  plus two implementation gates (#334 Gate C determinism, #335 Gate D ONNX/CPU).
+- VQGAN-class per-candidate audit Gates A + B PASS via external inspection
+  (PR #336). LlamaGen MIT-licensed at code + project level; 70-72M VQ tokenizer
+  HF-hosted at `FoundationVision/LlamaGen`; SHA-pinnable. Gates C / D require
+  local PyTorch + LlamaGen weights download and are filed as #334 / #335.
+- Parallel per-candidate audits for Priorities 2-5 (PR #340) covering FSQ,
+  OpenMAGVIT2 / SEED-Voken, TiTok / 1d-tokenizer, MaskBit. Surfaced **MaskBit's
+  weights "research purposes only" carve-out** as the first weights/code license
+  divergence in the radar. Surfaced FSQ as a different-shape candidate
+  (quantization primitive, not packaged tokenizer).
+- AI-shape audit deliverable (`docs/research/2026-05-13-ai-shape-audit.md`,
+  via PR #328) with three filed refactor follow-ups (#325 / #326 / #327, all
+  landed this release).
+- Sensor `patchGrammar` measurement plan revised (PR #321): UCI HAR thermal
+  claim removed, NOAA LCD pinned as the sole temperature source, tone made
+  repository-neutral. Pre-registered sample-size escalation rule added.
+- Operating-doc drift correction across AGENTS.md / PROMPT.md (PR #323) and
+  README first-screen with compact modality map (PR #324). README architecture
+  wording correction (PR #312). All five operating-doc surfaces now agree on
+  the Visual Seed Code framing.
+- M1B training-prep research note (`docs/research/2026-05-13-m1b-training-prep.md`,
+  via PR #341) covering engineering practices, parameter starting points, and
+  a concrete code layout for the eventual M1B wiring. **No training code yet**
+  per the maintainer's "research first" directive.
+- alpha.2 cut decision deliverable (`docs/research/2026-05-13-alpha2-cut-decision.md`,
+  via PR #341) with rationale, release-notes draft, and a four-step cut
+  procedure.
+
+### Changed
+
+- **`packages/codec-image/src/pipeline/decoder.ts` shrinks 602 → 309 lines**
+  (PR #337). Extracted `pipeline/landscape-renderer.ts` (procedural landscape
+  rendering + `FIELD_SALTS` named constants) and `pipeline/internal-math.ts`
+  (shared math helpers). `decodeLatentsToRaster` public API and pixel output
+  preserved byte-for-byte. Refactor seam unblocks future M1B wiring without
+  unentangling placeholder rendering.
+- **`packages/codec-sensor/src/render.ts` shrinks 447 → 206 lines** (PR #338).
+  Extracted `operators/` directory (one file per `SensorOperator` type with
+  `dispatchOperator` registry) and `loupe-renderer.ts` (3-level fallback chain
+  behind a single API). `expandSensorAlgorithm` and all 6 sensor goldens
+  preserve byte-for-byte (the patchGrammar recursion-seam invariant holds).
+- **`packages/codec-video/src/hyperframes-wrapper.ts` shrinks 409 → 167 lines**
+  (PR #339). Extracted `compositions/{svg-slide,scene-card,shared}.ts` and
+  `process-runner.ts` (typed subprocess runner with bounded stdout/stderr
+  capture, errorPrefix + timeoutHint). `renderWithHyperFrames` public API
+  preserved. HTML output semantically identical; tests use `toContain` checks.
+- README first-screen rewritten with compact modality map (PR #324) per #256.
+- AGENTS.md and PROMPT.md glossary tables aligned with ADR-0011 + ADR-0018
+  framing (PR #323). M-phase status updated across both files: M0 / M1A /
+  M2 audio / M3 sensor landed; M1B = current v0.3 mainline blocker.
+- `docs/codecs/sensor.md` and `docs/research/2026-05-08-sensor-algorithmic-research.md`
+  tightened to keep PR #295 references provisional (PR #312).
+
+### Fixed
+
+- `process-runner` stdout/stderr capture bounded at 32 KB per stream (post-PR-#339
+  CodeRabbit catch). Pre-refactor `spawnProcess` accumulated unbounded strings;
+  the bound stays well above what error messages consume.
+- Removed an unused `ProcessRunnerError` interface (post-PR-#339 CodeRabbit
+  cleanup; `runProcess` rejects with plain `Error` matching the pre-refactor
+  pattern).
+- Issue queue triage: closed #109 superseded by #283 radar work; closed #150
+  early after WORKFLOW.md kill-criterion signal 3 met; closed #287 with audit
+  comment; closed #305 with continuation map; closed #308 with reply sweep.
+  Status comments on #70, #190 (with `status/needs-triage` → `status/parked`
+  + `horizon-spike` label updates), #304, #306, #307, #309, #310.
+
+### Known blockers (current mainline)
+
+- **M1B (image trained projector) is the named blocker** for v0.3.0. Wiring
+  `loadLlamagenDecoderBridge` at `packages/codec-image/src/decoders/llamagen.ts`
+  requires VQGAN-class Gate C (determinism; #334) + Gate D (Node/ONNX/CPU;
+  #335) to clear. Both gates need local PyTorch + the LlamaGen VQ tokenizer
+  downloaded. Until then the bridge remains a `NotImplementedError` stub.
+- Sensor `patchGrammar` promotion: gated on #284 measurement (plan ratified
+  by #321; measurement run pending local Python tooling).
+- Video M4: `codec-video` remains a stub; #282 (HyperFrames distillation)
+  and #265 (HF receipts) carry that forward.
+
+### Repo infra (carried from earlier `[Unreleased]`)
+
+- Committed CodeRabbit repository configuration (`.coderabbit.yaml`) so PR
   review behavior is versioned in-repo instead of living only in a dashboard.
-- Added AutoAssign configuration so new PRs assign the counterpart maintainer
+- AutoAssign configuration so new PRs assign the counterpart maintainer
   (`Jah-yee -> Moapacha`, `Moapacha -> Jah-yee`) without duplicating
   CODEOWNERS-based reviewer routing.
-- Added a narrow Markdown `reviewdog` workflow plus `.markdownlint-cli2.yaml` so docs
+- Narrow Markdown `reviewdog` workflow plus `.markdownlint-cli2.yaml` so docs
   get lightweight PR annotations without turning legacy line-length and inline-HTML
   debt into a merge blocker.
-- Expanded `reviewdog` to cover ESLint review comments and Prettier suggestion comments
-  on changed files, keeping the checks advisory and PR-local instead of turning them into
-  hard CI gates.
+- Expanded `reviewdog` to cover ESLint review comments and Prettier suggestion
+  comments on changed files; advisory and PR-local, not hard CI gates.
 
 ## [0.3.0-alpha.1] — 2026-05-06 — M2 audio sweep and reproducibility gates
 

@@ -68,13 +68,15 @@ The radar's recommended ranking (top 5: VQGAN-class, FSQ, OpenMAGVIT2/LFQ, TiTok
 - Does NOT close M1B prematurely — `quality.partial: { reason: "adapter-stub" }` remains the manifest invariant until a real trained projector ships.
 - Does NOT reopen ADR-0007 (Path C) — the framing here is "frozen decoder + LLM-as-prior-over-discrete-codes," not "fused multimodal retrain."
 
-### Next maintainer-facing question
+### Next maintainer-facing question — RESOLVED 2026-05-13
 
-**v0.3.0-alpha.2 cut timing.** With M1A / M2 / M3 closed and M1B blocked on #283 audits, the alpha.2 conversation is gated on the @Jah-yee disposition (per #246 / #248). Either:
+**v0.3.0-alpha.2 cut timing.** With M1A / M2 / M3 closed and M1B blocked on #283 audits, the alpha.2 conversation was gated on the @Jah-yee disposition (per #246 / #248). Either:
 - Cut alpha.2 now, naming the blocker explicitly in release notes, OR
 - Hold alpha.2 until #283 produces at least one candidate clearance, then cut.
 
-Both are defensible. Maintainer call.
+**Decision (recorded in [`docs/research/2026-05-13-alpha2-cut-decision.md`](../../research/2026-05-13-alpha2-cut-decision.md)): cut alpha.2 now**, with M1B as the named blocker in release notes. Rationale: per-candidate audits ([PR #336](https://github.com/p-to-q/wittgenstein/pull/336) VQGAN-class Gates A+B, [PR #340](https://github.com/p-to-q/wittgenstein/pull/340) parallel for Priorities 2-5) and AI-shape refactors ([PR #337](https://github.com/p-to-q/wittgenstein/pull/337) / [#338](https://github.com/p-to-q/wittgenstein/pull/338) / [#339](https://github.com/p-to-q/wittgenstein/pull/339)) materially advanced the trust surface; cutting crystallizes that work. Holding waits on an external dependency (Gates C+D need local PyTorch + LlamaGen weights) without a timeline.
+
+**Next maintainer-facing question — successor.** alpha.3 cut on first VQGAN-class candidate clearance (Gates C + D close via [#334](https://github.com/p-to-q/wittgenstein/issues/334) / [#335](https://github.com/p-to-q/wittgenstein/issues/335)). M1B wiring + first golden image lands in that release window.
 
 ---
 

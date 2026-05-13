@@ -92,7 +92,7 @@ This is the cleanest version of the thesis:
   - `placeholderSeedExpander` (PR #243) — deterministic 1D modulo fill that preserves the prior in-line behavior; the seam was extracted so future trained projectors drop in by changing one import.
   - `tileMosaicSeedExpander` (PR #252) — a second deterministic implementation that exercises the seam as an ABI peer rather than a refactor; uses a 2D coarse mosaic instead of linear modulo. Both are placeholder-class — neither makes a decoder-quality claim.
 - `pipeline/decoder.ts`
-  Calls a frozen pretrained decoder bridge.
+  Orchestrates field construction + placeholder pixel synthesis + PNG encoding. Per [PR #337](https://github.com/p-to-q/wittgenstein/pull/337) the procedural landscape rendering was extracted to `pipeline/landscape-renderer.ts` (with named `FIELD_SALTS` constants) and shared math helpers moved to `pipeline/internal-math.ts`; `decoder.ts` retains the orchestrator + field operations + PNG encoding. The `loadLlamagenDecoderBridge` wiring under [`decoders/llamagen.ts`](../../packages/codec-image/src/decoders/llamagen.ts) is what eventually replaces the placeholder path here; M1B is gated on the per-candidate audits at [#283](https://github.com/p-to-q/wittgenstein/issues/283).
 - `pipeline/package.ts`
   Packages the decoded raster bytes into the final PNG artifact.
 

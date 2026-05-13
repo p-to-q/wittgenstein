@@ -46,7 +46,7 @@ Image, audio, and sensor produce real artifacts today; video is post-v0.3 work. 
 The image codec's split between **Visual Seed Code** (primary, decoder-facing) and **`Semantic IR`** (support: concept activation, user inspection, optional conditioning) is a doctrine correction ratified by [ADR-0018](docs/adrs/0018-hybrid-image-code-and-visual-seed-token.md). `Semantic IR` is important support — pure seed output can be opaque, brittle, or hard to diagnose — but it is not the main image research object.
 
 > **🧪 Project status — early-stage, doctrine-locked, v0.3 prerelease.**
-> Wittgenstein is a prerelease (`v0.3.0-alpha.1`) with a working Python
+> Wittgenstein is a prerelease (`v0.3.0-alpha.2`) with a working Python
 > surface, a production-shaped TypeScript harness, and a few intentionally
 > unfinished surfaces clearly flagged with ⚠️ or 🔴 in
 > [`docs/implementation-status.md`](docs/implementation-status.md). The v0.2
