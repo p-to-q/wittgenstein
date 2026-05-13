@@ -37,6 +37,9 @@ Canva = "Canva"
 # M1B-prep / training-side technical terms
 convnet = "convnet"
 PNGs = "PNGs"
+# typos extracts "PN" as a sub-token from "PNGs" and suggests "ON";
+# allowlist the extracted form too.
+PN = "PN"
 FSQ = "FSQ"
 LoRA = "LoRA"
 SafeTensors = "SafeTensors"
