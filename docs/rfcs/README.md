@@ -20,6 +20,7 @@ A brief feeds one or more RFCs. An RFC, once accepted, is ratified by an ADR. Co
 | 0004 | [Site reconciliation actions](0004-site-reconciliation.md) | 🟢 Accepted   | — (site-ops)    |
 | 0005 | [Naming lock v2](0005-naming-lock-v2.md)                   | 🟢 Accepted   | ADR-0011        |
 | 0006 | [Visual Seed Code Image Route](0006-hybrid-image-code.md)  | 🟢 Accepted   | ADR-0018        |
+| 0007 | [Image seed-code shape discriminator (1D \| 2D)](0007-image-seedcode-shape-discriminator.md) | 🟡 Draft — pre-emptive | — (pending; activates on first 1D candidate clearance) |
 
 ## Status legend
 
