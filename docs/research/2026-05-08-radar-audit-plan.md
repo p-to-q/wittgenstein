@@ -101,7 +101,7 @@ The 11 candidates from #272 with priorities derived from the radar's recommended
 | C. Determinism | `unknown — verify` | Run decode-twice on the same VQ codes; expect byte-identical PNG. Run encode-twice on same image; expect identical token grid. |
 | D. Node/ONNX | `unknown — verify` | Look for community ONNX exports. If none, attempt a minimal export of just the decoder half (encoder needed only for offline tooling). |
 
-**Prerequisite shortcut.** LlamaGen-class is the *existing* default `decoder.family`; if its license clears, much of the work below cascades because the codec already integrates the family.
+**Prerequisite shortcut.** LlamaGen-class is the *named* default in the codec's `DecoderFamilySchema` today (`packages/codec-image/src/schema.ts` — `DecoderFamilySchema.default("llamagen")`), but the bridge itself is currently a stub (`packages/codec-image/src/decoders/llamagen.ts` → `NotImplementedError`). If LlamaGen-class license clears, wiring the bridge becomes the natural M1B implementation work; the schema slot is already shaped for it, which is the actual cascade.
 
 **Falsifies-recommendation if.** License is anything other than Apache/MIT/BSD on EITHER taming-transformers OR LlamaGen, **or** a CPU decoder path won't run in <30s for a 256² image with reasonable RAM (<4GB).
 
@@ -116,7 +116,7 @@ The 11 candidates from #272 with priorities derived from the radar's recommended
 
 **Falsifies-recommendation if.** License is research-only / non-commercial. The simplicity advantage means nothing if we can't redistribute.
 
-**The "VQ-VAE Made Simple" claim is real.** FSQ removes the codebook + commitment-loss complexity of VQ. If license clears, FSQ becomes the lowest-implementation-cost option in the radar.
+**Hypothesis to verify.** The "VQ-VAE Made Simple" framing in the FSQ paper claims that removing the codebook + commitment-loss complexity of VQ produces a structurally simpler tokenizer. The audit's Gate C (determinism) is the natural verification: if FSQ's structural quantization holds up empirically, FSQ becomes the lowest-implementation-cost option in the radar conditional on Gate A (license) clearing.
 
 ### Priority 3 — OpenMAGVIT2 (LFQ-bearing)
 
