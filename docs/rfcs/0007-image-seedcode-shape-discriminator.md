@@ -110,7 +110,7 @@ Phase 1 (this RFC ratified): land the schema discriminator, the receipt row, and
 
 Phase 2 (first 1D candidate clears all four gates): implement `expandToSequence` for that candidate, mark the candidate as `decoder-shape: "1D"` in its registration, and add a 1D round-trip golden test alongside the existing 2D one.
 
-There is no deprecation window for 2D — the discriminator is additive. The manifest schema bump (v0.1 → v0.2) gates only on the receipt field's presence.
+There is no deprecation window for 2D — the discriminator is additive. The v0.1 → v0.2 rollout is gated on the full shape-aware compatibility surface: receipt field presence, the `shape` discriminator, and the per-shape token-count invariants (`tokens.length === w * h` for 2D, `=== sequenceLength` for 1D). Implementers must handle both the legacy 2D path and the new shape-discriminated cases during migration.
 
 ## Red team
 
