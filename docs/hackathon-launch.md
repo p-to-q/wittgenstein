@@ -1,7 +1,7 @@
 # Hackathon Launch
 
 **Status:** archived historical receipt
-**Superseded by:** `README.md`, `ROADMAP.md`,
+**Superseded by:** `README.md`, `docs/roadmap.md`,
 `docs/exec-plans/active/codec-v2-port.md`, and `docs/research/program.md`
 **Usage rule:** kept for provenance from the original launch phase; do not use this as
 active pre-M2 execution guidance.
