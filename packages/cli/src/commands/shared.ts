@@ -8,6 +8,7 @@ export interface CommandRuntimeOptions {
   seed?: string;
   dryRun?: boolean;
   config?: string;
+  allowResearchWeights?: boolean;
 }
 
 export interface CommandInspectionContext {

@@ -6,6 +6,7 @@ interface ImageCommandOptions extends CommandRuntimeOptions {
   showImageCode?: boolean;
   showSemantic?: boolean;
   showSeedSummary?: boolean;
+  allowResearchWeights?: boolean;
 }
 
 export function registerImageCommand(program: Command): void {
@@ -19,6 +20,10 @@ export function registerImageCommand(program: Command): void {
     .option("--show-image-code", "print the imageCode receipt that records the fired VSC path")
     .option("--show-semantic", "print the emitted/effective Semantic IR for inspection")
     .option("--show-seed-summary", "print a compact seed/VQ execution summary")
+    .option(
+      "--allow-research-weights",
+      "allow research-only decoder weights for benchmarking per ADR-0020",
+    )
     .option("--config <path>", "config path")
     .action(async (prompt: string, options: ImageCommandOptions) => {
       await runCodecCommand(
@@ -27,6 +32,7 @@ export function registerImageCommand(program: Command): void {
           prompt,
           out: options.out,
           seed: parseOptionalSeed(options.seed),
+          allowResearchWeights: options.allowResearchWeights,
         },
         "wittgenstein image",
         process.argv.slice(2),

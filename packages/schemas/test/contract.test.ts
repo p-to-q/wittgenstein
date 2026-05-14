@@ -38,6 +38,7 @@ describe("@wittgenstein/schemas", () => {
         args: ["prompt"],
         seed: null,
         codec: "image",
+        license: { weightsRestriction: "permissive" },
         llmProvider: "openai-compatible",
         llmModel: "gpt-4.1-mini",
         llmTokens: { input: 0, output: 0 },
@@ -222,6 +223,7 @@ describe("@wittgenstein/schemas", () => {
       seed: 7,
       codec: "image",
       route: "raster",
+      license: { weightsRestriction: "permissive" },
       llmProvider: "anthropic",
       llmModel: "claude-opus-4-7",
       llmTokens: { input: 10, output: 20 },
@@ -285,6 +287,7 @@ describe("@wittgenstein/schemas", () => {
         seed: 7,
         codec: "sensor",
         route,
+        license: { weightsRestriction: "permissive" },
         llmProvider: "anthropic",
         llmModel: "claude-opus-4-7",
         llmTokens: { input: 10, output: 20 },
@@ -348,6 +351,7 @@ describe("@wittgenstein/schemas", () => {
         seed: 7,
         codec: "video",
         route,
+        license: { weightsRestriction: "permissive" },
         llmProvider: "anthropic",
         llmModel: "claude-opus-4-7",
         llmTokens: { input: 10, output: 20 },
@@ -378,6 +382,7 @@ describe("@wittgenstein/schemas", () => {
       args: ["test"],
       seed: 7,
       codec: "image",
+      license: { weightsRestriction: "permissive" },
       llmProvider: "anthropic",
       llmModel: "claude-future-2030",
       llmTokens: { input: 500, output: 250 },
@@ -409,6 +414,7 @@ describe("@wittgenstein/schemas", () => {
       args: ["test"],
       seed: 7,
       codec: "image",
+      license: { weightsRestriction: "permissive" },
       llmProvider: "anthropic",
       llmModel: "claude-future-2030",
       llmTokens: { input: 500, output: 250 },
@@ -440,6 +446,7 @@ describe("@wittgenstein/schemas", () => {
       args: ["test"],
       seed: 7,
       codec: "image",
+      license: { weightsRestriction: "permissive" },
       llmProvider: "anthropic",
       llmModel: "claude-opus-4-7",
       llmTokens: { input: 0, output: 0 },
@@ -537,6 +544,7 @@ describe("@wittgenstein/schemas", () => {
     args: ["test"],
     seed: 7,
     codec: "image",
+    license: { weightsRestriction: "permissive" },
     llmProvider: "anthropic",
     llmModel: "claude-opus-4-7",
     llmTokens: { input: 1, output: 2 },
@@ -635,6 +643,23 @@ describe("@wittgenstein/schemas", () => {
           sha256: "deadbeef",
         },
       ],
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("requires manifest weight-license receipts", () => {
+    const fields = okManifestFields();
+    delete (fields as Partial<ReturnType<typeof okManifestFields>>).license;
+
+    const parsed = RunManifestSchema.safeParse(fields);
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts research-only weight-license receipts", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      license: { weightsRestriction: "research-only" },
     });
 
     expect(parsed.success).toBe(true);

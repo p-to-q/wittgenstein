@@ -56,6 +56,9 @@ infrastructure lands).
   bridge calls before building an inference session. Turns missing-peer
   failures into typed `DECODER_RUNTIME_UNAVAILABLE` errors instead of
   leaking Node's `ERR_MODULE_NOT_FOUND`.
+- [`./weights.ts`](./weights.ts) — cache/sha256/license helper for #402.
+  It verifies already-cached bytes, supports injected fetchers for tests and
+  future installers, and enforces ADR-0020 before any runtime session starts.
 - [`./llamagen.ts`](./llamagen.ts) — M1B canonical bridge (currently
   throws `LLAMAGEN_BRIDGE_NOT_IMPLEMENTED`).
 - [`./seed.ts`](./seed.ts) — alternate bridge (currently throws

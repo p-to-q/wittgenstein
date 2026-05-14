@@ -20,6 +20,17 @@ describe("harness modality blindness", () => {
     expect(source.includes('request.modality === "audio"')).toBe(false);
   });
 
+  it("keeps modality-specific legacy branching outside the main run body", async () => {
+    const source = await readHarnessSource();
+    const runBody = source.slice(
+      source.indexOf("  public async run("),
+      source.indexOf("  private async generateStructured("),
+    );
+
+    expect(runBody).not.toMatch(/request\.modality\s*[!=]==/);
+    expect(runBody).toContain("runLegacyCodecPipeline");
+  });
+
   // Bounded count of `request.modality` references (in CODE, not comments)
   // — #300 modality-blind invariant guard. The current 16 references are
   // classified inline in harness.ts (separate from the modality-as-parameter
@@ -36,9 +47,7 @@ describe("harness modality blindness", () => {
     const source = await readHarnessSource();
     // Strip line comments and block comments so prose references inside the
     // classifying comments don't inflate the count.
-    const stripped = source
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
+    const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const matches = stripped.match(/request\.modality/g) ?? [];
     // 16 is the audited baseline as of 2026-05-13 cross-section health check.
     // Reduce this number when v1 codecs retire (#300). Increase only with

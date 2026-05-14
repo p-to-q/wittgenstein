@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import type {
   CostUsdReason,
+  LicenseManifest,
   WittgensteinRequest,
   RenderCtx,
   RenderResult,
@@ -15,7 +16,7 @@ import { routeRequest } from "./router.js";
 import { CodecRegistry } from "./registry.js";
 import { createRunId, resolveSeed } from "./seed.js";
 import { RunTelemetry } from "./telemetry.js";
-import { serializeError, ValidationError } from "./errors.js";
+import { serializeError, ValidationError, WittgensteinError } from "./errors.js";
 import { injectSchemaPreamble } from "../schema/preamble.js";
 import type { LlmAdapter, LlmGenerationResult } from "../llm/adapter.js";
 import { OpenAICompatibleLlmAdapter } from "../llm/openai-compatible.js";
@@ -105,6 +106,7 @@ export class Wittgenstein {
       codec: "name" in codec ? codec.name : codec.id,
       tier: null,
       route: "route" in request ? request.route : undefined,
+      license: { weightsRestriction: "permissive" },
       llmProvider: this.config.llm.provider,
       llmModel: this.config.llm.model,
       llmTokens: {
@@ -174,6 +176,7 @@ export class Wittgenstein {
             llmOutputRaw?: string | null;
             llmOutputParsed?: unknown;
             artifactSha256?: string | null;
+            license?: LicenseManifest;
           };
         };
         const artMeta = produced.metadata;
@@ -202,143 +205,26 @@ export class Wittgenstein {
         }
         manifest.artifactPath = produced.outPath;
         manifest.artifactSha256 = artMeta.artifactSha256 ?? null;
+        applyLicenseReceipt(manifest, request, artMeta.license);
         foldManifestRows(manifest, codec.manifestRows(art));
         result = toRenderResult(produced);
         manifest.ok = true;
         manifest.durationMs = Date.now() - startedAt.getTime();
       } else {
-        // ====================================================================
-        // v1 legacy codec pipeline (#300 modality-blind invariant exception)
-        // ====================================================================
-        // Every `request.modality === "..."` branch in this `else` block is
-        // v1-codec compatibility scaffolding for asciipng / svg / video — the
-        // three modalities whose codec hasn't yet ported to Codec Protocol v2.
-        // When the last v1 codec ports to v2 (#300), this entire `else` arm
-        // disappears: the harness reduces to the v2 path above, which dispatches
-        // through `codec.produce(req, ctx)` without inspecting `request.modality`.
-        //
-        // DO NOT add new modality branches here. New modalities ship as v2
-        // codecs (the `if (isV2Codec(codec))` branch above) and never touch
-        // this block. The bounded-count test in `harness-modality-references.test.ts`
-        // will trip if a new branch sneaks in.
-        // ====================================================================
-        const v1Codec = codec;
-        const generation =
-          request.modality === "asciipng" && request.source === "minimax" && !options.dryRun
-            ? await generateAsciipngFromMinimax(
-                request,
-                promptExpanded ?? request.prompt,
-                seed,
-                this.config.llm,
-              )
-            : request.modality === "asciipng"
-              ? buildAsciiPngGeneration(request)
-              : request.modality === "video" &&
-                  Array.isArray(request.inlineSvgs) &&
-                  request.inlineSvgs.length > 0
-                ? buildVideoCompositionFromInlineSvgs(request)
-                : request.modality === "svg" && request.source === "local"
-                  ? buildSvgLocalGeneration(request)
-                  : options.dryRun
-                    ? createDryRunGeneration(request)
-                    : request.modality === "svg"
-                      ? await generateSvgFromEngine(
-                          promptExpanded ?? request.prompt,
-                          seed,
-                          this.config.svg,
-                        )
-                      : await this.generateStructured(promptExpanded ?? request.prompt, seed);
-
-        if (request.modality === "svg") {
-          const raw = generation.raw;
-          if (
-            raw &&
-            typeof raw === "object" &&
-            "svgLocal" in raw &&
-            (raw as { svgLocal?: boolean }).svgLocal === true
-          ) {
-            manifest.llmProvider = "svg-local";
-            manifest.llmModel = "geometry-from-prompt";
-          } else {
-            manifest.llmProvider = "svg-engine";
-            manifest.llmModel = this.config.svg.inferenceUrl;
-          }
-        }
-
-        if (request.modality === "asciipng" && request.source === "minimax") {
-          manifest.llmProvider = "minimax";
-          manifest.llmModel =
-            request.minimaxModel?.trim() ||
-            process.env.WITTGENSTEIN_MINIMAX_MODEL?.trim() ||
-            "abab6.5s-chat-h";
-        } else if (request.modality === "asciipng") {
-          manifest.llmProvider = "local-asciipng";
-          manifest.llmModel = "pseudo-ascii-raster";
-        }
-
-        if (request.modality === "video") {
-          const raw = generation.raw;
-          if (
-            raw &&
-            typeof raw === "object" &&
-            "videoInlineSvgs" in raw &&
-            (raw as { videoInlineSvgs?: boolean }).videoInlineSvgs === true
-          ) {
-            manifest.llmProvider = "inline-svgs";
-            manifest.llmModel = "filesystem";
-          }
-        }
-
-        budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd ?? 0);
-
-        manifest.llmOutputRaw = generation.text;
-        manifest.llmTokens = generation.tokens;
-        manifest.costUsd = generation.costUsd;
-        manifest.costUsdReason = generation.costUsdReason;
-        await telemetry.writeText("llm-output.txt", generation.text);
-
-        const parsed = v1Codec.parse(generation.text);
-        if (!parsed.ok) {
-          throw new ValidationError("Codec output could not be parsed", {
-            details: {
-              codec: v1Codec.name,
-              error: parsed.error,
-            },
-          });
-        }
-
-        manifest.llmOutputParsed = parsed.value;
-
-        const renderCtx: RenderCtx = {
+        result = await this.runLegacyCodecPipeline({
+          codec,
+          request,
+          options,
+          cwd,
           runId,
           runDir,
           seed,
-          outPath: resolve(options.outPath ?? defaultOutputPathFor(request.modality, cwd, runId)),
-          logger: createRunLogger(runId),
-        };
-
-        const rendered = await v1Codec.render(parsed.value, renderCtx);
-        result = rendered;
-        manifest.artifactPath = rendered.artifactPath;
-        manifest.artifactSha256 = await hashFileOrThrow(rendered.artifactPath);
-        manifest.ok = true;
-        manifest.durationMs = Date.now() - startedAt.getTime();
-        manifest.llmTokens = rendered.metadata.llmTokens;
-        // Render-step cost is informational. The authoritative cost was set
-        // by the generation step above (line 289-290); the render step only
-        // updates the manifest if it explicitly asserts a reason — otherwise
-        // the generation-step truth (which may be null for no-LLM paths)
-        // is preserved (Issue #363).
-        if (rendered.metadata.costUsdReason !== undefined) {
-          manifest.costUsd = rendered.metadata.costUsd;
-          manifest.costUsdReason = rendered.metadata.costUsdReason;
-        }
-        if (rendered.metadata.renderPath !== undefined) {
-          manifest.renderPath = rendered.metadata.renderPath;
-        }
-        if (rendered.metadata.sidecars !== undefined) {
-          manifest.artifactSidecars = rendered.metadata.sidecars;
-        }
+          promptExpanded,
+          startedAt,
+          manifest,
+          telemetry,
+          budget,
+        });
       }
     } catch (caughtError) {
       error = serializeError(caughtError);
@@ -382,6 +268,233 @@ export class Wittgenstein {
         },
       ],
     });
+  }
+
+  private async runLegacyCodecPipeline(options: {
+    codec: LegacyCodec;
+    request: WittgensteinRequest;
+    options: HarnessRunOptions;
+    cwd: string;
+    runId: string;
+    runDir: string;
+    seed: number | null;
+    promptExpanded: string | null;
+    startedAt: Date;
+    manifest: RunManifest;
+    telemetry: RunTelemetry;
+    budget: BudgetTracker;
+  }): Promise<RenderResult> {
+    const {
+      codec,
+      request,
+      options: runOptions,
+      cwd,
+      runId,
+      runDir,
+      seed,
+      promptExpanded,
+      startedAt,
+      manifest,
+      telemetry,
+      budget,
+    } = options;
+    const generation = await this.generateLegacyCodecInput(
+      request,
+      runOptions,
+      promptExpanded,
+      seed,
+    );
+    applyLegacyProviderReceipt(manifest, request, generation, this.config.svg.inferenceUrl);
+
+    budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd ?? 0);
+
+    manifest.llmOutputRaw = generation.text;
+    manifest.llmTokens = generation.tokens;
+    manifest.costUsd = generation.costUsd;
+    manifest.costUsdReason = generation.costUsdReason;
+    await telemetry.writeText("llm-output.txt", generation.text);
+
+    const parsed = codec.parse(generation.text);
+    if (!parsed.ok) {
+      throw new ValidationError("Codec output could not be parsed", {
+        details: {
+          codec: codec.name,
+          error: parsed.error,
+        },
+      });
+    }
+
+    manifest.llmOutputParsed = parsed.value;
+
+    const renderCtx: RenderCtx = {
+      runId,
+      runDir,
+      seed,
+      outPath: resolve(runOptions.outPath ?? defaultOutputPathFor(request.modality, cwd, runId)),
+      logger: createRunLogger(runId),
+    };
+
+    const rendered = await codec.render(parsed.value, renderCtx);
+    manifest.artifactPath = rendered.artifactPath;
+    manifest.artifactSha256 = await hashFileOrThrow(rendered.artifactPath);
+    manifest.ok = true;
+    manifest.durationMs = Date.now() - startedAt.getTime();
+    manifest.llmTokens = rendered.metadata.llmTokens;
+    if (rendered.metadata.costUsdReason !== undefined) {
+      manifest.costUsd = rendered.metadata.costUsd;
+      manifest.costUsdReason = rendered.metadata.costUsdReason;
+    }
+    if (rendered.metadata.renderPath !== undefined) {
+      manifest.renderPath = rendered.metadata.renderPath;
+    }
+    if (rendered.metadata.sidecars !== undefined) {
+      manifest.artifactSidecars = rendered.metadata.sidecars;
+    }
+    applyLicenseReceipt(manifest, request, rendered.metadata.license);
+    return rendered;
+  }
+
+  private async generateLegacyCodecInput(
+    request: WittgensteinRequest,
+    options: HarnessRunOptions,
+    promptExpanded: string | null,
+    seed: number | null,
+  ): Promise<LlmGenerationResult> {
+    return generateLegacyCodecInput(request, options, promptExpanded, seed, {
+      llmConfig: this.config.llm,
+      svgConfig: this.config.svg,
+      generateStructured: (prompt, resolvedSeed) => this.generateStructured(prompt, resolvedSeed),
+    });
+  }
+}
+
+interface LegacyCodec {
+  readonly name: string;
+  parse(
+    text: string,
+  ):
+    | { readonly ok: true; readonly value: unknown }
+    | { readonly ok: false; readonly error: unknown };
+  render(value: unknown, ctx: RenderCtx): Promise<RenderResult>;
+}
+
+function applyLicenseReceipt(
+  manifest: RunManifest,
+  request: WittgensteinRequest,
+  license: LicenseManifest | undefined,
+): void {
+  manifest.license = license ?? manifest.license ?? { weightsRestriction: "permissive" };
+  if (
+    manifest.license.weightsRestriction === "research-only" &&
+    request.allowResearchWeights !== true
+  ) {
+    throw new WittgensteinError(
+      "RESEARCH_WEIGHTS_REQUIRES_OPT_IN",
+      "This run would load research-only weights. Re-run with --allow-research-weights to opt in per ADR-0020.",
+      {
+        details: {
+          adr: "docs/adrs/0020-code-weights-license-divergence-policy.md",
+          weightsRestriction: manifest.license.weightsRestriction,
+        },
+      },
+    );
+  }
+}
+
+async function generateLegacyCodecInput(
+  request: WittgensteinRequest,
+  options: HarnessRunOptions,
+  promptExpanded: string | null,
+  seed: number | null,
+  services: {
+    llmConfig: Awaited<ReturnType<typeof loadWittgensteinConfig>>["llm"];
+    svgConfig: Awaited<ReturnType<typeof loadWittgensteinConfig>>["svg"];
+    generateStructured: (
+      promptExpanded: string,
+      seed: number | null,
+    ) => Promise<LlmGenerationResult>;
+  },
+): Promise<LlmGenerationResult> {
+  if (request.modality === "asciipng" && request.source === "minimax" && !options.dryRun) {
+    return generateAsciipngFromMinimax(
+      request,
+      promptExpanded ?? request.prompt,
+      seed,
+      services.llmConfig,
+    );
+  }
+
+  if (request.modality === "asciipng") {
+    return buildAsciiPngGeneration(request);
+  }
+
+  if (
+    request.modality === "video" &&
+    Array.isArray(request.inlineSvgs) &&
+    request.inlineSvgs.length > 0
+  ) {
+    return buildVideoCompositionFromInlineSvgs(request);
+  }
+
+  if (request.modality === "svg" && request.source === "local") {
+    return buildSvgLocalGeneration(request);
+  }
+
+  if (options.dryRun) {
+    return createDryRunGeneration(request);
+  }
+
+  if (request.modality === "svg") {
+    return generateSvgFromEngine(promptExpanded ?? request.prompt, seed, services.svgConfig);
+  }
+
+  return services.generateStructured(promptExpanded ?? request.prompt, seed);
+}
+
+function applyLegacyProviderReceipt(
+  manifest: RunManifest,
+  request: WittgensteinRequest,
+  generation: LlmGenerationResult,
+  svgInferenceUrl: string,
+): void {
+  if (request.modality === "svg") {
+    const raw = generation.raw;
+    if (
+      raw &&
+      typeof raw === "object" &&
+      "svgLocal" in raw &&
+      (raw as { svgLocal?: boolean }).svgLocal === true
+    ) {
+      manifest.llmProvider = "svg-local";
+      manifest.llmModel = "geometry-from-prompt";
+    } else {
+      manifest.llmProvider = "svg-engine";
+      manifest.llmModel = svgInferenceUrl;
+    }
+  }
+
+  if (request.modality === "asciipng" && request.source === "minimax") {
+    manifest.llmProvider = "minimax";
+    manifest.llmModel =
+      request.minimaxModel?.trim() ||
+      process.env.WITTGENSTEIN_MINIMAX_MODEL?.trim() ||
+      "abab6.5s-chat-h";
+  } else if (request.modality === "asciipng") {
+    manifest.llmProvider = "local-asciipng";
+    manifest.llmModel = "pseudo-ascii-raster";
+  }
+
+  if (request.modality === "video") {
+    const raw = generation.raw;
+    if (
+      raw &&
+      typeof raw === "object" &&
+      "videoInlineSvgs" in raw &&
+      (raw as { videoInlineSvgs?: boolean }).videoInlineSvgs === true
+    ) {
+      manifest.llmProvider = "inline-svgs";
+      manifest.llmModel = "filesystem";
+    }
   }
 }
 
@@ -478,6 +591,7 @@ function toRenderResult(
       costUsdReason?: CostUsdReason;
       durationMs?: number;
       seed?: number | null;
+      license?: LicenseManifest;
     };
   },
 ): RenderResult {
@@ -491,6 +605,7 @@ function toRenderResult(
       costUsd: art.metadata.costUsd ?? 0,
       durationMs: art.metadata.durationMs ?? 0,
       seed: art.metadata.seed ?? null,
+      ...(art.metadata.license ? { license: art.metadata.license } : {}),
       ...(art.metadata.route ? { route: art.metadata.route } : {}),
     },
   };

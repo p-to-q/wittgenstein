@@ -17,6 +17,11 @@ const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
 const VideoRouteSchema = z.enum(["hyperframes-mp4", "hyperframes-html"]);
 
 const CostUsdReasonSchema = z.enum(["computed", "unknown-model", "missing-usage", "no-llm-call"]);
+const WeightsRestrictionSchema = z.enum(["permissive", "research-only"]);
+
+export const LicenseManifestSchema = z.object({
+  weightsRestriction: WeightsRestrictionSchema,
+});
 
 export const ArtifactSidecarSchema = z.object({
   role: z.string(),
@@ -41,6 +46,7 @@ export const RunManifestSchema = z
     codec: z.string(),
     tier: z.string().nullable().optional(),
     route: z.string().optional(),
+    license: LicenseManifestSchema,
 
     llmProvider: z.string(),
     llmModel: z.string(),
@@ -201,5 +207,7 @@ export const RunManifestSchema = z
 
 export type AudioRenderManifest = z.infer<typeof AudioRenderManifestSchema>;
 export type ArtifactSidecar = z.infer<typeof ArtifactSidecarSchema>;
+export type LicenseManifest = z.infer<typeof LicenseManifestSchema>;
+export type WeightsRestriction = z.infer<typeof WeightsRestrictionSchema>;
 export type RunManifest = z.infer<typeof RunManifestSchema>;
 export type CostUsdReason = z.infer<typeof CostUsdReasonSchema>;

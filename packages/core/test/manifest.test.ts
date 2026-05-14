@@ -197,6 +197,66 @@ describe("Wittgenstein.run — v1 artifact-hash race regression (Issue #345)", (
       },
     ]);
   });
+
+  it("refuses research-only weight receipts unless the request opts in", async () => {
+    const { Wittgenstein } = await import("../src/runtime/harness.js");
+    const { CodecRegistry } = await import("../src/runtime/registry.js");
+    const { DEFAULT_WITTGENSTEIN_CONFIG } = await import("@wittgenstein/schemas");
+
+    const artifactPath = join(tmp, "image.png");
+    await writeFile(artifactPath, "png");
+
+    const stubCodec = {
+      name: "stub-image",
+      modality: "image" as const,
+      schemaPreamble: () => "",
+      requestSchema: { parse: (v: unknown) => v } as never,
+      outputSchema: { parse: (v: unknown) => v } as never,
+      parse: () => ({ ok: true as const, value: {} as never }),
+      render: async () => ({
+        artifactPath,
+        mimeType: "image/png",
+        bytes: 3,
+        metadata: {
+          codec: "stub-image",
+          llmTokens: { input: 0, output: 0 },
+          costUsd: 0,
+          durationMs: 0,
+          seed: null,
+          license: { weightsRestriction: "research-only" as const },
+        },
+      }),
+    };
+
+    const registry = new CodecRegistry();
+    registry.register(stubCodec as never);
+    const harness = new Wittgenstein(DEFAULT_WITTGENSTEIN_CONFIG, registry, null);
+
+    const refused = await harness.run(
+      {
+        modality: "image",
+        prompt: "research-only weights",
+        source: "local",
+      } as never,
+      { command: "test", args: [], cwd: tmp, dryRun: true },
+    );
+
+    expect(refused.manifest.ok).toBe(false);
+    expect(refused.manifest.error?.code).toBe("RESEARCH_WEIGHTS_REQUIRES_OPT_IN");
+
+    const allowed = await harness.run(
+      {
+        modality: "image",
+        prompt: "research-only weights",
+        source: "local",
+        allowResearchWeights: true,
+      } as never,
+      { command: "test", args: [], cwd: tmp, dryRun: true },
+    );
+
+    expect(allowed.manifest.ok).toBe(true);
+    expect(allowed.manifest.license.weightsRestriction).toBe("research-only");
+  });
 });
 
 describe("collectRuntimeFingerprint", () => {

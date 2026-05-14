@@ -38,12 +38,19 @@ Requires `npm login` (or a publish token) on that machine. The published name is
 ```bash
 wittgenstein init
 wittgenstein image  "prompt" --out out.png
+wittgenstein image  "prompt" --allow-research-weights --out out.png # benchmarking-only opt-in; see ADR-0020
 wittgenstein tts    "prompt" --out out.wav
 wittgenstein audio  "prompt" --out out.wav
 wittgenstein video  "prompt" --out out.mp4
 wittgenstein sensor "prompt" --out out.json
 wittgenstein doctor
 ```
+
+`doctor` now reports the tier-readiness table described in the delivery notes:
+Tier 0 local codecs are ready from the npm package; Tier 1+ image decoder
+bridges remain explicit opt-in install surfaces tracked in #403. Decoder-weight
+loaders must verify SHA-256 before use and refuse research-only weights unless
+the caller opts in with `--allow-research-weights`.
 
 ## Skill-Ready Expectations
 

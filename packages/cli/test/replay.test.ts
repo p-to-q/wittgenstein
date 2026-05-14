@@ -113,6 +113,7 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
         args: ["prompt"],
         seed: 7,
         codec: "image",
+        license: { weightsRestriction: "permissive" },
         llmProvider: "anthropic",
         llmModel: "claude-opus-4-7",
         llmTokens: { input: 1, output: 2 },
@@ -158,6 +159,7 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
         seed: 7,
         codec: "sensor",
         route: "ecg",
+        license: { weightsRestriction: "permissive" },
         llmProvider: "anthropic",
         llmModel: "claude-opus-4-7",
         llmTokens: { input: 0, output: 0 },
@@ -184,5 +186,4 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string };
     expect(errOutput.code).toBe("MANIFEST_MISSING_REQUEST");
   });
-
 });

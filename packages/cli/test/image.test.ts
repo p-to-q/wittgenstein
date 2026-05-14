@@ -7,6 +7,7 @@ describe("image command inspection flags", () => {
   it("registers the image receipt inspection surface", () => {
     const image = createProgram().commands.find((command) => command.name() === "image");
     expect(image?.options.map((option) => option.long).sort()).toEqual([
+      "--allow-research-weights",
       "--config",
       "--dry-run",
       "--out",
@@ -73,6 +74,7 @@ function baseManifest(): RunManifest {
     codec: "image",
     tier: null,
     route: "raster",
+    license: { weightsRestriction: "permissive" },
     llmProvider: "none",
     llmModel: "dry-run",
     llmTokens: { input: 0, output: 0 },

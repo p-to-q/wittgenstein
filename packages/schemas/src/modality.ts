@@ -17,6 +17,7 @@ export const BaseRequestSchema = z.object({
   prompt: z.string().min(1),
   out: z.string().optional(),
   seed: z.number().int().nullable().optional(),
+  allowResearchWeights: z.boolean().optional(),
 });
 
 export type BaseRequest = z.infer<typeof BaseRequestSchema>;

@@ -24,6 +24,7 @@ export interface RenderCtx {
 }
 
 import type { CostUsdReason } from "./manifest.js";
+import type { LicenseManifest } from "./manifest.js";
 
 export interface RenderSidecar {
   role: string;
@@ -52,6 +53,7 @@ export interface RenderResult {
      * than hiding CSV and JSON as undocumented filesystem neighbors.
      */
     sidecars?: RenderSidecar[];
+    license?: LicenseManifest;
     /**
      * Optional codec-internal path identifier — e.g. for sensor it discriminates
      * `loupe-script` / `loupe-cli` / `fallback-static-html` so the manifest tells
@@ -86,6 +88,11 @@ export const RenderResultSchema = z.object({
           sha256: z.string(),
         }),
       )
+      .optional(),
+    license: z
+      .object({
+        weightsRestriction: z.enum(["permissive", "research-only"]),
+      })
       .optional(),
     renderPath: z.string().optional(),
   }),
