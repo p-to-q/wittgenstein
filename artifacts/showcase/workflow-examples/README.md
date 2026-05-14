@@ -19,7 +19,7 @@ audio, and sensor routes.
 > This directory is for human browsing and reproducibility receipts, not for agent task
 > routing; active implementation guidance lives in the codec-v2 exec plan and agent guides.
 >
-> For a nicer rendered gallery, see the top-level [`SHOWCASE.md`](../../../SHOWCASE.md).
+> For a nicer rendered gallery, see [`docs/showcase.md`](../../../docs/showcase.md).
 
 ---
 
@@ -71,6 +71,6 @@ Machine-readable index: [`summary.json`](summary.json).
 
 See also:
 
-- [`../../../SHOWCASE.md`](../../../SHOWCASE.md) — top-level rendered gallery
+- [`../../../docs/showcase.md`](../../../docs/showcase.md) — rendered gallery
 - [`../../../docs/quickstart.md`](../../../docs/quickstart.md) — how to produce your own
 - [`../../../docs/reproducibility.md`](../../../docs/reproducibility.md) — manifest spine

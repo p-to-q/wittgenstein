@@ -4,7 +4,7 @@
 > research-grade metrics. They confirm the artifact exists, has the right shape, and was
 > produced deterministically — they do **not** measure visual, acoustic, or clinical
 > quality. Treat the Latency and Cost columns as trustworthy; treat Quality as a
-> smoke-test signal until Phase 4 of [`ROADMAP.md`](../ROADMAP.md) lands.
+> smoke-test signal until Phase 4 of [`docs/roadmap.md`](../docs/roadmap.md) lands.
 
 Two levels, clearly separated:
 
@@ -24,14 +24,15 @@ Results from running `pnpm benchmark` with all cases in dry-run mode (no LLM cal
 cost). These are the baseline structural checks; quality proxies reflect codec completeness,
 not visual/perceptual quality.
 
-| Case | Modality | Cost (USD) | Latency (ms) | Quality proxy | Artifact |
-|---|---|---|---|---|---|
-| `image-editorial` | image | 0.00 | ~45 | 0.75 | `.png` 1024×1024 |
-| `tts-launch` | audio/speech | 0.00 | ~820 | 1.00 | `.wav` ~4 s |
-| `audio-music` | audio/music | 0.00 | ~610 | 1.00 | `.wav` ~6 s |
-| `sensor-ecg` | sensor | 0.00 | ~35 | 1.00 | `.json` + `.csv` + `.html` |
+| Case              | Modality     | Cost (USD) | Latency (ms) | Quality proxy | Artifact                   |
+| ----------------- | ------------ | ---------- | ------------ | ------------- | -------------------------- |
+| `image-editorial` | image        | 0.00       | ~45          | 0.75          | `.png` 1024×1024           |
+| `tts-launch`      | audio/speech | 0.00       | ~820         | 1.00          | `.wav` ~4 s                |
+| `audio-music`     | audio/music  | 0.00       | ~610         | 1.00          | `.wav` ~6 s                |
+| `sensor-ecg`      | sensor       | 0.00       | ~35          | 1.00          | `.json` + `.csv` + `.html` |
 
 Notes:
+
 - `image-editorial` quality 0.75: artifact exists and dimensions correct, but pixel variance
   check is borderline with placeholder latents. Will reach 1.0 when real decoder ships.
 - `tts-launch` and `audio-music` at 1.00: audio synthesis is fully implemented; all three
@@ -43,10 +44,10 @@ Notes:
 These are from running the training scripts directly, not the benchmark harness. Included
 here because they are the closest thing to a quality metric for the adapter layer:
 
-| Adapter | Examples | Train time | Val loss | Notes |
-|---|---|---|---|---|
-| Image style MLP | 781 | ~9 s | BCE 0.7698 | COCO captions → palette + layout |
-| Audio ambient classifier | 369 | < 5 s | — | Keyword-seeded; 5/5 spot checks correct |
+| Adapter                  | Examples | Train time | Val loss   | Notes                                   |
+| ------------------------ | -------- | ---------- | ---------- | --------------------------------------- |
+| Image style MLP          | 781      | ~9 s       | BCE 0.7698 | COCO captions → palette + layout        |
+| Audio ambient classifier | 369      | < 5 s      | —          | Keyword-seeded; 5/5 spot checks correct |
 
 ---
 
@@ -60,12 +61,12 @@ here because they are the closest thing to a quality metric for the adapter laye
 
 Current cases:
 
-| ID | Modality | Route | Prompt |
-|---|---|---|---|
-| `image-editorial` | image | neural codec (MLP fallback) | "An editorial product image in hard side light" |
-| `tts-launch` | audio | speech + rain ambient | "A concise hackathon launch voiceover for Wittgenstein" |
-| `audio-music` | audio | music + electronic ambient | "A lightweight launch soundtrack with a futuristic pulse" |
-| `sensor-ecg` | sensor | ECG operator expand | "A stable ECG trace with mild baseline noise" |
+| ID                | Modality | Route                       | Prompt                                                    |
+| ----------------- | -------- | --------------------------- | --------------------------------------------------------- |
+| `image-editorial` | image    | neural codec (MLP fallback) | "An editorial product image in hard side light"           |
+| `tts-launch`      | audio    | speech + rain ambient       | "A concise hackathon launch voiceover for Wittgenstein"   |
+| `audio-music`     | audio    | music + electronic ambient  | "A lightweight launch soundtrack with a futuristic pulse" |
+| `sensor-ecg`      | sensor   | ECG operator expand         | "A stable ECG trace with mild baseline noise"             |
 
 `video` is not in the runnable set — the MP4 renderer is pending. Add a `video` case here
 once that branch merges.
@@ -86,6 +87,7 @@ pnpm tsx benchmarks/harness.ts --case sensor-ecg
 ```
 
 Results write to `artifacts/benchmarks/latest.json`. Each result contains:
+
 - the three reporting dimensions (cost, latency, quality)
 - the `runId` linking to the full `RunManifest` in `artifacts/runs/<id>/manifest.json`
 - the artifact path and byte size
@@ -97,16 +99,19 @@ Results write to `artifacts/benchmarks/latest.json`. Each result contains:
 Each modality has a 0.0 – 1.0 structural proxy. The scoring breakdown:
 
 **Image**
+
 - artifact is a valid PNG: +0.50
 - dimensions match requested w × h: +0.25
 - pixel variance > 100 (non-trivial content): +0.25
 
 **Audio (all routes)**
+
 - artifact is a valid WAV or M4A: +0.50
 - duration within ±30% of expected: +0.25
 - RMS energy in [−40 dB, −6 dB]: +0.25
 
 **Sensor**
+
 - JSON + CSV pair both exist: +0.50
 - sample count = `floor(sampleRateHz × durationSec)` ± 1: +0.25
 - signal mean in expected range for declared modality: +0.25

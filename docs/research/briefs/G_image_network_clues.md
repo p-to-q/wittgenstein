@@ -122,7 +122,7 @@ The packaging matrix has a natural release-train ordering:
 
 ## Steelman (overall)
 
-Image-first is the correct priority. The text-to-image pipeline is the demo surface a reader sees first in `SHOWCASE.md`, the modality that stresses L4 and L5 hardest, and the capability target that "modality harness for text-first LLMs" is most clearly evaluated against. Getting G1–G3 right is load-bearing for v0.2 landing in a form a senior reviewer would not immediately pick apart. With the verdicts above, M1 has a defensible default for every open decision.
+Image-first is the correct priority. The text-to-image pipeline is the demo surface a reader sees first in `docs/showcase.md`, the modality that stresses L4 and L5 hardest, and the capability target that "modality harness for text-first LLMs" is most clearly evaluated against. Getting G1–G3 right is load-bearing for v0.2 landing in a form a senior reviewer would not immediately pick apart. With the verdicts above, M1 has a defensible default for every open decision.
 
 ## Red team (overall)
 

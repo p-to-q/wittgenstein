@@ -104,7 +104,7 @@ A new feature or improvement to existing behaviour. PRs that add a new public AP
 
 Color: `#0075ca` (blue, GitHub default).
 
-Changes to anything under `docs/`, `README.md`, `CONTRIBUTING.md`, `SHOWCASE.md`, or other documentation surfaces. Documentation-only PRs (no code change) almost always get this label, often paired with `research-derived` or `rfc-derived`.
+Changes to anything under `docs/`, `README.md`, `CONTRIBUTING.md`, `docs/showcase.md`, or other documentation surfaces. Documentation-only PRs (no code change) almost always get this label, often paired with `research-derived` or `rfc-derived`.
 
 #### `refactor`
 
