@@ -4,11 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WittgensteinError } from "../src/runtime/errors.js";
-import {
-  collectRuntimeFingerprint,
-  hashFile,
-  hashFileOrThrow,
-} from "../src/runtime/manifest.js";
+import { collectRuntimeFingerprint, hashFile, hashFileOrThrow } from "../src/runtime/manifest.js";
 
 let tmp: string;
 
@@ -132,6 +128,74 @@ describe("Wittgenstein.run — v1 artifact-hash race regression (Issue #345)", (
     // The hash must never be silently nulled into a success manifest — the
     // throw aborts before manifest.ok flips to true.
     expect(outcome.manifest.artifactSha256).toBeNull();
+  });
+
+  it("copies codec-authored artifact sidecars into the run manifest", async () => {
+    const { Wittgenstein } = await import("../src/runtime/harness.js");
+    const { CodecRegistry } = await import("../src/runtime/registry.js");
+    const { DEFAULT_WITTGENSTEIN_CONFIG } = await import("@wittgenstein/schemas");
+
+    const artifactPath = join(tmp, "sensor.html");
+    const sidecarPath = join(tmp, "sensor.csv");
+    const artifactContent = "<!doctype html><title>sensor</title>";
+    const sidecarContent = "timeSec,value\n0,1\n";
+    await writeFile(artifactPath, artifactContent);
+    await writeFile(sidecarPath, sidecarContent);
+
+    const sidecarSha256 = createHash("sha256").update(sidecarContent).digest("hex");
+    const stubCodec = {
+      name: "stub-sensor",
+      modality: "sensor" as const,
+      schemaPreamble: () => "",
+      requestSchema: { parse: (v: unknown) => v } as never,
+      outputSchema: { parse: (v: unknown) => v } as never,
+      parse: () => ({ ok: true as const, value: {} as never }),
+      render: async () => ({
+        artifactPath,
+        mimeType: "text/html",
+        bytes: Buffer.byteLength(artifactContent),
+        metadata: {
+          codec: "stub-sensor",
+          llmTokens: { input: 0, output: 0 },
+          costUsd: 0,
+          durationMs: 0,
+          seed: null,
+          sidecars: [
+            {
+              role: "sensor-csv",
+              path: sidecarPath,
+              mimeType: "text/csv",
+              bytes: Buffer.byteLength(sidecarContent),
+              sha256: sidecarSha256,
+            },
+          ],
+        },
+      }),
+    };
+
+    const registry = new CodecRegistry();
+    registry.register(stubCodec as never);
+    const harness = new Wittgenstein(DEFAULT_WITTGENSTEIN_CONFIG, registry, null);
+
+    const outcome = await harness.run(
+      {
+        modality: "sensor",
+        prompt: "sidecar manifest regression",
+        source: "local",
+      } as never,
+      { command: "test", args: [], cwd: tmp, dryRun: true },
+    );
+
+    expect(outcome.manifest.ok).toBe(true);
+    expect(outcome.manifest.artifactSidecars).toEqual([
+      {
+        role: "sensor-csv",
+        path: sidecarPath,
+        mimeType: "text/csv",
+        bytes: Buffer.byteLength(sidecarContent),
+        sha256: sidecarSha256,
+      },
+    ]);
   });
 });
 

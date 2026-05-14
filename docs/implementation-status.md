@@ -128,9 +128,9 @@ codecs are wired. Image and video codecs are typed stubs — intentional until t
 
 ## Loupe dashboard renderer
 
-| Component                                  | Status   | Notes                                                                              |
-| ------------------------------------------ | -------- | ---------------------------------------------------------------------------------- |
-| CSV / JSON → self-contained HTML dashboard | ✅ Ships | `packages/codec-sensor/loupe.py`; 117 KB HTML, zero external deps, dark/light mode |
+| Component                                  | Status   | Notes                                                                                      |
+| ------------------------------------------ | -------- | ------------------------------------------------------------------------------------------ |
+| CSV / JSON → self-contained HTML dashboard | ✅ Ships | `packages/codec-sensor/loupe.py`; self-contained HTML, zero external deps, dark/light mode |
 
 ---
 

@@ -127,7 +127,7 @@ The receipt set is intentionally narrow. Adding a row requires a script + a CI g
 
 - Workspace gates from a clean checkout: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:golden`, and `pnpm smoke:cli` all pass. Verified 2026-05-06 in [`docs/research/2026-05-06-v0.3-cold-checkout-rerun.md`](docs/research/2026-05-06-v0.3-cold-checkout-rerun.md).
 - Codec independence: `pnpm lint:deps` enforces no cross-codec imports across 6 codec packages ([PR #126](https://github.com/p-to-q/wittgenstein/pull/126)).
-- Self-contained loupe HTML dashboard: ~ 117 KB, zero external CDN dependencies (run the [Quickstart](#quickstart-30-seconds-no-api-key) below, then `wc -c /tmp/ecg.html`).
+- Self-contained loupe HTML dashboard: zero external CDN dependencies; size varies with row count and is ~40 KB for the current dry-run ECG quickstart (run the [Quickstart](#quickstart-30-seconds-no-api-key) below, then `wc -c /tmp/ecg.html`).
 
 ---
 
@@ -218,7 +218,7 @@ What you get:
 ├── ecg.json    operator spec + 2,500 samples
 ├── ecg.csv     timeSec,value
 ├── ecg.png     matplotlib chart
-└── ecg.html    117 KB interactive loupe dashboard
+└── ecg.html    self-contained interactive loupe dashboard
 ```
 
 Full tour: [`docs/quickstart.md`](docs/quickstart.md).

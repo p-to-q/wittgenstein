@@ -6,7 +6,6 @@
 
 import { access, writeFile } from "node:fs/promises";
 import { dirname, resolve as resolvePath } from "node:path";
-import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import type { SensorSignalSpec } from "./schema.js";
 
@@ -18,13 +17,19 @@ export interface LoupeRenderResult {
 }
 
 function resolveModuleDir(): string {
-  if (typeof import.meta.url === "string") {
-    return dirname(fileURLToPath(import.meta.url));
+  if (typeof __dirname === "string") {
+    return __dirname;
   }
   return process.cwd();
 }
 
 const moduleDir = resolveModuleDir();
+
+function resolveEntrypointDir(): string | null {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) return null;
+  return dirname(resolvePath(entrypoint));
+}
 
 /**
  * Default candidate locations for `loupe.py`, ordered from most-likely to
@@ -32,9 +37,13 @@ const moduleDir = resolveModuleDir();
  * `loupe_cli` PATH lookup if none exist.
  */
 function defaultLoupeSearchPaths(): string[] {
+  const entrypointDir = resolveEntrypointDir();
   return [
+    ...(entrypointDir ? [resolvePath(entrypointDir, "loupe.py")] : []), // bundled CLI dist/
+    ...(entrypointDir ? [resolvePath(entrypointDir, "../loupe.py")] : []), // adjacent to bin/
     resolvePath(moduleDir, "../loupe.py"), // package root
     resolvePath(process.cwd(), "loupe.py"), // cwd
+    resolvePath(process.cwd(), "packages/codec-sensor/loupe.py"), // repo root
     resolvePath(process.cwd(), "polyglot-mini/loupe.py"), // sub-project
   ];
 }

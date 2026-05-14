@@ -55,6 +55,7 @@ export async function runCodecCommand(
         runId: outcome.manifest.runId,
         runDir: outcome.runDir,
         artifactPath: outcome.manifest.artifactPath,
+        artifactSidecars: outcome.manifest.artifactSidecars,
         error: outcome.error,
         ...(extra ?? {}),
       },

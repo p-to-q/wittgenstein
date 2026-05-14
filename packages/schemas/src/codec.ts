@@ -1,9 +1,7 @@
 import { z } from "zod";
 import type { Modality } from "./modality.js";
 
-export type Result<T, E = CodecError> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+export type Result<T, E = CodecError> = { ok: true; value: T } | { ok: false; error: E };
 
 export interface CodecError {
   code: string;
@@ -27,6 +25,14 @@ export interface RenderCtx {
 
 import type { CostUsdReason } from "./manifest.js";
 
+export interface RenderSidecar {
+  role: string;
+  path: string;
+  mimeType: string;
+  bytes: number;
+  sha256: string;
+}
+
 export interface RenderResult {
   artifactPath: string;
   mimeType: string;
@@ -40,6 +46,12 @@ export interface RenderResult {
     costUsdReason?: CostUsdReason;
     durationMs: number;
     seed: number | null;
+    /**
+     * Optional artifact bundle members emitted alongside the primary artifact.
+     * Sensor uses this to make its JSON / CSV / HTML triple explicit rather
+     * than hiding CSV and JSON as undocumented filesystem neighbors.
+     */
+    sidecars?: RenderSidecar[];
     /**
      * Optional codec-internal path identifier — e.g. for sensor it discriminates
      * `loupe-script` / `loupe-cli` / `fallback-static-html` so the manifest tells
@@ -61,11 +73,20 @@ export const RenderResultSchema = z.object({
       output: z.number().int().nonnegative(),
     }),
     costUsd: z.number().nonnegative(),
-    costUsdReason: z
-      .enum(["computed", "unknown-model", "missing-usage", "no-llm-call"])
-      .optional(),
+    costUsdReason: z.enum(["computed", "unknown-model", "missing-usage", "no-llm-call"]).optional(),
     durationMs: z.number().nonnegative(),
     seed: z.number().int().nullable(),
+    sidecars: z
+      .array(
+        z.object({
+          role: z.string(),
+          path: z.string(),
+          mimeType: z.string(),
+          bytes: z.number().int().nonnegative(),
+          sha256: z.string(),
+        }),
+      )
+      .optional(),
     renderPath: z.string().optional(),
   }),
 });

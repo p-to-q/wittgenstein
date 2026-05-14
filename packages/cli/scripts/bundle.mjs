@@ -1,11 +1,13 @@
 import * as esbuild from "esbuild";
-import { chmod } from "node:fs/promises";
+import { chmod, copyFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(root, "..");
 const out = resolve(pkgRoot, "dist/bundle.cjs");
+const loupeSrc = resolve(pkgRoot, "../codec-sensor/loupe.py");
+const loupeOut = resolve(pkgRoot, "dist/loupe.py");
 
 await esbuild.build({
   entryPoints: [resolve(pkgRoot, "src/cli-main.ts")],
@@ -20,4 +22,5 @@ await esbuild.build({
 });
 
 await chmod(out, 0o755);
+await copyFile(loupeSrc, loupeOut);
 console.log("wrote", out);

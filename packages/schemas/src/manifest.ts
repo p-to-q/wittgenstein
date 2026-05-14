@@ -16,12 +16,15 @@ const ImageRouteSchema = z.enum(["raster"]);
 const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
 const VideoRouteSchema = z.enum(["hyperframes-mp4", "hyperframes-html"]);
 
-const CostUsdReasonSchema = z.enum([
-  "computed",
-  "unknown-model",
-  "missing-usage",
-  "no-llm-call",
-]);
+const CostUsdReasonSchema = z.enum(["computed", "unknown-model", "missing-usage", "no-llm-call"]);
+
+export const ArtifactSidecarSchema = z.object({
+  role: z.string(),
+  path: z.string(),
+  mimeType: z.string(),
+  bytes: z.number().int().nonnegative(),
+  sha256: z.string(),
+});
 
 export const RunManifestSchema = z
   .object({
@@ -74,6 +77,7 @@ export const RunManifestSchema = z
 
     artifactPath: z.string().nullable(),
     artifactSha256: z.string().nullable(),
+    artifactSidecars: z.array(ArtifactSidecarSchema).optional(),
     audioRender: AudioRenderManifestSchema.optional(),
 
     /**
@@ -196,5 +200,6 @@ export const RunManifestSchema = z
   });
 
 export type AudioRenderManifest = z.infer<typeof AudioRenderManifestSchema>;
+export type ArtifactSidecar = z.infer<typeof ArtifactSidecarSchema>;
 export type RunManifest = z.infer<typeof RunManifestSchema>;
 export type CostUsdReason = z.infer<typeof CostUsdReasonSchema>;

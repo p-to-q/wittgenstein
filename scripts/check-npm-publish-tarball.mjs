@@ -190,6 +190,9 @@ async function bundledCliManifestFailures() {
       "bundled CLI manifest must use optional peer metadata, not optionalDependencies, for tiered runtimes.",
     );
   }
+  if (!manifest.files?.includes("dist/loupe.py")) {
+    failures.push("bundled CLI manifest must include dist/loupe.py for sensor CSV→HTML rendering.");
+  }
 
   return failures;
 }

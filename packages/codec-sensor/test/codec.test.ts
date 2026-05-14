@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -36,6 +37,16 @@ describe("@wittgenstein/codec-sensor", () => {
 
     expect(["text/html", "application/json"]).toContain(result.mimeType);
     expect((await stat(result.artifactPath)).size).toBeGreaterThan(10);
+    expect(result.metadata.sidecars?.map((sidecar) => sidecar.role).sort()).toEqual([
+      "sensor-csv",
+      "sensor-html",
+      "sensor-json",
+    ]);
+    for (const sidecar of result.metadata.sidecars ?? []) {
+      const data = await readFile(sidecar.path);
+      expect(sidecar.bytes).toBe(data.byteLength);
+      expect(sidecar.sha256).toBe(createHash("sha256").update(data).digest("hex"));
+    }
   });
 });
 
@@ -157,10 +168,7 @@ describe("sensor patchGrammar operator", () => {
         {
           type: "patchGrammar",
           patchLengthSec: 1,
-          patches: [
-            { operators: [] },
-            { operators: [{ type: "step", atSec: 0.3, amplitude: 7 }] },
-          ],
+          patches: [{ operators: [] }, { operators: [{ type: "step", atSec: 0.3, amplitude: 7 }] }],
         },
       ],
       notes: [],
@@ -359,8 +367,10 @@ async function renderRows(
 ): Promise<Array<{ timeSec: number; value: number }>> {
   const csv = (await renderToCsv(spec, seed)).toString("utf8");
   const lines = csv.split("\n").slice(1); // drop header
-  return lines.filter((line) => line.length > 0).map((line) => {
-    const [timeSec, value] = line.split(",");
-    return { timeSec: Number(timeSec), value: Number(value) };
-  });
+  return lines
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const [timeSec, value] = line.split(",");
+      return { timeSec: Number(timeSec), value: Number(value) };
+    });
 }

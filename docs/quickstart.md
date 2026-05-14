@@ -26,7 +26,7 @@ open /tmp/ecg.html     # macOS; or xdg-open on Linux
 
 What you get: `/tmp/ecg.json` (operator spec) + `/tmp/ecg.csv` (2,500 samples)
 
-- `/tmp/ecg.png` (matplotlib chart) + `/tmp/ecg.html` (~117 KB interactive loupe dashboard,
+- `/tmp/ecg.png` (matplotlib chart) + `/tmp/ecg.html` (interactive loupe dashboard,
   zero external dependencies).
 
 The dashboard has sortable tables, summary stats, and dark/light mode. The whole thing is

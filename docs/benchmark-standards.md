@@ -167,12 +167,12 @@ Score range: 0.0 – 1.0.
 
 ECG dry-run · 250 Hz · 10 s:
 
-| Metric             | Value                                                |
-| ------------------ | ---------------------------------------------------- |
-| Signal expand time | < 2 ms (pure numpy, no I/O)                          |
-| Sample count       | 2,500                                                |
-| Loupe HTML size    | ~117 KB (self-contained, zero external dependencies) |
-| Loupe render time  | ~0.8 s (Python subprocess, one-time startup cost)    |
+| Metric             | Value                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| Signal expand time | < 2 ms (pure numpy, no I/O)                                                                        |
+| Sample count       | 2,500                                                                                              |
+| Loupe HTML size    | ~40 KB for current dry-run ECG; varies with row count (self-contained, zero external dependencies) |
+| Loupe render time  | ~0.8 s (Python subprocess, one-time startup cost)                                                  |
 
 ---
 

@@ -622,4 +622,21 @@ describe("@wittgenstein/schemas", () => {
     const parsed = RunManifestSchema.safeParse(okManifestFields());
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts artifact sidecar receipts on successful manifests", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      artifactSidecars: [
+        {
+          role: "sensor-csv",
+          path: "/tmp/out.csv",
+          mimeType: "text/csv",
+          bytes: 17,
+          sha256: "deadbeef",
+        },
+      ],
+    });
+
+    expect(parsed.success).toBe(true);
+  });
 });

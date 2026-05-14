@@ -5,7 +5,7 @@ Wittgenstein is designed to be installable and skill-friendly, not just a local 
 ## Delivery Surface
 
 - `@wittgenstein/cli` exposes `wittgenstein` in the monorepo
-- Public npm package **`wittgenstein-cli`** (no scope) is produced from `packages/cli/npm-publish/` after `pnpm run release:npm` — single bundled binary, no `workspace:*` in the published manifest
+- Public npm package **`wittgenstein-cli`** (no scope) is produced from `packages/cli/npm-publish/` after `pnpm run release:npm` — single bundled binary plus the sensor Loupe renderer, no `workspace:*` in the published manifest
 
 ## npm (public registry)
 
@@ -27,6 +27,7 @@ cd packages/cli && pnpm run release:npm && cd npm-publish && npm publish
 ```
 
 Requires `npm login` (or a publish token) on that machine. The published name is **`wittgenstein-cli`**; install with `npm install -g wittgenstein-cli`. If npm reports that **OTP / 2FA** is required for publish, append `--otp=…` to the `npm publish` command for that account only.
+
 - `scripts/install.sh` is the future `curl | sh` seam
 - `AGENTS.md` is the short agent primer; `packages/agent-contact-text/` holds extended narrative primers (00–03) for coding agents
 - output conventions are stable under `artifacts/runs/*`

@@ -7,9 +7,10 @@
 // orchestration only; the per-operator math and the dashboard plumbing are
 // no longer mixed into the same module.
 
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, extname } from "node:path";
-import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
+import type { RenderCtx, RenderResult, RenderSidecar } from "@wittgenstein/schemas";
 import type { SensorSignalSpec } from "./schema.js";
 import { dispatchOperator } from "./operators/index.js";
 import { renderLoupeDashboard, type SensorRenderPath } from "./loupe-renderer.js";
@@ -58,6 +59,11 @@ export async function renderSignalBundle(
   const dashboardOutcome = await renderLoupeDashboard(csvPath, htmlPath, spec);
   const artifactPath = dashboardOutcome.htmlReady ? htmlPath : jsonPath;
   const info = await stat(artifactPath);
+  const sidecars = await Promise.all([
+    describeSidecar("sensor-json", jsonPath, "application/json"),
+    describeSidecar("sensor-csv", csvPath, "text/csv"),
+    describeSidecar("sensor-html", htmlPath, "text/html"),
+  ]);
 
   return {
     artifactPath,
@@ -70,6 +76,7 @@ export async function renderSignalBundle(
       costUsd: 0,
       durationMs: Date.now() - startedAt,
       seed: ctx.seed,
+      sidecars,
       renderPath: dashboardOutcome.renderPath,
     },
   };
@@ -195,6 +202,21 @@ function ensureExtension(path: string, ext: string): string {
 
 function replaceExtension(path: string, ext: string): string {
   return extname(path) ? path.slice(0, -extname(path).length) + ext : `${path}${ext}`;
+}
+
+async function describeSidecar(
+  role: string,
+  path: string,
+  mimeType: string,
+): Promise<RenderSidecar> {
+  const [info, data] = await Promise.all([stat(path), readFile(path)]);
+  return {
+    role,
+    path,
+    mimeType,
+    bytes: info.size,
+    sha256: createHash("sha256").update(data).digest("hex"),
+  };
 }
 
 function createRng(seed: number): () => number {

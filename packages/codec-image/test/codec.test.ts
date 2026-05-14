@@ -50,10 +50,6 @@ function captureWarnLogger(warnings: string[]): RenderCtx["logger"] {
   };
 }
 
-// Two-pass acceptance-ledger cross-reference, lifted out of the inline
-// comment per #354 so the ledger location stays greppable from one place.
-const TWO_PASS_ACCEPTANCE_LEDGER_DOC = "docs/research/2026-05-07-vsc-acceptance-cases.md (#207)";
-
 describe("@wittgenstein/codec-image", () => {
   it("parses and enriches scene contract defaults", () => {
     expect(imageCodec.name).toBe("image");
@@ -269,8 +265,8 @@ describe("@wittgenstein/codec-image", () => {
     }
   });
 
-  // Cases below cover the two-pass acceptance ledger — see
-  // `TWO_PASS_ACCEPTANCE_LEDGER_DOC` at the top of the file. They lock the
+  // Cases below cover the two-pass acceptance ledger:
+  // docs/research/2026-05-07-vsc-acceptance-cases.md (#207). They lock the
   // current codec contract: `mode` is preserved on the receipt as the
   // declared lane, while `imageCodePath` reflects which decoder-facing
   // layer actually fired. Mode-driven runtime short-circuit (true two-pass

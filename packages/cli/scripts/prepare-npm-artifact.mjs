@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(cliRoot, "npm-publish");
 const bundleSrc = resolve(cliRoot, "dist/bundle.cjs");
+const loupeSrc = resolve(cliRoot, "dist/loupe.py");
 const readmeSrc = resolve(cliRoot, "README.md");
 const optionalPeerSources = [resolve(cliRoot, "../codec-image/package.json")];
 
@@ -37,7 +38,7 @@ const slim = {
   bin: {
     wittgenstein: "./bin/wittgenstein.mjs",
   },
-  files: ["dist/bundle.cjs", "bin/wittgenstein.mjs", "README.md"],
+  files: ["dist/bundle.cjs", "dist/loupe.py", "bin/wittgenstein.mjs", "README.md"],
   engines: {
     node: ">=20.19.0",
   },
@@ -49,6 +50,7 @@ await mkdir(resolve(outDir, "dist"), { recursive: true });
 await mkdir(resolve(outDir, "bin"), { recursive: true });
 await copyFile(bundleSrc, resolve(outDir, "dist/bundle.cjs"));
 await chmod(resolve(outDir, "dist/bundle.cjs"), 0o755);
+await copyFile(loupeSrc, resolve(outDir, "dist/loupe.py"));
 const binPath = resolve(outDir, "bin/wittgenstein.mjs");
 await writeFile(binPath, binStub, "utf8");
 await chmod(binPath, 0o755);

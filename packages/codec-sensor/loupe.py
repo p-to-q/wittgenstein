@@ -10,6 +10,7 @@ Usage:
 
 import argparse
 import csv
+import html
 import json
 import os
 import sys
@@ -144,6 +145,26 @@ header{
   white-space:nowrap;
 }
 .btn:hover{border-color:var(--accent);color:var(--text)}
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:16px;padding:18px 24px 0}
+.chart-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;min-width:0;
+}
+.chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.chart-title{font-size:13px;font-weight:700;color:var(--text)}
+.chart-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+.chart-canvas{
+  display:block;width:100%;height:260px;border-radius:8px;
+  background:linear-gradient(180deg,var(--bg),var(--bg3));border:1px solid var(--border);
+}
+.profile-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;
+}
+.profile-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.profile-row:last-child{border-bottom:0;padding-bottom:0}
+.profile-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.profile-value{font-family:var(--mono);font-size:12px;color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis}
 .stats-row{
   display:flex;gap:12px;padding:16px 24px;flex-wrap:wrap;
   border-bottom:1px solid var(--border);background:var(--bg);
@@ -192,6 +213,15 @@ footer{
 .page-btn:hover{border-color:var(--accent);color:var(--text)}
 .page-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .empty{text-align:center;padding:48px;color:var(--muted)}
+@media (max-width: 820px){
+  header{padding:14px 16px}
+  .dashboard-grid{grid-template-columns:1fr;padding:14px 16px 0}
+  .stats-row{padding:14px 16px}
+  .table-wrap{padding:0 16px 18px}
+  .chart-canvas{height:220px}
+  th{top:58px}
+  footer{padding:12px 16px}
+}
 """
 
 JS = r"""
@@ -207,9 +237,21 @@ let query = "";
 const tbody = document.querySelector("tbody");
 const footer_info = document.getElementById("footer-info");
 const search = document.getElementById("search");
+const chart = document.getElementById("chart");
+const chartTitle = document.getElementById("chart-title");
+const chartMeta = document.getElementById("chart-meta");
 
 function parseNum(v) {
   return parseFloat(String(v).replace(/[,$%€£]/g, "")) || 0;
+}
+
+function escapeHtml(v) {
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function sort(col) {
@@ -268,13 +310,13 @@ function render() {
         const n = parseNum(v);
         const {min, max} = numMeta[c];
         const pct = max !== min ? Math.round((n - min) / (max - min) * 60) : 60;
-        return `<td class="num">${v}<span class="mini-bar" style="width:${pct}px"></span></td>`;
+        return `<td class="num">${escapeHtml(v)}<span class="mini-bar" style="width:${pct}px"></span></td>`;
       }
       if (t === "boolean") {
         const b = ["true","yes","1","t","y"].includes(String(v).toLowerCase());
         return `<td class="bool-${b}">${b ? "✓" : "✗"}</td>`;
       }
-      return `<td title="${String(v).replace(/"/g,'&quot;')}">${v}</td>`;
+      return `<td title="${escapeHtml(v)}">${escapeHtml(v)}</td>`;
     }).join("")}
     </tr>`).join("") : `<tr><td class="empty" colspan="${COLS.length}">No results found</td></tr>`;
 
@@ -283,6 +325,75 @@ function render() {
     : `${total.toLocaleString()} matches · showing ${start}–${end}`;
 
   renderPager(total);
+  renderChart(rows);
+}
+
+function renderChart(rows) {
+  if (!chart) return;
+  const ctx = chart.getContext("2d");
+  const ratio = window.devicePixelRatio || 1;
+  const rect = chart.getBoundingClientRect();
+  chart.width = Math.max(1, Math.floor(rect.width * ratio));
+  chart.height = Math.max(1, Math.floor(rect.height * ratio));
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const yCol = COLS.find(c => c !== "timeSec" && TYPES[c] === "number") ||
+    COLS.find(c => TYPES[c] === "number");
+  if (!yCol || rows.length === 0) {
+    chartTitle.textContent = "No numeric preview";
+    chartMeta.textContent = "Add a numeric column to draw a signal.";
+    return;
+  }
+
+  const xCol = COLS.includes("timeSec") ? "timeSec" : null;
+  const points = rows.map((row, i) => ({
+    x: xCol ? parseNum(row[xCol]) : i,
+    y: parseNum(row[yCol]),
+  })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+  if (points.length === 0) return;
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = { left: 42, right: 16, top: 18, bottom: 30 };
+  const innerW = Math.max(1, w - pad.left - pad.right);
+  const innerH = Math.max(1, h - pad.top - pad.bottom);
+  const xSpan = maxX !== minX ? maxX - minX : 1;
+  const ySpan = maxY !== minY ? maxY - minY : 1;
+  const sx = x => pad.left + ((x - minX) / xSpan) * innerW;
+  const sy = y => pad.top + innerH - ((y - minY) / ySpan) * innerH;
+
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--border").trim();
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (innerH / 4) * i;
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = sx(p.x), y = sy(p.y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--sub").trim();
+  ctx.font = "11px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
+  ctx.fillText(minY.toFixed(3), 8, sy(minY));
+  ctx.fillText(maxY.toFixed(3), 8, sy(maxY) + 4);
+  ctx.fillText(String(minX), pad.left, h - 10);
+  ctx.fillText(String(maxX), w - pad.right - 42, h - 10);
+
+  chartTitle.textContent = `${yCol} over ${xCol || "row"}`;
+  chartMeta.textContent = `${points.length.toLocaleString()} point preview · min ${minY.toFixed(4)} · max ${maxY.toFixed(4)}`;
 }
 
 function renderPager(total) {
@@ -315,9 +426,11 @@ function toggleTheme() {
   const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = t === "dark" ? "" : "light";
   document.getElementById("theme-btn").textContent = t === "light" ? "☀" : "◑";
+  render();
 }
 
 search.addEventListener("input", e => filter(e.target.value));
+window.addEventListener("resize", () => render());
 document.querySelectorAll("th[data-col]").forEach(th =>
   th.addEventListener("click", () => sort(th.dataset.col)));
 
@@ -340,7 +453,7 @@ def generate_html(columns, rows, filename, col_types):
                                   max(stats["max"] - stats["min"], 1) * 100))
                 card = (
                     f'<div class="stat-card">'
-                    f'<div class="stat-label">{col}</div>'
+                    f'<div class="stat-label">{html.escape(col)}</div>'
                     f'<div class="stat-val">{stats["mean"]:.1f}</div>'
                     f'<div class="stat-sub">avg · {stats["min"]:.0f}–{stats["max"]:.0f}</div>'
                     f'<div class="bar"><div class="bar-fill" style="width:{pct}%"></div></div>'
@@ -352,7 +465,7 @@ def generate_html(columns, rows, filename, col_types):
 
     # Table header
     headers = "".join(
-        f'<th data-col="{col}">{col}<span class="sort-icon">↕</span></th>'
+        f'<th data-col="{html.escape(col, quote=True)}">{html.escape(col)}<span class="sort-icon">↕</span></th>'
         for col in columns
     )
 
@@ -371,6 +484,7 @@ def generate_html(columns, rows, filename, col_types):
           .replace("/*TYPES*/", types_json))
 
     short_name = os.path.basename(filename)
+    safe_short_name = html.escape(short_name)
     title = f"{short_name} — loupe"
 
     return f"""<!DOCTYPE html>
@@ -378,16 +492,33 @@ def generate_html(columns, rows, filename, col_types):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{title}</title>
+  <title>{html.escape(title)}</title>
   <style>{CSS}</style>
 </head>
 <body>
 <header>
   <div class="logo">⊙ loupe</div>
-  <div class="meta">{short_name} · {nc} col{"s" if nc!=1 else ""} · {n:,} row{"s" if n!=1 else ""}</div>
+  <div class="meta">{safe_short_name} · {nc} col{"s" if nc!=1 else ""} · {n:,} row{"s" if n!=1 else ""}</div>
   <input class="search" id="search" type="search" placeholder="Search all columns…" autocomplete="off">
   <button class="btn" id="theme-btn" onclick="toggleTheme()">◑</button>
 </header>
+<section class="dashboard-grid" aria-label="Data preview">
+  <div class="chart-card">
+    <div class="chart-head">
+      <div>
+        <div class="chart-title" id="chart-title">Signal preview</div>
+        <div class="chart-meta" id="chart-meta">Rendering numeric columns…</div>
+      </div>
+    </div>
+    <canvas class="chart-canvas" id="chart"></canvas>
+  </div>
+  <aside class="profile-card" aria-label="Dataset profile">
+    <div class="profile-row"><span class="profile-label">File</span><span class="profile-value">{safe_short_name}</span></div>
+    <div class="profile-row"><span class="profile-label">Rows</span><span class="profile-value">{n:,}</span></div>
+    <div class="profile-row"><span class="profile-label">Columns</span><span class="profile-value">{nc}</span></div>
+    <div class="profile-row"><span class="profile-label">Numeric</span><span class="profile-value">{sum(1 for c in columns if col_types[c] == "number")}</span></div>
+  </aside>
+</section>
 {stats_html}
 <div class="table-wrap">
   <table>

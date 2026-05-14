@@ -31,15 +31,15 @@ The LLM does not emit raw samples, NumPy arrays, or waveform binaries. It emits 
 
 The library is deliberately small. Adding an operator requires an RFC.
 
-| Operator       | Use                                                              | Parameters                                                        |
-| -------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `oscillator`   | sine / square / triangle base waves                              | `freqHz`, `amplitude`, `phase`                                    |
-| `noise`        | white / pink / brown noise overlay                               | `kind`, `amplitude`                                               |
-| `drift`        | low-frequency baseline drift                                     | `slope`, `period`                                                 |
-| `pulse`        | event-rate Poisson or fixed-period                               | `rateHz`, `width`, `shape`                                        |
-| `step`         | discrete level changes                                           | `levels`, `times`                                                 |
-| `ecgTemplate`  | clinical-shape ECG cycle (P-QRS-T)                               | `bpm`, `morphology`, `noiseFloor`                                 |
-| `patchGrammar` | higher-order: split duration into patches, recurse per-patch ops | `patchLengthSec`, `patches[]: { operators[], affineNormalize? }`  |
+| Operator       | Use                                                              | Parameters                                                       |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `oscillator`   | sine / square / triangle base waves                              | `freqHz`, `amplitude`, `phase`                                   |
+| `noise`        | white / pink / brown noise overlay                               | `kind`, `amplitude`                                              |
+| `drift`        | low-frequency baseline drift                                     | `slope`, `period`                                                |
+| `pulse`        | event-rate Poisson or fixed-period                               | `rateHz`, `width`, `shape`                                       |
+| `step`         | discrete level changes                                           | `levels`, `times`                                                |
+| `ecgTemplate`  | clinical-shape ECG cycle (P-QRS-T)                               | `bpm`, `morphology`, `noiseFloor`                                |
+| `patchGrammar` | higher-order: split duration into patches, recurse per-patch ops | `patchLengthSec`, `patches[]: { operators[], affineNormalize? }` |
 
 The runtime composes operators by addition into a single sample buffer. Composition order is recorded in the manifest for replay.
 
@@ -107,7 +107,7 @@ The fast path emits three files per run:
 - `signal.csv` — flat sidecar for spreadsheet tools.
 - `loupe.html` — single-page dashboard for visual inspection.
 
-All three are recorded in the manifest with their SHA-256 hashes.
+All three are recorded in the manifest `artifactSidecars` list with byte counts and SHA-256 hashes; the primary `artifactPath` remains the HTML dashboard when Loupe renders successfully.
 
 ## Goldens
 
@@ -133,17 +133,17 @@ Sensor's quality risk is small but real:
 
 For agents reading this doc cold, the full sensor lineage from M3 closure to today's main HEAD:
 
-| Step | Surface | Note |
-|---|---|---|
-| Codec-sensor M3 port | `docs/exec-plans/active/codec-v2-port.md` §M3 | The "confirmation case": no L4 adapter, deterministic L3, three signal types (ecg / gyro / temperature) |
-| Three sensor goldens | `fixtures/golden/sensor/{ecg,temperature,gyro}.csv` + `manifest.json` | Byte-pinned per signal family; CI-gated via `pnpm test:golden` |
-| patchGrammar research | PR #239 (closes #221) | TimesFM-inspired patching / local-affine-normalization / chunked expansion; concept-only borrow, no model dep |
-| patchGrammar implementation | PR #244 | Higher-order operator added; recursion via `z.lazy + z.union`; existing 3 sensor goldens unchanged |
-| patchGrammar contract honesty | PR #249 (closes #247) | Patch-local time semantics; recursion-depth cap; `affineNormalize` bound validation; lineage receipt structure documented in this doc's patchGrammar section |
-| patchGrammar goldens | `fixtures/golden/sensor/{ecg,temperature,gyro}-patch-grammar.csv` | New byte-pinned fixtures; `gyro-patch-grammar.csv` SHA equals `gyro.csv` SHA (single-patch full-duration recursion-seam invariant) |
-| Route enum tightening | PR #245 | `RunManifest.route` enforces `ecg` / `temperature` / `gyro` per #190 partial closeout |
-| Sensor algorithmic research | PR #276 (closes #262) | TimesFM concept-borrow without model dep; chaos / shapelets / reservoir surveyed; concrete measurement gate proposed for #155 |
+| Step                          | Surface                                                                                       | Note                                                                                                                                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codec-sensor M3 port          | `docs/exec-plans/active/codec-v2-port.md` §M3                                                 | The "confirmation case": no L4 adapter, deterministic L3, three signal types (ecg / gyro / temperature)                                                                                                                         |
+| Three sensor goldens          | `fixtures/golden/sensor/{ecg,temperature,gyro}.csv` + `manifest.json`                         | Byte-pinned per signal family; CI-gated via `pnpm test:golden`                                                                                                                                                                  |
+| patchGrammar research         | PR #239 (closes #221)                                                                         | TimesFM-inspired patching / local-affine-normalization / chunked expansion; concept-only borrow, no model dep                                                                                                                   |
+| patchGrammar implementation   | PR #244                                                                                       | Higher-order operator added; recursion via `z.lazy + z.union`; existing 3 sensor goldens unchanged                                                                                                                              |
+| patchGrammar contract honesty | PR #249 (closes #247)                                                                         | Patch-local time semantics; recursion-depth cap; `affineNormalize` bound validation; lineage receipt structure documented in this doc's patchGrammar section                                                                    |
+| patchGrammar goldens          | `fixtures/golden/sensor/{ecg,temperature,gyro}-patch-grammar.csv`                             | New byte-pinned fixtures; `gyro-patch-grammar.csv` SHA equals `gyro.csv` SHA (single-patch full-duration recursion-seam invariant)                                                                                              |
+| Route enum tightening         | PR #245                                                                                       | `RunManifest.route` enforces `ecg` / `temperature` / `gyro` per #190 partial closeout                                                                                                                                           |
+| Sensor algorithmic research   | PR #276 (closes #262)                                                                         | TimesFM concept-borrow without model dep; chaos / shapelets / reservoir surveyed; concrete measurement gate proposed for #155                                                                                                   |
 | patchGrammar measurement plan | [PR #321](https://github.com/p-to-q/wittgenstein/pull/321) (revised + merged version of #295) | Ratified dataset / metric / protocol for the #284 measurement gate. NOAA LCD (temperature) + PhysioNet/CinC (ECG) + UCI HAR (gyro); Welch spectral distance + augmentation F1 lift; pre-registered sample-size escalation rule. |
-| Implementation slices (gated) | #263 | Awaits #284 measurement results; #153 (chaos) un-parked only on patchGrammar pass per family |
+| Implementation slices (gated) | #263                                                                                          | Awaits #284 measurement results; #153 (chaos) un-parked only on patchGrammar pass per family                                                                                                                                    |
 
 The lineage is intentionally additive: each step is reversible (no commit erased the prior framing) and citation-backed (every claim above resolves to a PR or doc path). New work that touches the sensor surface should extend this table, not silently rewrite earlier rows.

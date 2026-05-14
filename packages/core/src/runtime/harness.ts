@@ -196,8 +196,7 @@ export class Wittgenstein {
         if (artMeta.costUsd !== undefined) {
           manifest.costUsd = artMeta.costUsd;
           manifest.costUsdReason =
-            artMeta.costUsdReason ??
-            (artMeta.costUsd === null ? "missing-usage" : "computed");
+            artMeta.costUsdReason ?? (artMeta.costUsd === null ? "missing-usage" : "computed");
         } else if (artMeta.costUsdReason !== undefined) {
           manifest.costUsdReason = artMeta.costUsdReason;
         }
@@ -290,10 +289,7 @@ export class Wittgenstein {
           }
         }
 
-        budget.consume(
-          generation.tokens.input + generation.tokens.output,
-          generation.costUsd ?? 0,
-        );
+        budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd ?? 0);
 
         manifest.llmOutputRaw = generation.text;
         manifest.llmTokens = generation.tokens;
@@ -339,6 +335,9 @@ export class Wittgenstein {
         }
         if (rendered.metadata.renderPath !== undefined) {
           manifest.renderPath = rendered.metadata.renderPath;
+        }
+        if (rendered.metadata.sidecars !== undefined) {
+          manifest.artifactSidecars = rendered.metadata.sidecars;
         }
       }
     } catch (caughtError) {

@@ -100,7 +100,7 @@ Procedural ambient synthesis (pink noise, gaussian pulses, tonal layers) in pure
 ### ❤️ Sensor — ECG
 
 Each entry ships JSON (operator spec + samples) + CSV (`timeSec,value`) + an interactive
-Loupe HTML dashboard (~117 KB, zero external deps).
+Loupe HTML dashboard (self-contained, zero external deps; size varies with row count).
 
 | #   | JSON                                                                          | CSV                                                                         | HTML (interactive)                                                                           |
 | --- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
