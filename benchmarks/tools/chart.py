@@ -7,7 +7,7 @@ quality picture for a release tag. Today this is a typed skeleton that
 raises NotImplementedError so the contract is locked before a chart
 library and aggregation rule are committed to.
 
-Per ROADMAP.md Phase 4: "Chart generator producing
+Per docs/roadmap.md Phase 4: "Chart generator producing
 artifacts/benchmarks/<tag>.png".
 
 To implement:

@@ -33,7 +33,6 @@ const moduleDir = resolveModuleDir();
  */
 function defaultLoupeSearchPaths(): string[] {
   return [
-    resolvePath(moduleDir, "../../../../loupe.py"), // repo root
     resolvePath(moduleDir, "../loupe.py"), // package root
     resolvePath(process.cwd(), "loupe.py"), // cwd
     resolvePath(process.cwd(), "polyglot-mini/loupe.py"), // sub-project

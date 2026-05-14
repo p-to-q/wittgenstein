@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Detect doctrine touches
         id: detect
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const doctrinePatterns = [
@@ -81,7 +81,7 @@ jobs:
 
       - name: Post nudge comment if missing reference
         if: steps.detect.outputs.touched == 'yes' && steps.detect.outputs.hasref == 'no'
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const marker = "<!-- doctrine-guardrail -->";

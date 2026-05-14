@@ -94,7 +94,7 @@ Before starting M2 implementation, the repo should satisfy the following. As of
 2026-04-29, it does.
 
 - No open PRs block M2.
-- `README.md`, `PROMPT.md`, `AGENTS.md`, and `ROADMAP.md` point to the same pre-M2
+- `README.md`, `PROMPT.md`, `AGENTS.md`, and `docs/roadmap.md` point to the same pre-M2
   state.
 - Brief I is ratified by ADR-0015.
 - Brief J and the M2 implementation memo are subordinate to ADR-0015 and the active

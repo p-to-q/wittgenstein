@@ -8,7 +8,7 @@
 
 - [`THESIS.md`](THESIS.md) — the smallest locked statement page
 - [`inheritance-audit.md`](inheritance-audit.md) — keep / promote / revise / retire matrix
-- [`../SHOWCASE.md`](../SHOWCASE.md) — public-facing artifact gallery
+- [`showcase.md`](showcase.md) — public-facing artifact gallery
 
 ---
 
@@ -61,13 +61,13 @@ Read from left to right:
 
 ## 3. Change map
 
-| Workstream                     | Why it exists                                                                 | Main files                                                                                                                 |
-| ------------------------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Thesis lock-in                 | Stop drift in the core claim                                                  | [`THESIS.md`](THESIS.md)                                                                                                   |
-| Inheritance audit              | Make implicit repo beliefs explicit                                           | [`inheritance-audit.md`](inheritance-audit.md)                                                                             |
-| Showcase provenance correction | Fix the public sample image so it matches verified local workflow output      | [`../SHOWCASE.md`](../SHOWCASE.md), [`../artifacts/showcase/workflow-examples/`](../artifacts/showcase/workflow-examples/) |
-| Regeneration guardrail         | Prevent future showcase reruns from silently restoring the wrong image sample | [`../scripts/generate_workflow_examples.ts`](../scripts/generate_workflow_examples.ts)                                     |
-| Merge brief / handoff          | Give humans and agents one readable synthesis page                            | this file                                                                                                                  |
+| Workstream                     | Why it exists                                                                 | Main files                                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Thesis lock-in                 | Stop drift in the core claim                                                  | [`THESIS.md`](THESIS.md)                                                                                             |
+| Inheritance audit              | Make implicit repo beliefs explicit                                           | [`inheritance-audit.md`](inheritance-audit.md)                                                                       |
+| Showcase provenance correction | Fix the public sample image so it matches verified local workflow output      | [`showcase.md`](showcase.md), [`../artifacts/showcase/workflow-examples/`](../artifacts/showcase/workflow-examples/) |
+| Regeneration guardrail         | Prevent future showcase reruns from silently restoring the wrong image sample | [`../scripts/generate_workflow_examples.ts`](../scripts/generate_workflow_examples.ts)                               |
+| Merge brief / handoff          | Give humans and agents one readable synthesis page                            | this file                                                                                                            |
 
 ---
 
@@ -143,7 +143,7 @@ If you are a human maintainer, read in this order:
 1. [`THESIS.md`](THESIS.md)
 2. [`inheritance-audit.md`](inheritance-audit.md)
 3. [`../README.md`](../README.md)
-4. [`../SHOWCASE.md`](../SHOWCASE.md)
+4. [`showcase.md`](showcase.md)
 
 This gives you:
 
@@ -162,7 +162,7 @@ If you are an agent entering the repo mid-stream, read in this order:
 2. [`THESIS.md`](THESIS.md)
 3. [`inheritance-audit.md`](inheritance-audit.md)
 4. [`../docs/architecture.md`](architecture.md)
-5. [`../SHOWCASE.md`](../SHOWCASE.md)
+5. [`showcase.md`](showcase.md)
 
 That sequence answers five questions in order:
 
@@ -202,8 +202,8 @@ After merge, `main` should inherit four durable improvements:
 The P1 synthesis above set up four immediate next moves. All four have since landed as
 dated PRs and are now either merged or in review:
 
-| Phase | PR                                                              | Outputs                                                                                                                 | Status |
-| ----- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
+| Phase | PR                                                    | Outputs                                                                                                                 | Status |
+| ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
 | P2a   | [#7](https://github.com/p-to-q/wittgenstein/pull/7)   | Briefs A (VQ/VLM lineage), B (Ilya↔LeCun, critical-path), C (horizon scan)                                              | merged |
 | P2b   | [#33](https://github.com/p-to-q/wittgenstein/pull/33) | Briefs D (CLI conventions), E (benchmarks v2), F (site reconciliation)                                                  | merged |
 | P3    | [#34](https://github.com/p-to-q/wittgenstein/pull/34) | RFCs 0001 (Codec Protocol v2), 0002 (CLI ergonomics), 0003 (Naming: Loom/Transducer/Score/Handoff), 0004 (Site)         | merged |
