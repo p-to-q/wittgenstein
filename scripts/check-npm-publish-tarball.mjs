@@ -25,6 +25,8 @@ import { fileURLToPath } from "node:url";
 const execFileAsync = promisify(execFile);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
+const bundledCliManifestPath = resolve(repoRoot, "packages/cli/npm-publish/package.json");
+const optionalPeerSourcePaths = [resolve(repoRoot, "packages/codec-image/package.json")];
 const npmCacheDir = mkdtempSync(join(tmpdir(), "wittgenstein-npm-pack-cache-"));
 let npmCacheRemoved = false;
 
@@ -75,7 +77,7 @@ async function findPublishablePackages() {
     const pkgJsonPath = resolve(dir, entry.name, "package.json");
     let pkg;
     try {
-      pkg = JSON.parse(await readFile(pkgJsonPath, "utf8"));
+      pkg = await readJson(pkgJsonPath);
     } catch {
       continue;
     }
@@ -84,6 +86,10 @@ async function findPublishablePackages() {
     out.push({ name: pkg.name, dir: resolve(dir, entry.name) });
   }
   return out;
+}
+
+async function readJson(path) {
+  return JSON.parse(await readFile(path, "utf8"));
 }
 
 async function tarballFiles(packageDir) {
@@ -122,6 +128,70 @@ async function buildPackageClosure(packageName) {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
   });
+}
+
+async function prepareBundledCliArtifact() {
+  await execFileAsync("pnpm", ["--filter", "@wittgenstein/cli", "run", "release:npm"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+}
+
+async function expectedBundledOptionalPeerContract() {
+  const peerDependencies = {};
+  const peerDependenciesMeta = {};
+
+  for (const packageJsonPath of optionalPeerSourcePaths) {
+    const source = await readJson(packageJsonPath);
+    for (const [name, range] of Object.entries(source.peerDependencies ?? {})) {
+      if (source.peerDependenciesMeta?.[name]?.optional !== true) continue;
+      peerDependencies[name] = range;
+      peerDependenciesMeta[name] = { optional: true };
+    }
+  }
+
+  return { peerDependencies, peerDependenciesMeta };
+}
+
+async function bundledCliManifestFailures() {
+  const manifest = await readJson(bundledCliManifestPath);
+  const expected = await expectedBundledOptionalPeerContract();
+  const failures = [];
+
+  for (const [name, range] of Object.entries(expected.peerDependencies)) {
+    if (manifest.peerDependencies?.[name] !== range) {
+      failures.push(
+        `peerDependencies.${name} must mirror optional runtime peer range ${range} from codec package manifests.`,
+      );
+    }
+    if (manifest.peerDependenciesMeta?.[name]?.optional !== true) {
+      failures.push(
+        `peerDependenciesMeta.${name}.optional must be true in the bundled CLI manifest.`,
+      );
+    }
+  }
+
+  for (const name of Object.keys(manifest.peerDependencies ?? {})) {
+    if (expected.peerDependencies[name] === undefined) {
+      failures.push(
+        `peerDependencies.${name} is not sourced from a bundled optional runtime peer.`,
+      );
+    }
+  }
+
+  if (manifest.dependencies !== undefined) {
+    failures.push(
+      "bundled CLI manifest must not add runtime dependencies to the default install path.",
+    );
+  }
+  if (manifest.optionalDependencies !== undefined) {
+    failures.push(
+      "bundled CLI manifest must use optional peer metadata, not optionalDependencies, for tiered runtimes.",
+    );
+  }
+
+  return failures;
 }
 
 async function main() {
@@ -183,6 +253,27 @@ async function main() {
         });
       }
     }
+  }
+
+  try {
+    await prepareBundledCliArtifact();
+    for (const error of await bundledCliManifestFailures()) {
+      packFailures.push({
+        package: "wittgenstein-cli",
+        phase: "generated manifest",
+        error,
+        stdout: "",
+        stderr: "",
+      });
+    }
+  } catch (error) {
+    packFailures.push({
+      package: "wittgenstein-cli",
+      phase: "release:npm artifact generation",
+      error: error?.message ?? String(error),
+      stdout: error?.stdout ?? "",
+      stderr: error?.stderr ?? "",
+    });
   }
 
   if (packFailures.length > 0) {

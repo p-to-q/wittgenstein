@@ -17,7 +17,14 @@ export interface LoupeRenderResult {
   renderPath: SensorRenderPath;
 }
 
-const moduleDir = dirname(fileURLToPath(import.meta.url));
+function resolveModuleDir(): string {
+  if (typeof import.meta.url === "string") {
+    return dirname(fileURLToPath(import.meta.url));
+  }
+  return process.cwd();
+}
+
+const moduleDir = resolveModuleDir();
 
 /**
  * Default candidate locations for `loupe.py`, ordered from most-likely to

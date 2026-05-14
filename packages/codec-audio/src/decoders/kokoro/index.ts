@@ -1,10 +1,8 @@
 import { createHash } from "node:crypto";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const manifestPath = fileURLToPath(new URL("./manifest.json", import.meta.url));
+import { dirname, join, resolve } from "node:path";
+import manifestJson from "./manifest.json" with { type: "json" };
 
 export interface KokoroDecoderManifest {
   readonly repoId: string;
@@ -18,9 +16,7 @@ export interface KokoroDecoderManifest {
   readonly kokoroJsVersion: string;
 }
 
-export const KOKORO_MANIFEST: KokoroDecoderManifest = JSON.parse(
-  readFileSync(manifestPath, "utf8"),
-) as KokoroDecoderManifest;
+export const KOKORO_MANIFEST = manifestJson as KokoroDecoderManifest;
 
 interface RawAudioLike {
   readonly audio: Float32Array;
@@ -51,11 +47,7 @@ type TransformersEnvModule = {
 
 export interface KokoroDecoder {
   /** Synthesize `text` and write a WAV file to `outPath`. */
-  synthesize(
-    text: string,
-    voice: string,
-    outPath: string,
-  ): Promise<{ sampleRate: number }>;
+  synthesize(text: string, voice: string, outPath: string): Promise<{ sampleRate: number }>;
   /** Stable identifier suitable for `audioRender.decoderId`. */
   readonly decoderId: string;
   /** Pinned manifest values used to construct this decoder. */
@@ -114,10 +106,8 @@ export async function getKokoroDecoder(): Promise<KokoroDecoder> {
 
   await ensureProxyDispatcher();
 
-  const kokoroMod = (await import("kokoro-js")) as unknown as KokoroTtsLoader;
-  const transformersMod = (await import(
-    "@huggingface/transformers"
-  )) as unknown as TransformersEnvModule;
+  const kokoroMod = await importRuntime<KokoroTtsLoader>("kokoro-js");
+  const transformersMod = await importRuntime<TransformersEnvModule>("@huggingface/transformers");
 
   const tts = await kokoroMod.KokoroTTS.from_pretrained(KOKORO_MANIFEST.repoId, {
     dtype: KOKORO_MANIFEST.dtype,
@@ -141,9 +131,12 @@ export async function getKokoroDecoder(): Promise<KokoroDecoder> {
   return cachedDecoder;
 }
 
-async function verifyCachedAssetIntegrity(
-  transformersMod: TransformersEnvModule,
-): Promise<void> {
+async function importRuntime<T>(moduleId: string): Promise<T> {
+  const dynamicImport = new Function("id", "return import(id)") as (id: string) => Promise<T>;
+  return dynamicImport(moduleId);
+}
+
+async function verifyCachedAssetIntegrity(transformersMod: TransformersEnvModule): Promise<void> {
   const weightsPath = join(
     transformersMod.env.cacheDir,
     KOKORO_MANIFEST.repoId,
@@ -190,10 +183,20 @@ function resolveBundledVoicePath(): string {
   // sibling of dist/. Walk up two dirs from the resolved entry to land on
   // the package root. `createRequire` works in both Node CLI and the vitest
   // SSR environment; `import.meta.resolve` is CLI-only.
-  const requireFromHere = createRequire(import.meta.url);
+  const requireFromHere = createRequireFromRuntime();
   const entryPath = requireFromHere.resolve("kokoro-js");
   const packageRoot = dirname(dirname(entryPath));
   return join(packageRoot, KOKORO_MANIFEST.voicesFilename);
+}
+
+function createRequireFromRuntime(): NodeRequire {
+  if (typeof import.meta.url === "string") {
+    return createRequire(import.meta.url);
+  }
+  const cjsFilename = new Function(
+    "return typeof __filename === 'string' ? __filename : undefined",
+  )() as string | undefined;
+  return createRequire(cjsFilename ?? resolve(process.cwd(), "index.js"));
 }
 
 async function sha256OfFile(filePath: string): Promise<string> {

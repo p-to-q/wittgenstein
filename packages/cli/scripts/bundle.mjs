@@ -14,6 +14,7 @@ await esbuild.build({
   target: "node20",
   format: "cjs",
   outfile: out,
+  external: ["onnxruntime-node"],
   banner: { js: "#!/usr/bin/env node\n" },
   logLevel: "info",
 });

@@ -10,9 +10,11 @@ const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(cliRoot, "npm-publish");
 const bundleSrc = resolve(cliRoot, "dist/bundle.cjs");
 const readmeSrc = resolve(cliRoot, "README.md");
+const optionalPeerSources = [resolve(cliRoot, "../codec-image/package.json")];
 
 const pkg = JSON.parse(await readFile(resolve(cliRoot, "package.json"), "utf8"));
 const version = pkg.version === "0.0.0" ? "0.1.0" : pkg.version;
+const optionalPeerContract = await loadOptionalPeerContract(optionalPeerSources);
 
 const binStub = `#!/usr/bin/env node
 import { spawnSync } from "node:child_process";
@@ -40,6 +42,7 @@ const slim = {
     node: ">=20.19.0",
   },
   keywords: ["wittgenstein", "cli", "llm", "codec", "minimax"],
+  ...optionalPeerContract,
 };
 
 await mkdir(resolve(outDir, "dist"), { recursive: true });
@@ -55,4 +58,29 @@ try {
   await writeFile(resolve(outDir, "README.md"), "# wittgenstein-cli\n\nSee repository docs.\n");
 }
 await writeFile(resolve(outDir, "package.json"), `${JSON.stringify(slim, null, 2)}\n`);
-console.log(`Prepared ${outDir} (${slim.name}@${slim.version}). Run: cd npm-publish && npm publish`);
+console.log(
+  `Prepared ${outDir} (${slim.name}@${slim.version}). Run: cd npm-publish && npm publish`,
+);
+
+async function loadOptionalPeerContract(packageJsonPaths) {
+  const peerDependencies = {};
+  const peerDependenciesMeta = {};
+
+  for (const packageJsonPath of packageJsonPaths) {
+    const source = JSON.parse(await readFile(packageJsonPath, "utf8"));
+    for (const [name, range] of Object.entries(source.peerDependencies ?? {})) {
+      if (source.peerDependenciesMeta?.[name]?.optional !== true) continue;
+      peerDependencies[name] = range;
+      peerDependenciesMeta[name] = { optional: true };
+    }
+  }
+
+  if (Object.keys(peerDependencies).length === 0) {
+    return {};
+  }
+
+  return {
+    peerDependencies,
+    peerDependenciesMeta,
+  };
+}

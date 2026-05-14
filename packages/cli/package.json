@@ -46,7 +46,9 @@
     "lint": "eslint src test --ext .ts",
     "test": "vitest run",
     "build": "tsc",
+    "bundle": "node scripts/bundle.mjs",
     "prepack": "pnpm run build",
+    "release:npm": "pnpm run build && pnpm run bundle && node scripts/prepare-npm-artifact.mjs",
     "smoke": "node ./bin/wittgenstein.js doctor"
   },
   "dependencies": {
