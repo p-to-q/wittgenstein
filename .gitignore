@@ -5,6 +5,7 @@ packages/cli/npm-publish/
 build/
 .next/
 out/
+output/
 _vercel-kimi-out/
 
 *.tsbuildinfo

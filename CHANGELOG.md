@@ -347,7 +347,7 @@ to ratify, and M2 is now staged as a three-slice implementation train.
   - `BaseAudioRoute` only as a follow-up if genuinely shared-mechanical
     duplication remains above threshold
   - `AudioRequest.route` keeps a one-minor-version soft-deprecation window
-- `ROADMAP.md` now reflects ADR-0015: no host-TTS fallback story, no neural
+- `docs/roadmap.md` now reflects ADR-0015: no host-TTS fallback story, no neural
   soundscape/music in v0.3, and audio quality targets based on UTMOS +
   Whisper-WER rather than stale Coqui/Piper wording.
 
@@ -621,7 +621,7 @@ video renderer remain intentionally incomplete.
 - `docs/implementation-status.md` — honest Ships / Partial / Stub matrix across Python + TS surfaces
 - `docs/quickstart.md` — 30-second tour producing real files (sensor, audio, image paths)
 - `docs/extending.md` — concrete recipes for adding codecs and adapters in both surfaces
-- `CHANGELOG.md`, `ROADMAP.md`, `SECURITY.md` at repo root
+- `CHANGELOG.md`, `docs/roadmap.md`, `SECURITY.md` at repo root
 - Baseline results table in `benchmarks/README.md` (dry-run 2026-04)
 - Adapter training baselines: image style MLP (781 COCO examples, 9 s, val BCE 0.7698) and audio ambient classifier (369 examples, < 5 s)
 

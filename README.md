@@ -34,12 +34,12 @@ text-first LLM
   → real artifact + manifest receipt
 ```
 
-| Modality | LLM-facing code layer | Local execution layer | Artifact |
-| --- | --- | --- | --- |
-| 🖼️ Image | Visual Seed Code (primary) + optional `Semantic IR` | Seed expander → frozen VQ decoder¹ | PNG |
-| 🔊 Audio | Route-specific audio code (speech / soundscape / music) | Procedural synth (default) + opt-in Kokoro speech | WAV |
-| 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion | CSV + interactive HTML |
-| 🎞️ Video | Composition spec | HyperFrames-shaped local render (M4 stub today; ratified lead path) | MP4 / HTML |
+| Modality  | LLM-facing code layer                                                | Local execution layer                                               | Artifact               |
+| --------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------- |
+| 🖼️ Image  | Visual Seed Code (primary) + optional `Semantic IR`                  | Seed expander → frozen VQ decoder¹                                  | PNG                    |
+| 🔊 Audio  | Route-specific audio code (speech / soundscape / music)              | Procedural synth (default) + opt-in Kokoro speech                   | WAV                    |
+| 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion                                      | CSV + interactive HTML |
+| 🎞️ Video  | Composition spec                                                     | HyperFrames-shaped local render (M4 stub today; ratified lead path) | MP4 / HTML             |
 
 Image, audio, and sensor produce real artifacts today; video is post-v0.3 work. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
 
@@ -161,7 +161,7 @@ agents; current implementation guidance lives in the codec-v2 plan and agent gui
 
 - **Full pack (5 per group, 35 artifacts):** [`artifacts/showcase/workflow-examples/`](artifacts/showcase/workflow-examples/)
 - **Hand-picked samples folder:** [`artifacts/showcase/workflow-examples/samples/`](artifacts/showcase/workflow-examples/samples/)
-- **Rendered gallery:** [`SHOWCASE.md`](SHOWCASE.md)
+- **Rendered gallery:** [`docs/showcase.md`](docs/showcase.md)
 
 ---
 
@@ -303,7 +303,7 @@ cannot offer this; frozen VQ decoding does. See [`docs/reproducibility.md`](docs
 
 ### For hackers
 
-- [`SHOWCASE.md`](SHOWCASE.md) — historical `v0.1.0-alpha.1` hackathon artifact gallery (35 files across 7 modality groups)
+- [`docs/showcase.md`](docs/showcase.md) — historical `v0.1.0-alpha.1` hackathon artifact gallery (35 files across 7 modality groups)
 - [`docs/quickstart.md`](docs/quickstart.md) — 30 seconds to a real file
 - [`docs/engineering-discipline.md`](docs/engineering-discipline.md) — how to make sharp, minimal, evidence-backed changes without fighting the repo
 - [`polyglot-mini/README.md`](polyglot-mini/README.md) — Python surface deep-dive
@@ -365,7 +365,7 @@ latents and is waiting on a frozen VQ decoder bridge; video is a typed stub.
 across all modalities, sequenced in [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md)
 (`M0` and `M1A` are landed; `M2 audio` is next; `M1B image depth` is tracked separately).
 
-Roadmap: [`ROADMAP.md`](ROADMAP.md). Changelog: [`CHANGELOG.md`](CHANGELOG.md).
+Roadmap: [`docs/roadmap.md`](docs/roadmap.md). Changelog: [`CHANGELOG.md`](CHANGELOG.md).
 Security: [`SECURITY.md`](SECURITY.md).
 
 ---

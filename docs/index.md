@@ -98,6 +98,8 @@ For doctrine-bearing PRs, also remember the review rule now locked in `engineeri
 
 ## Launch & benchmarks
 
+- [`roadmap.md`](roadmap.md) — phase map and near-term gates
+- [`showcase.md`](showcase.md) — rendered historical artifact gallery
 - [`hackathon-launch.md`](hackathon-launch.md) — launch checklist and demo script
 - [`benchmark-standards.md`](benchmark-standards.md) — quality bar and acceptance criteria
 - [`modality-launch-surface.md`](modality-launch-surface.md) — per-modality external API surface
