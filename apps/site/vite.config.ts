@@ -6,6 +6,9 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "/",
   plugins: [react()],
+  build: {
+    cssMinify: "esbuild",
+  },
   server: {
     port: 3000,
   },
