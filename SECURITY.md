@@ -88,4 +88,4 @@ Older tags are not patched; upgrade to `main` or the latest release for fixes.
 
 The repo ships with a pinned `pnpm-lock.yaml`. CI installs with `--frozen-lockfile` to
 prevent silent upgrades. Dependency audits are advisory today; a CI step will land in a
-future phase (see `ROADMAP.md`).
+future phase (see `docs/roadmap.md`).

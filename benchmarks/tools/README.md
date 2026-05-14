@@ -1,6 +1,6 @@
 # benchmarks/tools/
 
-Phase-4 quality-metric runners (per `ROADMAP.md` Phase 4). Today every entrypoint here is a typed Python skeleton that raises `NotImplementedError` — landing the contract first so that wiring CLIP / Whisper / discriminative classifiers can happen one PR at a time without rediscovering the file layout.
+Phase-4 quality-metric runners (per `docs/roadmap.md` Phase 4). Today every entrypoint here is a typed Python skeleton that raises `NotImplementedError` — landing the contract first so that wiring CLIP / Whisper / discriminative classifiers can happen one PR at a time without rediscovering the file layout.
 
 ## Contract
 
@@ -47,16 +47,16 @@ The shape is **not yet a zod-validated boundary** — it solidifies when the fir
 
 ## Runners
 
-| File | Modality | Metric | Status |
-| --- | --- | --- | --- |
-| `clipscore.py` | image | CLIPScore (image-text cosine) | 🔴 Stub |
-| `wer.py` | audio (speech) | Whisper WER | 🔴 Stub |
-| `disc_score.py` | sensor | discriminative-score classifier | 🔴 Stub |
-| `chart.py` | all | aggregate score chart from `artifacts/benchmarks/<tag>/*.json` | 🔴 Stub |
+| File            | Modality       | Metric                                                         | Status  |
+| --------------- | -------------- | -------------------------------------------------------------- | ------- |
+| `clipscore.py`  | image          | CLIPScore (image-text cosine)                                  | 🔴 Stub |
+| `wer.py`        | audio (speech) | Whisper WER                                                    | 🔴 Stub |
+| `disc_score.py` | sensor         | discriminative-score classifier                                | 🔴 Stub |
+| `chart.py`      | all            | aggregate score chart from `artifacts/benchmarks/<tag>/*.json` | 🔴 Stub |
 
 ## Why scaffolding-only first
 
-Per ROADMAP.md Phase 4 plan: the metric runners land at v0.4. Without scaffolding, the first contributor to wire CLIP has to discover the file layout, dependency choice, manifest contract, and CI integration from scratch. With scaffolding, that contributor only has to fill in the model call.
+Per docs/roadmap.md Phase 4 plan: the metric runners land at v0.4. Without scaffolding, the first contributor to wire CLIP has to discover the file layout, dependency choice, manifest contract, and CI integration from scratch. With scaffolding, that contributor only has to fill in the model call.
 
 Each stub:
 
@@ -73,7 +73,7 @@ Each stub:
 
 ## Related
 
-- `ROADMAP.md` Phase 4 — metric runner list
+- `docs/roadmap.md` Phase 4 — metric runner list
 - `benchmarks/harness.ts` — the structural smoke proxy that runs today
 - Issue #187 — this scaffolding's filing
 - Issue #189 — manifest schema discriminated union (coordinates with the score-receipt shape lock)

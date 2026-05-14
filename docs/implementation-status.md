@@ -72,7 +72,7 @@ codecs are wired. Image and video codecs are typed stubs — intentional until t
 | --------------------------------------------------------------------- | -------- | ----------------------------------------- |
 | Schema + Zod validation                                               | ✅ Ships |                                           |
 | Signal expander (oscillator, noise, drift, pulse, step, ECG template) | ✅ Ships | Pure TypeScript, deterministic            |
-| Loupe HTML dashboard integration                                      | ✅ Ships | searches 4 candidate paths for `loupe.py` |
+| Loupe HTML dashboard integration                                      | ✅ Ships | searches 3 candidate paths for `loupe.py` |
 | JSON + CSV sidecar output                                             | ✅ Ships |                                           |
 | LLM operator-spec route                                               | ✅ Ships |                                           |
 
@@ -126,11 +126,11 @@ codecs are wired. Image and video codecs are typed stubs — intentional until t
 
 ---
 
-## loupe.py (repo root)
+## Loupe dashboard renderer
 
-| Component                                  | Status   | Notes                                            |
-| ------------------------------------------ | -------- | ------------------------------------------------ |
-| CSV / JSON → self-contained HTML dashboard | ✅ Ships | 117 KB HTML, zero external deps, dark/light mode |
+| Component                                  | Status   | Notes                                                                              |
+| ------------------------------------------ | -------- | ---------------------------------------------------------------------------------- |
+| CSV / JSON → self-contained HTML dashboard | ✅ Ships | `packages/codec-sensor/loupe.py`; 117 KB HTML, zero external deps, dark/light mode |
 
 ---
 
