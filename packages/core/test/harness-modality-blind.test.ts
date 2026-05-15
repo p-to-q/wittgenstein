@@ -29,17 +29,15 @@ describe("harness modality blindness", () => {
 
     expect(runBody).not.toMatch(/request\.modality\s*[!=]==/);
     expect(runBody).toContain("runLegacyCodecPipeline");
+    expect(source).toContain("./legacy-codec-pipeline.js");
   });
 
   // Bounded count of `request.modality` references (in CODE, not comments)
-  // — #300 modality-blind invariant guard. The current 15 references are
-  // classified inline in harness.ts (separate from the modality-as-parameter
-  // references inside `defaultOutputPathFor`'s body, which use the
-  // `modality` parameter directly rather than `request.modality`):
-  //   - 1 is legitimate modality-keyed routing (legacy outPath defaulting; v2
-  //     keeps these — the registry IS keyed by modality)
-  //   - 14 are v1-compat scaffolding (asciipng / svg / video legacy pipeline
-  //     + helper guards) that retires when the last v1 codec ports to v2
+  // - #300 modality-blind invariant guard. The remaining reference is
+  // legitimate modality-keyed routing for legacy outPath defaulting; v2 uses
+  // the routed codec's registry modality. Modality-specific v1 scaffolding now
+  // lives in `legacy-codec-pipeline.ts` and retires when the last v1 codec
+  // ports to v2.
   // If this count changes, the new reference must be classified inline in
   // harness.ts AND the expected count updated here (or the new reference
   // removed if it's drift).
@@ -49,10 +47,6 @@ describe("harness modality blindness", () => {
     // classifying comments don't inflate the count.
     const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const matches = stripped.match(/request\.modality/g) ?? [];
-    // 15 is the audited baseline after v2 outPath defaulting stopped reading
-    // from the request and instead uses the routed codec's registry modality.
-    // Reduce this number when v1 codecs retire (#300). Increase only with
-    // explicit classification in this test's comment + harness.ts inline note.
-    expect(matches.length).toBe(15);
+    expect(matches.length).toBe(1);
   });
 });
