@@ -8,16 +8,14 @@ import { registerSensorCommand } from "./commands/sensor.js";
 import { registerSvgCommand } from "./commands/svg.js";
 import { registerAsciipngCommand } from "./commands/asciipng.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
+import { registerInstallCommand } from "./commands/install.js";
 import { registerAnimateHtmlCommand } from "./commands/animate-html.js";
 import { registerReplayCommand } from "./commands/replay.js";
 
 export function createProgram(): Command {
   const program = new Command();
 
-  program
-    .name("wittgenstein")
-    .description("Wittgenstein modality harness CLI")
-    .version("0.1.0");
+  program.name("wittgenstein").description("Wittgenstein modality harness CLI").version("0.1.0");
 
   registerInitCommand(program);
   registerImageCommand(program);
@@ -28,6 +26,7 @@ export function createProgram(): Command {
   registerSvgCommand(program);
   registerAsciipngCommand(program);
   registerDoctorCommand(program);
+  registerInstallCommand(program);
   registerAnimateHtmlCommand(program);
   registerReplayCommand(program);
 

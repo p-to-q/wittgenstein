@@ -44,6 +44,7 @@ wittgenstein audio  "prompt" --out out.wav
 wittgenstein video  "prompt" --out out.mp4
 wittgenstein sensor "prompt" --out out.json
 wittgenstein doctor
+wittgenstein install image --dry-run
 ```
 
 `doctor` now reports the tier-readiness table described in the delivery notes:
@@ -51,6 +52,11 @@ Tier 0 local codecs are ready from the npm package; Tier 1+ image decoder
 bridges remain explicit opt-in install surfaces tracked in #403. Decoder-weight
 loaders must verify SHA-256 before use and refuse research-only weights unless
 the caller opts in with `--allow-research-weights`.
+
+`wittgenstein install image --dry-run` is the current no-download planning
+surface for the Tier 1 bridge. A non-dry-run install intentionally fails with a
+structured `TIER_INSTALL_BLOCKED_BY_DECODER_MANIFEST` error until the concrete
+decoder-family manifest and fetch recipe land.
 
 ## Skill-Ready Expectations
 

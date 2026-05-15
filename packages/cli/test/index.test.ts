@@ -14,6 +14,7 @@ describe("@wittgenstein/cli", () => {
       "doctor",
       "image",
       "init",
+      "install",
       "replay",
       "sensor",
       "svg",

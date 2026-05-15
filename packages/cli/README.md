@@ -29,6 +29,7 @@ wittgenstein audio  "launch audio artifact" --out out.wav
 wittgenstein sensor "stable ECG trace" --out out.json
 wittgenstein video  "architecture teaser" --out out.mp4
 wittgenstein doctor
+wittgenstein install image --dry-run
 ```
 
 ## Smoke Check
@@ -43,3 +44,4 @@ pnpm --filter @wittgenstein/cli run smoke
 - Relative `--out` paths resolve from the workspace root.
 - `tts` is a convenience alias for the `audio` codec's `speech` route.
 - `--route` remains available for one minor version as a deprecated compatibility hint.
+- `install image --dry-run` plans the optional image decoder tier without downloading weights.
