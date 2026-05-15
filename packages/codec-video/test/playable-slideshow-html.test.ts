@@ -25,4 +25,22 @@ describe("playable-slideshow-html", () => {
     expect(html).toContain("linear 1 both");
     expect(html).not.toContain("linear infinite both");
   });
+
+  it("refuses an empty slide list", () => {
+    expect(() => buildPlayableSlideshowHtml({ svgs: [] })).toThrow(
+      "buildPlayableSlideshowHtml requires at least one SVG.",
+    );
+  });
+
+  it("refuses mismatched slide duration lists", () => {
+    expect(() =>
+      buildPlayableSlideshowHtml({
+        svgs: [
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2"/></svg>',
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><circle cx="1" cy="1" r="1"/></svg>',
+        ],
+        durationsSec: [1],
+      }),
+    ).toThrow("buildPlayableSlideshowHtml: durationsSec length must match svgs length.");
+  });
 });

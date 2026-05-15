@@ -25,6 +25,52 @@ describe("@wittgenstein/codec-video", () => {
     expect(videoCodec.parse("{}").ok).toBe(true);
   });
 
+  it("returns a structured parse error for non-JSON output", () => {
+    const parsed = videoCodec.parse("not json");
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) {
+      return;
+    }
+    expect(parsed.error.code).toBe("VIDEO_SCHEMA_PARSE_FAILED");
+    expect(parsed.error.message).toBe("Video composition was not valid JSON.");
+  });
+
+  it("returns a structured validation error for invalid timing", () => {
+    const parsed = videoCodec.parse(JSON.stringify({ durationSec: 0, fps: -1 }));
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) {
+      return;
+    }
+    expect(parsed.error.code).toBe("VIDEO_SCHEMA_INVALID");
+    expect(parsed.error.details?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: ["durationSec"] }),
+        expect.objectContaining({ path: ["fps"] }),
+      ]),
+    );
+  });
+
+  it("rejects malformed inline SVG slides at parse time", () => {
+    const parsed = videoCodec.parse(
+      JSON.stringify({
+        inlineSvgs: ["<svg><rect /></svg>", "<div>not svg</div>"],
+      }),
+    );
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) {
+      return;
+    }
+    expect(parsed.error.code).toBe("VIDEO_SCHEMA_INVALID");
+    expect(parsed.error.details?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "inlineSvgs[1] must be a full SVG document (<svg …>…</svg>).",
+          path: ["inlineSvgs", 1],
+        }),
+      ]),
+    );
+  });
+
   it("renders a HyperFrames-shaped HTML composition", async () => {
     const parsed = videoCodec.parse(
       JSON.stringify({
