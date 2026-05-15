@@ -8,7 +8,6 @@
 // what eventually replaces the placeholder path here; M1B is gated on the
 // per-candidate radar audits in #283.
 
-import { deflateSync } from "node:zlib";
 import type { RenderCtx } from "@wittgenstein/schemas";
 import type { ImageLatentCodes } from "../schema.js";
 
@@ -252,7 +251,7 @@ function encodeRgbaAsPng(width: number, height: number, rgba: Uint8Array): Uint8
     raw.set(rgba.subarray(sourceStart, sourceStart + width * 4), rowStart + 1);
   }
 
-  const idat = deflateSync(raw);
+  const idat = encodeZlibStored(raw);
   const ihdrChunk = createChunk("IHDR", ihdr);
   const idatChunk = createChunk("IDAT", idat);
   const iendChunk = createChunk("IEND", new Uint8Array(0));
@@ -289,6 +288,52 @@ function writeU32(target: Uint8Array, offset: number, value: number): void {
   target[offset + 1] = (value >>> 16) & 255;
   target[offset + 2] = (value >>> 8) & 255;
   target[offset + 3] = value & 255;
+}
+
+function writeU16Le(target: Uint8Array, offset: number, value: number): void {
+  target[offset] = value & 255;
+  target[offset + 1] = (value >>> 8) & 255;
+}
+
+function encodeZlibStored(raw: Uint8Array): Uint8Array {
+  const maxBlockLength = 65_535;
+  const blockCount = Math.max(1, Math.ceil(raw.length / maxBlockLength));
+  const output = new Uint8Array(2 + blockCount * 5 + raw.length + 4);
+  let cursor = 0;
+
+  // CMF/FLG for zlib + deflate with the fastest algorithm. The subsequent
+  // stored blocks avoid platform-specific compressor choices while remaining
+  // a standards-compliant PNG IDAT payload.
+  output[cursor] = 0x78;
+  output[cursor + 1] = 0x01;
+  cursor += 2;
+
+  for (let block = 0; block < blockCount; block += 1) {
+    const start = block * maxBlockLength;
+    const end = Math.min(raw.length, start + maxBlockLength);
+    const length = end - start;
+    const finalBlock = block === blockCount - 1;
+    output[cursor] = finalBlock ? 0x01 : 0x00;
+    writeU16Le(output, cursor + 1, length);
+    writeU16Le(output, cursor + 3, (~length) & 0xffff);
+    cursor += 5;
+    output.set(raw.subarray(start, end), cursor);
+    cursor += length;
+  }
+
+  writeU32(output, cursor, adler32(raw));
+  return output;
+}
+
+function adler32(data: Uint8Array): number {
+  const modulus = 65_521;
+  let a = 1;
+  let b = 0;
+  for (const byte of data) {
+    a = (a + byte) % modulus;
+    b = (b + a) % modulus;
+  }
+  return ((b << 16) | a) >>> 0;
 }
 
 function crc32(data: Uint8Array): number {

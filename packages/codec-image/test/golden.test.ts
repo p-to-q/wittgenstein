@@ -1,16 +1,11 @@
 /**
  * Structural-stable golden coverage for codec-image (Issue #347).
  *
- * The dry-run produce() pipeline is deterministic per-platform, but the
- * emitted PNG bytes currently differ between darwin/arm64 and linux/x64 —
- * a real cross-platform reproducibility gap in the procedural placeholder
- * renderer (filed forward from this audit). Until that gap closes, this
- * golden locks the structural metadata that IS stable cross-platform:
- * mime type, route, image-code shape, manifest row keys, PNG magic bytes.
- *
- * When the procedural renderer becomes byte-deterministic across
- * platforms, switch this to a `createHash(...).digest("hex")` lock.
+ * The dry-run PNG path uses a repo-owned PNG/zlib stored-block encoder so
+ * the placeholder preview does not inherit platform-specific compressor
+ * output. This golden locks both the receipt structure and full PNG digest.
  */
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -73,6 +68,9 @@ describe("codec-image golden parity (Issue #347)", () => {
     expect(bytes[1]).toBe(0x50); // P
     expect(bytes[2]).toBe(0x4e); // N
     expect(bytes[3]).toBe(0x47); // G
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+      "1c641aa5f57d0b00afe0ae53a86476ff3cb19e6a03eee3cf6fc1d0e7cfdeb796",
+    );
 
     // Image-code metadata is the doctrine surface — drift here means the
     // codec's path/mode/seed-family identity has changed.
