@@ -32,11 +32,11 @@ describe("harness modality blindness", () => {
   });
 
   // Bounded count of `request.modality` references (in CODE, not comments)
-  // — #300 modality-blind invariant guard. The current 16 references are
+  // — #300 modality-blind invariant guard. The current 15 references are
   // classified inline in harness.ts (separate from the modality-as-parameter
   // references inside `defaultOutputPathFor`'s body, which use the
   // `modality` parameter directly rather than `request.modality`):
-  //   - 2 are legitimate modality-keyed routing (outPath defaulting; v2
+  //   - 1 is legitimate modality-keyed routing (legacy outPath defaulting; v2
   //     keeps these — the registry IS keyed by modality)
   //   - 14 are v1-compat scaffolding (asciipng / svg / video legacy pipeline
   //     + helper guards) that retires when the last v1 codec ports to v2
@@ -49,9 +49,10 @@ describe("harness modality blindness", () => {
     // classifying comments don't inflate the count.
     const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const matches = stripped.match(/request\.modality/g) ?? [];
-    // 16 is the audited baseline as of 2026-05-13 cross-section health check.
+    // 15 is the audited baseline after v2 outPath defaulting stopped reading
+    // from the request and instead uses the routed codec's registry modality.
     // Reduce this number when v1 codecs retire (#300). Increase only with
     // explicit classification in this test's comment + harness.ts inline note.
-    expect(matches.length).toBe(16);
+    expect(matches.length).toBe(15);
   });
 });

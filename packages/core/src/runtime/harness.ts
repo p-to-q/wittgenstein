@@ -149,7 +149,7 @@ export class Wittgenstein {
           runId,
           runDir,
           seed,
-          outPath: resolve(options.outPath ?? defaultOutputPathFor(request.modality, cwd, runId)),
+          outPath: resolve(options.outPath ?? defaultOutputPathFor(codec.modality, cwd, runId)),
           logger: createRunLogger(runId),
           llmAdapter: this.llmAdapter,
           llmModel: this.config.llm.model,
