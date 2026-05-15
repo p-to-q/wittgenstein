@@ -120,6 +120,33 @@ async function tarballFiles(packageDir) {
   return parsed[0].files ?? [];
 }
 
+function collectTarballLeaks(packageName, files) {
+  const leaks = [];
+  for (const file of files) {
+    const path = file.path ?? String(file);
+    const size = typeof file.size === "number" ? file.size : 0;
+
+    for (const pattern of FORBIDDEN_PATTERNS) {
+      if (pattern.test(path)) {
+        leaks.push({
+          package: packageName,
+          file: path,
+          reason: `matches forbidden pattern ${pattern}`,
+        });
+      }
+    }
+
+    if (size > SIZE_LIMIT_MB * 1024 * 1024) {
+      leaks.push({
+        package: packageName,
+        file: path,
+        reason: `size ${(size / 1024 / 1024).toFixed(2)} MB exceeds ${SIZE_LIMIT_MB} MB limit`,
+      });
+    }
+  }
+  return leaks;
+}
+
 async function buildPackageClosure(packageName) {
   // `npm pack` runs each package's prepack script from a clean CI workspace.
   // Build workspace dependencies first so package-reference d.ts files exist.
@@ -234,28 +261,7 @@ async function main() {
       continue;
     }
 
-    for (const file of files) {
-      const path = file.path ?? String(file);
-      const size = typeof file.size === "number" ? file.size : 0;
-
-      for (const pattern of FORBIDDEN_PATTERNS) {
-        if (pattern.test(path)) {
-          leaks.push({
-            package: pkg.name,
-            file: path,
-            reason: `matches forbidden pattern ${pattern}`,
-          });
-        }
-      }
-
-      if (size > SIZE_LIMIT_MB * 1024 * 1024) {
-        leaks.push({
-          package: pkg.name,
-          file: path,
-          reason: `size ${(size / 1024 / 1024).toFixed(2)} MB exceeds ${SIZE_LIMIT_MB} MB limit`,
-        });
-      }
-    }
+    leaks.push(...collectTarballLeaks(pkg.name, files));
   }
 
   try {
@@ -269,10 +275,16 @@ async function main() {
         stderr: "",
       });
     }
+    leaks.push(
+      ...collectTarballLeaks(
+        "wittgenstein-cli",
+        await tarballFiles(dirname(bundledCliManifestPath)),
+      ),
+    );
   } catch (error) {
     packFailures.push({
       package: "wittgenstein-cli",
-      phase: "release:npm artifact generation",
+      phase: "release:npm artifact generation or npm pack dry-run",
       error: error?.message ?? String(error),
       stdout: error?.stdout ?? "",
       stderr: error?.stderr ?? "",
