@@ -28,6 +28,21 @@ export interface SeedExpansionInput {
   readonly seedCode: ImageVisualSeedCode;
   readonly decoder: ImageSceneSpec["decoder"];
   readonly seed: number;
+  /**
+   * Optional binary mask for clean-repaint conditioning (Cola-DLM-inspired).
+   * When provided, `knownPositions[i] = true` means the token at position `i`
+   * in the target latent grid is already known and must NOT be overwritten by
+   * the expander. The known value is taken from `knownTokens[i]`.
+   *
+   * This enables partial seed expansion: the LLM provides a few anchor tokens,
+   * and the expander fills the remaining positions while preserving the anchors.
+   *
+   * @see docs/research/2026-05-22-cola-dlm-implications.md §2 (clean-repaint)
+   * @see docs/research/2026-05-22-seed-code-stability-analysis.md §Mitigation 2
+   * @see https://github.com/p-to-q/wittgenstein/issues/453
+   */
+  readonly knownPositions?: readonly boolean[];
+  readonly knownTokens?: readonly number[];
 }
 
 export interface SeedExpander {
@@ -51,12 +66,18 @@ const PLACEHOLDER_CODEBOOK_SIZE = 8192;
  * on the visual-seed-code branch firing.
  */
 export const placeholderSeedExpander: SeedExpander = {
-  expand({ seedCode, decoder, seed }) {
+  expand({ seedCode, decoder, seed, knownPositions, knownTokens }) {
     const [width, height] = decoder.latentResolution;
     const totalTokens = width * height;
     const tokens = new Array<number>(totalTokens);
 
     for (let index = 0; index < totalTokens; index += 1) {
+      // Clean-repaint: if this position is pinned, preserve the known token.
+      const knownToken = knownTokens?.[index];
+      if (knownPositions?.[index] && knownToken !== undefined) {
+        tokens[index] = knownToken;
+        continue;
+      }
       const base = seedCode.tokens[index % seedCode.tokens.length] ?? 0;
       tokens[index] = (base + seed + index * 31) % PLACEHOLDER_CODEBOOK_SIZE;
     }

@@ -88,6 +88,32 @@ Every candidate gets the same four-gate sheet. Each gate is binary (pass / fail 
 - ONNX export breaks on critical layers (often happens with attention variants).
 - CPU inference is so slow it's unusable (>5min for one image).
 
+### Gate E — Prefix degradation curve (added 2026-05-22)
+
+> Added per [#451](https://github.com/p-to-q/wittgenstein/issues/451) (seed code stability concern) and `docs/research/2026-05-22-seed-code-stability-analysis.md`.
+
+**Pass criterion.** The candidate's reconstruction quality (rFID) degrades gracefully when only a prefix of the token sequence is provided and remaining positions are zero-filled or mean-filled. Specifically:
+
+- rFID(full tokens) — baseline quality
+- rFID(50% prefix) — should be ≤ 3× baseline
+- rFID(25% prefix) — should be ≤ 10× baseline
+- rFID(12.5% prefix) — gross layout should be recognizable (rFID ≤ 30)
+
+**What to inspect.**
+- Encode a fixed set of 100 ImageNet validation images to the candidate's token sequence.
+- For each prefix length {100%, 50%, 25%, 12.5%}, zero-fill the remaining positions and decode.
+- Compute rFID against the original images at each prefix length.
+- Plot the degradation curve. Smooth = pass. Cliff (>10× jump between adjacent prefix lengths) = fail.
+
+**What can fail this gate.**
+- Sharp quality cliff at any prefix truncation point. Fail for Wittgenstein's partial-seed use case.
+- 2D spatial grid tokenizers (VQGAN 16×16) will likely fail this because truncating a spatial raster is not meaningful. This is expected and not disqualifying for those tokenizers — flag it as a schema-fit constraint.
+- 1D sequence tokenizers (TiTok, FlexTok) should pass naturally because their sequence ordering is learned to be importance-ordered.
+
+**Why this gate matters for Wittgenstein.** The Visual Seed Code architecture assumes the LLM can emit a compact prefix of tokens and the seed expander fills the rest. If the tokenizer's token ordering has no importance structure (truncating is equivalent to random deletion), the seed code is not a useful compressed representation.
+
+**Interaction with Gate C.** Gate E tests the encoder's token ordering, not the decoder's determinism. A tokenizer can pass Gate C (deterministic) but fail Gate E (tokens not importance-ordered). Both are required for Wittgenstein's use case.
+
 ## Per-candidate gate sheets
 
 The 11 candidates from #272 with priorities derived from the radar's recommended ranking. **VQGAN-class first** because it's the only candidate that already satisfies schema-fit + decoder-bridge slot in the codec.
