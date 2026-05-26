@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { runProcess } from "@wittgenstein/process-runner";
 import type { VideoRenderManifest } from "@wittgenstein/schemas";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
+import { ensurePuppeteerCore } from "./mp4-renderer-runtime.js";
 
 export interface InternalMp4RenderParams {
   htmlPath: string;
@@ -78,7 +79,7 @@ async function captureFrames(params: InternalMp4RenderParams & {
   frameDir: string;
   frameCount: number;
 }): Promise<string> {
-  const puppeteer = await import("puppeteer-core");
+  const puppeteer = await ensurePuppeteerCore();
   const executablePath = resolveChromeExecutable();
   const browser = await puppeteer.launch({
     executablePath,

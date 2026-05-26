@@ -18,7 +18,14 @@
   "dependencies": {
     "@wittgenstein/process-runner": "workspace:*",
     "@wittgenstein/schemas": "workspace:*",
-    "puppeteer-core": "^24.31.0",
     "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "puppeteer-core": "^24.31.0"
+  },
+  "peerDependenciesMeta": {
+    "puppeteer-core": {
+      "optional": true
+    }
   }
 }
