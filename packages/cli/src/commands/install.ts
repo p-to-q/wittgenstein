@@ -78,7 +78,9 @@ export function registerInstallCommand(program: Command): void {
     });
 }
 
-function imageDecoderPreflightForPlan(plan: ReturnType<typeof buildInstallTierPlan>): ImageDecoderPreflightReceipt {
+function imageDecoderPreflightForPlan(
+  plan: ReturnType<typeof buildInstallTierPlan>,
+): ImageDecoderPreflightReceipt {
   return {
     schemaVersion: "witt.image.decoder-preflight/v0.1",
     status: "blocked",
@@ -86,7 +88,8 @@ function imageDecoderPreflightForPlan(plan: ReturnType<typeof buildInstallTierPl
     decoderId: null,
     family: null,
     runtimeTier: plan.tier === "image-gpu" ? "node-onnx-gpu" : "node-onnx-cpu",
-    installHint: plan.tier === "image-gpu" ? "wittgenstein install image --gpu" : "wittgenstein install image",
+    installHint:
+      plan.tier === "image-gpu" ? "wittgenstein install image --gpu" : "wittgenstein install image",
     tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
     details: {
       message: "Image tier installation is blocked until a decoder-family manifest is blessed.",

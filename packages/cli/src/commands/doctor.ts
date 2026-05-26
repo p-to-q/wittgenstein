@@ -94,11 +94,17 @@ function checkVideoRenderDependencies(): VideoRenderDoctor {
     hyperframesNode:
       backend === "npx-cli"
         ? checkNodeForHyperframesCli()
-        : { status: "skipped", message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli." },
+        : {
+            status: "skipped",
+            message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
+          },
     hyperframesCli:
       backend === "npx-cli"
         ? checkHyperframesCli()
-        : { status: "skipped", message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli." },
+        : {
+            status: "skipped",
+            message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
+          },
     ffmpeg: checkCommandVersion("ffmpeg", ["-version"], "Install FFmpeg for video MP4 rendering."),
     chrome: checkChrome(),
   };
@@ -202,13 +208,12 @@ function checkChrome(): DoctorCheck {
 
   return {
     status: "missing",
-    message:
-      "Install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH for video MP4 rendering.",
+    message: "Install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH for video MP4 rendering.",
   };
 }
 
 function checkChromeCandidate(candidate: string): DoctorCheck {
-  const result = spawnSync(candidate, ["--version"],
+  const result = spawnSync(candidate, ["--version"], {
     encoding: "utf8",
     timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
   });
@@ -265,5 +270,10 @@ function checkOptionalNodePeer(packageName: string, installHint: string): Doctor
 }
 
 function firstOutputLine(stdout: string, stderr: string): string {
-  return (stdout || stderr).split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
+  return (
+    (stdout || stderr)
+      .split(/\r?\n/)
+      .find((line) => line.trim().length > 0)
+      ?.trim() ?? ""
+  );
 }
