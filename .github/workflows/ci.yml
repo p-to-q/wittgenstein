@@ -200,7 +200,7 @@ jobs:
         # are checked — the existing pnpm-lock is not re-scanned.
         # Closes the last bullet of Issue #107.
         if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           deny-licenses: GPL-3.0, AGPL-3.0
