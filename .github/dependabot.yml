@@ -9,9 +9,15 @@
 #     `ignore` entry — explicit opt-in beats weekly opt-out.
 #   - polyglot-mini is research-grade Python; security patches only, monthly cadence.
 #
+# Engine floor:
+#   The root `package.json` pins `engines.node: ">=20.19.0"`. Major bumps that
+#   require Node >=22 (e.g. undici 8.x) must wait for an explicit baseline
+#   move — they belong in the `ignore` list below until then.
+#
 # When to revisit:
 #   - After M1 (image) lands → consider unfreezing typescript major.
 #   - After M5b (benchmarks) → consider unfreezing zod, react/next majors.
+#   - When the Node engine floor moves to 22+ → revisit the undici major ignore.
 #   - Any time a CVE lands → security updates bypass `ignore` automatically.
 
 version: 2
@@ -96,6 +102,10 @@ updates:
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # undici 8.x requires Node >=22.19; the repo engine floor is Node 20.19.
+      # See #450 (closed) — unfreeze once the Node baseline moves.
+      - dependency-name: "undici"
         update-types: ["version-update:semver-major"]
 
   # ---------------------------------------------------------------------------

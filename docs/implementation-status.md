@@ -10,7 +10,7 @@
 > - `docs/agent-guides/`
 > - `docs/archive-policy.md` if a row here starts to drift into historical-only status
 >
-> Last updated: 2026-05-07. "Ships" = produces real output today. "Stub" = typed interface,
+> Last updated: 2026-05-26. "Ships" = produces real output today. "Stub" = typed interface,
 > throws `NotImplementedError`, waiting for a renderer. "Partial" = some routes work.
 
 ---
@@ -37,8 +37,9 @@ Everything below runs with `python3 -m polyglot.cli <cmd>`.
 
 ## @wittgenstein/\* TypeScript packages
 
-The TS monorepo is the **production harness layer** (L1–L5). Core, schemas, CLI, and sensor/audio
-codecs are wired. Image and video codecs are typed stubs — intentional until training is complete.
+The TS monorepo is the **production harness layer** (L1–L5). Core, schemas, CLI, sensor, audio, and
+video HTML codecs ship; image codec is ⚠️ Partial pending M1B trained projector, and the video MP4
+encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 ### @wittgenstein/schemas
 
