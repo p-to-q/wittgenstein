@@ -156,7 +156,9 @@ export async function preflightImageDecoder(
 
 function blocked(
   reason: DecoderPreflightReason,
-  overrides: Partial<Omit<DecoderPreflightReceipt, "schemaVersion" | "status" | "reason" | "tracker">>,
+  overrides: Partial<
+    Omit<DecoderPreflightReceipt, "schemaVersion" | "status" | "reason" | "tracker">
+  >,
 ): DecoderPreflightReceipt {
   return {
     schemaVersion: "witt.image.decoder-preflight/v0.1",
