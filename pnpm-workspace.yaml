@@ -2,3 +2,7 @@ packages:
   - "packages/*"
   - "apps/*"
   - "!apps/wittgenstein-kimi"
+  # apps/_vercel-kimi-out/ is gitignored build output from the Kimi deck.
+  # Excluded from the workspace too so locally generated artifacts can't
+  # trip `pnpm install --frozen-lockfile` for maintainers who built it.
+  - "!apps/_vercel-kimi-out"
