@@ -30,9 +30,7 @@ describe("decoder family manifest contract", () => {
     const result = DecoderFamilyManifestSchema.safeParse(manifest);
 
     expect(result.success).toBe(false);
-    expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
-      "assets.revision",
-    );
+    expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("assets.revision");
   });
 
   it("rejects blessed manifests until all gates pass and decoderHash is pinned", () => {
@@ -188,9 +186,7 @@ describe("decoder family manifest contract", () => {
   });
 });
 
-function candidateManifest(
-  overrides: Partial<DecoderFamilyManifest> = {},
-): DecoderFamilyManifest {
+function candidateManifest(overrides: Partial<DecoderFamilyManifest> = {}): DecoderFamilyManifest {
   const base: DecoderFamilyManifest = {
     schemaVersion: "witt.image.decoder-manifest/v0.1",
     family: "llamagen",

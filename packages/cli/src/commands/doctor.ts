@@ -205,7 +205,7 @@ function checkChrome(): DoctorCheck {
 }
 
 function checkChromeCandidate(candidate: string): DoctorCheck {
-  const result = spawnSync(candidate, ["--version"],
+  const result = spawnSync(candidate, ["--version"], {
     encoding: "utf8",
     timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
   });
@@ -262,5 +262,10 @@ function checkOptionalNodePeer(packageName: string, installHint: string): Doctor
 }
 
 function firstOutputLine(stdout: string, stderr: string): string {
-  return (stdout || stderr).split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
+  return (
+    (stdout || stderr)
+      .split(/\r?\n/)
+      .find((line) => line.trim().length > 0)
+      ?.trim() ?? ""
+  );
 }
