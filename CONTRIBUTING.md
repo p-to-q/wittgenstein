@@ -126,6 +126,31 @@ We keep repo automation deliberately small and reviewable:
 Maintainer note: CodeRabbit's repository configuration is committed here, but the
 GitHub App installation and repo authorization still have to be done in GitHub.
 
+### Status checks: what blocks merge vs what is informational
+
+Required to merge (the GitHub Actions checks listed under "Validation before push"
+plus CodeRabbit + reviewdog):
+
+- `Verify (Node + Python)` — runs `pnpm lint`, `pnpm typecheck`, `pnpm test`.
+- `Static checks (spelling + workflow + deps)` — `typos`, `actionlint`, dependency
+  review.
+- `Doctrine guardrail` — protects doctrine-bearing surfaces (ADRs, RFCs, doctrine
+  docs) from being changed without independent ratification per ADR-0013.
+- `Detect change scope`, `PR auto-labeler`, `Queue labeler` — labeling automation,
+  blocks merge only on hard failure.
+- `CodeRabbit`, `Markdown review comments`, `ESLint review comments`,
+  `Prettier suggestions` — review surfaces; failures are advisory.
+
+**Informational but currently reports `FAILURE`:** the `Vercel` status context.
+The Vercel GitHub App reports `FAILURE` on PRs whose head branch it cannot
+authorize for preview deployment — this fires on every PR including doc-only
+PRs because the auth check runs before the path-filter / `vercel-ignore-build.sh`
+logic that would skip the build for non-`apps/site` changes. This is **not a
+merge blocker** and is tracked as #460. The site itself deploys correctly from
+`main` after merge.
+
+If you're reviewing a PR and the only red check is Vercel, ignore it.
+
 ## Experimental vs shipping code
 
 Wittgenstein explicitly mixes both. To keep users safe:
