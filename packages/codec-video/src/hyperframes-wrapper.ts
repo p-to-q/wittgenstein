@@ -1,7 +1,7 @@
-// HyperFrames wrapper — orchestrator for the video codec's MP4 / HTML output.
-// Builds the composition HTML (delegating to the per-composition modules
-// under `./compositions/`) and, when `WITTGENSTEIN_HYPERFRAMES_RENDER=1`,
-// invokes `npx hyperframes render` to encode the MP4.
+// HyperFrames-shaped wrapper — orchestrator for the video codec's MP4 / HTML
+// output. Builds the composition HTML (delegating to the per-composition
+// modules under `./compositions/`) and, when
+// `WITTGENSTEIN_HYPERFRAMES_RENDER=1`, invokes the repo-owned MP4 renderer.
 //
 // Per-composition HTML builders live in `./compositions/{svg-slide,scene-card}.ts`
 // (extracted per #327 / #288). The subprocess plumbing lives in
@@ -12,19 +12,25 @@
 import { mkdir, writeFile, stat } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
-import { runProcess } from "@wittgenstein/process-runner";
+import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
 import type { VideoComposition } from "./schema.js";
 import { buildSvgSlideHtml } from "./compositions/svg-slide.js";
 import { buildSceneCardHtml } from "./compositions/scene-card.js";
+import { renderHtmlToMp4 } from "./mp4-renderer.js";
+import { renderHtmlToMp4WithHyperframesCli } from "./hyperframes-cli-renderer.js";
 
 export async function renderWithHyperFrames(
   composition: VideoComposition,
   ctx: RenderCtx,
 ): Promise<RenderResult> {
   const startedAt = Date.now();
-  const html = buildHyperFramesHtml(composition, ctx);
+  const compositionHtml = buildHyperFramesHtml(composition, ctx);
+  const html = compositionHtml.html;
   const wantsMp4 = extname(ctx.outPath).toLowerCase() === ".mp4";
   const encodeMp4 = process.env.WITTGENSTEIN_HYPERFRAMES_RENDER === "1";
+  const fps = snapHyperframesFps(composition.fps);
+  const quality = readHyperframesQuality();
+  const backend = readHyperframesBackend();
 
   if (wantsMp4 && encodeMp4) {
     const indexPath = join(ctx.runDir, "index.html");
@@ -32,23 +38,30 @@ export async function renderWithHyperFrames(
     await mkdir(dirname(ctx.outPath), { recursive: true });
     await writeFile(indexPath, html, "utf8");
 
-    ctx.logger.info("hyperframes: running local MP4 encode (npx hyperframes render)", {
+    ctx.logger.info("hyperframes: running local MP4 encode", {
       cwd: ctx.runDir,
       output: ctx.outPath,
+      backend,
     });
 
-    await runHyperframesRenderToMp4({
-      cwd: ctx.runDir,
+    const params = {
+      htmlPath: indexPath,
+      runDir: ctx.runDir,
       outputMp4: ctx.outPath,
-      fps: composition.fps,
-    });
-
-    const bytes = (await stat(ctx.outPath)).size;
+      durationSec: compositionHtml.totalDurationSec,
+      fps,
+      quality,
+      timeoutMs: renderTimeoutMs(),
+    };
+    const render =
+      backend === "npx-cli"
+        ? await renderHtmlToMp4WithHyperframesCli(params)
+        : await renderHtmlToMp4(params);
 
     return {
       artifactPath: ctx.outPath,
       mimeType: "video/mp4",
-      bytes,
+      bytes: render.bytes,
       metadata: {
         codec: "video",
         route: "hyperframes-mp4",
@@ -56,6 +69,8 @@ export async function renderWithHyperFrames(
         costUsd: 0,
         durationMs: Date.now() - startedAt,
         seed: ctx.seed,
+        renderPath: "hyperframes-mp4",
+        videoRender: render.receipt,
       },
     };
   }
@@ -78,56 +93,22 @@ export async function renderWithHyperFrames(
       costUsd: 0,
       durationMs: Date.now() - startedAt,
       seed: ctx.seed,
+      renderPath: "hyperframes-html",
+      videoRender: {
+        renderPath: "hyperframes-html",
+        backend: "distilled-internal",
+        backendVersion: "internal",
+        determinismClass: "byte-parity-on-platform",
+        fps,
+        quality,
+        frameCount: 0,
+        width: STAGE_WIDTH,
+        height: STAGE_HEIGHT,
+        durationSec: compositionHtml.totalDurationSec,
+        outputKind: "html",
+      },
     },
   };
-}
-
-async function runHyperframesRenderToMp4(params: {
-  cwd: string;
-  outputMp4: string;
-  fps: number;
-}): Promise<void> {
-  const fps = snapHyperframesFps(params.fps);
-  const timeoutMs = Number.parseInt(
-    process.env.WITTGENSTEIN_HYPERFRAMES_RENDER_TIMEOUT_MS ?? "600000",
-    10,
-  );
-  const args = [
-    "-y",
-    "hyperframes",
-    "render",
-    "--output",
-    params.outputMp4,
-    "--fps",
-    String(fps),
-    "--quality",
-    process.env.WITTGENSTEIN_HYPERFRAMES_QUALITY?.trim() || "standard",
-    "--quiet",
-  ];
-
-  await runProcess(
-    "npx",
-    args,
-    {
-      cwd: params.cwd,
-      env: {
-        ...process.env,
-        HYPERFRAMES_NO_TELEMETRY: process.env.HYPERFRAMES_NO_TELEMETRY ?? "1",
-        HYPERFRAMES_NO_UPDATE_CHECK: process.env.HYPERFRAMES_NO_UPDATE_CHECK ?? "1",
-      },
-      timeoutHint: "(set WITTGENSTEIN_HYPERFRAMES_RENDER_TIMEOUT_MS).",
-    },
-    timeoutMs,
-    "hyperframes render",
-  );
-
-  try {
-    await stat(params.outputMp4);
-  } catch {
-    throw new Error(
-      "hyperframes render exited but output MP4 was not found. Install HyperFrames + FFmpeg + Chrome, run `npx hyperframes doctor`, or unset WITTGENSTEIN_HYPERFRAMES_RENDER to emit HTML only.",
-    );
-  }
 }
 
 function snapHyperframesFps(fps: number): 24 | 30 | 60 {
@@ -141,6 +122,35 @@ function snapHyperframesFps(fps: number): 24 | 30 | 60 {
     return 30;
   }
   return 60;
+}
+
+function renderTimeoutMs(): number {
+  const fallback = 600_000;
+  const raw = process.env.WITTGENSTEIN_HYPERFRAMES_RENDER_TIMEOUT_MS;
+  if (raw === undefined) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
+function readHyperframesQuality(): "draft" | "standard" | "high" {
+  const value = process.env.WITTGENSTEIN_HYPERFRAMES_QUALITY?.trim();
+  if (value === "draft" || value === "standard" || value === "high") {
+    return value;
+  }
+  return "standard";
+}
+
+function readHyperframesBackend(): "distilled-internal" | "npx-cli" {
+  const value = process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND?.trim();
+  if (value === "npx-cli") {
+    return "npx-cli";
+  }
+  return "distilled-internal";
 }
 
 function resolveHyperFramesArtifactPath(outPath: string): string {
@@ -158,12 +168,15 @@ function resolveHyperFramesArtifactPath(outPath: string): string {
   return `${outPath}.hyperframes.html`;
 }
 
-function buildHyperFramesHtml(composition: VideoComposition, ctx: RenderCtx): string {
+function buildHyperFramesHtml(
+  composition: VideoComposition,
+  ctx: RenderCtx,
+): { html: string; totalDurationSec: number } {
   const inlineSvgs =
     composition.inlineSvgs && composition.inlineSvgs.length > 0 ? composition.inlineSvgs : null;
 
   if (inlineSvgs) {
-    return buildSvgSlideHtml(composition, ctx, inlineSvgs).html;
+    return buildSvgSlideHtml(composition, ctx, inlineSvgs);
   }
-  return buildSceneCardHtml(composition, ctx).html;
+  return buildSceneCardHtml(composition, ctx);
 }

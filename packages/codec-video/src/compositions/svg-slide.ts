@@ -7,8 +7,10 @@ import type { VideoComposition } from "../schema.js";
 import { buildClipTimelineCss } from "../slideshow-timeline-css.js";
 import {
   BASE_CSS,
+  FRAME_TIME_SCRIPT,
   STAGE_HEIGHT,
   STAGE_WIDTH,
+  buildFrameTimeCss,
   escapeHtml,
   sanitizeCompositionId,
 } from "./shared.js";
@@ -45,6 +47,7 @@ export function buildSvgSlideHtml(
     totalDurationSec,
     { iterationCount: 1 },
   );
+  const frameTimeCss = buildFrameTimeCss(svgClips, totalDurationSec);
 
   const bodyInner = svgClips.map(({ svg, index, start, durationSec, label }) => {
     const trackIndex = index % 8;
@@ -78,6 +81,7 @@ export function buildSvgSlideHtml(
     `.hf-svg-slide { width: 100%; height: 100%; display: grid; place-items: center; box-sizing: border-box; }`,
     `.hf-svg-slide > svg { width: auto; height: auto; max-width: 1720px; max-height: 940px; display: block; }`,
     clipTimelineCss,
+    frameTimeCss,
     `</style>`,
     `</head>`,
     `<body>`,
@@ -91,6 +95,7 @@ export function buildSvgSlideHtml(
     `>`,
     ...bodyInner,
     `</div>`,
+    `<script>${FRAME_TIME_SCRIPT}</script>`,
     `</body>`,
     `</html>`,
     "",

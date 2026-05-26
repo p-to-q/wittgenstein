@@ -25,6 +25,8 @@ export interface RenderCtx {
 
 import type { CostUsdReason } from "./manifest.js";
 import type { LicenseManifest } from "./manifest.js";
+import type { VideoRenderManifest } from "./manifest.js";
+import { VideoRenderManifestSchema } from "./manifest.js";
 
 export interface RenderSidecar {
   role: string;
@@ -60,6 +62,7 @@ export interface RenderResult {
      * the truth about which renderer actually fired (Issue #223).
      */
     renderPath?: string;
+    videoRender?: VideoRenderManifest;
   };
 }
 
@@ -95,6 +98,7 @@ export const RenderResultSchema = z.object({
       })
       .optional(),
     renderPath: z.string().optional(),
+    videoRender: VideoRenderManifestSchema.optional(),
   }),
 });
 

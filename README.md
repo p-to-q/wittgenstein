@@ -39,9 +39,9 @@ text-first LLM
 | 🖼️ Image  | Visual Seed Code (primary) + optional `Semantic IR`                  | Seed expander → frozen VQ decoder¹                                  | PNG                    |
 | 🔊 Audio  | Route-specific audio code (speech / soundscape / music)              | Procedural synth (default) + opt-in Kokoro speech                   | WAV                    |
 | 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion                                      | CSV + interactive HTML |
-| 🎞️ Video  | Composition spec                                                     | HyperFrames-shaped local render (M4 stub today; ratified lead path) | MP4 / HTML             |
+| 🎞️ Video  | Composition spec                                                     | HyperFrames-shaped local render (HTML default, MP4 opt-in)          | MP4 / HTML             |
 
-Image, audio, and sensor produce real artifacts today; video is post-v0.3 work. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
+Image, audio, sensor, and video HTML produce real artifacts today; video MP4 is an opt-in local-render path requiring Chrome/Chromium + FFmpeg. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
 
 > ¹ **Image today renders a procedural placeholder.** The frozen VQ decoder bridge is the M1B blocker tracked in [#283](https://github.com/p-to-q/wittgenstein/issues/283); `wittgenstein image --dry-run` runs end-to-end and produces a PNG, but the path between seed code and pixels is procedural until M1B lands. See the **Project status** block immediately below for the full picture.
 
@@ -382,7 +382,7 @@ is visible, but **do not depend on them in production** until the status matrix 
 | Surface                                       | State             | What works today                                                                      | What's missing                                                                 |
 | --------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | TS `codec-image` adapter + decoder            | ⚠️ Partial        | Scene JSON, placeholder latents, MLP loader, `renderSky` / `renderTerrain` primitives | Frozen VQ decoder bridge (LlamaGen / SEED); trained adapter weights            |
-| TS `codec-video`                              | 🔴 Stub           | Schema + typed interface                                                              | HyperFrames integration, MP4 encoder                                           |
+| TS `codec-video`                              | ⚠️ Partial        | Schema, HTML renderer, opt-in repo-owned MP4 renderer                                  | M5b video metrics / richer composition features                                |
 | Benchmark quality scores                      | ⚠️ Proxy          | Structural smoke checks, cost/latency timing                                          | CLIPScore, Whisper WER, UTMOS, discriminative score runners                    |
 | `polyglot-mini` image code-as-painter sandbox | ⚠️ Research-grade | `subprocess` with 20 s timeout + safe globals                                         | Kernel-level isolation for multi-tenant use (see [`SECURITY.md`](SECURITY.md)) |
 

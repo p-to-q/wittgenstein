@@ -11,6 +11,34 @@ export const AudioRenderManifestSchema = z.object({
   decoderHash: z.string().optional(),
 });
 
+export const VideoRenderManifestSchema = z
+  .object({
+    renderPath: z.enum(["hyperframes-html", "hyperframes-mp4"]),
+    backend: z.enum(["distilled-internal", "npx-hyperframes-cli"]),
+    backendVersion: z.string(),
+    determinismClass: z.enum(["byte-parity-on-platform", "structural-parity-cross-platform"]),
+    fps: z.union([z.literal(24), z.literal(30), z.literal(60)]),
+    quality: z.enum(["draft", "standard", "high"]),
+    frameCount: z.number().int().nonnegative(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    durationSec: z.number().nonnegative(),
+    outputKind: z.enum(["html", "mp4"]),
+    ffmpegVersion: z.string().optional(),
+    chromeVersion: z.string().optional(),
+  })
+  .superRefine((receipt, ctx) => {
+    const expectedOutputKind = receipt.renderPath === "hyperframes-html" ? "html" : "mp4";
+    if (receipt.outputKind !== expectedOutputKind) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["outputKind"],
+        message:
+          "VideoRenderManifestSchema outputKind must match renderPath (hyperframes-html -> html, hyperframes-mp4 -> mp4).",
+      });
+    }
+  });
+
 const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
 const ImageRouteSchema = z.enum(["raster"]);
 const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
@@ -85,6 +113,7 @@ export const RunManifestSchema = z
     artifactSha256: z.string().nullable(),
     artifactSidecars: z.array(ArtifactSidecarSchema).optional(),
     audioRender: AudioRenderManifestSchema.optional(),
+    videoRender: VideoRenderManifestSchema.optional(),
 
     /**
      * Optional codec-internal path identifier preserved from
@@ -180,6 +209,27 @@ export const RunManifestSchema = z
       }
     }
 
+    if (manifest.codec === "video" && manifest.ok && manifest.videoRender === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["videoRender"],
+        message: "Successful video manifests must record videoRender receipts.",
+      });
+    }
+
+    if (
+      manifest.codec === "video" &&
+      manifest.route !== undefined &&
+      manifest.videoRender !== undefined &&
+      manifest.route !== manifest.videoRender.renderPath
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["videoRender", "renderPath"],
+        message: "Video manifests must keep route and videoRender.renderPath in sync.",
+      });
+    }
+
     if (manifest.costUsd === null && manifest.costUsdReason === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -206,6 +256,7 @@ export const RunManifestSchema = z
   });
 
 export type AudioRenderManifest = z.infer<typeof AudioRenderManifestSchema>;
+export type VideoRenderManifest = z.infer<typeof VideoRenderManifestSchema>;
 export type ArtifactSidecar = z.infer<typeof ArtifactSidecarSchema>;
 export type LicenseManifest = z.infer<typeof LicenseManifestSchema>;
 export type WeightsRestriction = z.infer<typeof WeightsRestrictionSchema>;

@@ -3,13 +3,17 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { videoCodec } from "../src/index.js";
+import { buildHyperframesCliRenderArgs } from "../src/hyperframes-cli-renderer.js";
 
 describe("@wittgenstein/codec-video", () => {
   let prevHyperframesRender: string | undefined;
+  let prevHyperframesBackend: string | undefined;
 
   beforeEach(() => {
     prevHyperframesRender = process.env.WITTGENSTEIN_HYPERFRAMES_RENDER;
+    prevHyperframesBackend = process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND;
     process.env.WITTGENSTEIN_HYPERFRAMES_RENDER = "0";
+    delete process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND;
   });
 
   afterEach(() => {
@@ -17,6 +21,11 @@ describe("@wittgenstein/codec-video", () => {
       delete process.env.WITTGENSTEIN_HYPERFRAMES_RENDER;
     } else {
       process.env.WITTGENSTEIN_HYPERFRAMES_RENDER = prevHyperframesRender;
+    }
+    if (prevHyperframesBackend === undefined) {
+      delete process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND;
+    } else {
+      process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND = prevHyperframesBackend;
     }
   });
 
@@ -102,10 +111,19 @@ describe("@wittgenstein/codec-video", () => {
 
       expect(result.mimeType).toContain("text/html");
       expect(result.artifactPath.endsWith(".hyperframes.html")).toBe(true);
+      expect(result.metadata.renderPath).toBe("hyperframes-html");
+      expect(result.metadata.videoRender).toMatchObject({
+        renderPath: "hyperframes-html",
+        backend: "distilled-internal",
+        determinismClass: "byte-parity-on-platform",
+        outputKind: "html",
+        fps: 24,
+      });
 
       const html = await readFile(result.artifactPath, "utf8");
       expect(html).toContain('data-composition-id="wittgenstein-test-run"');
       expect(html).toContain('data-duration="2"');
+      expect(html).toContain("wittgensteinFrameTime");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -152,8 +170,61 @@ describe("@wittgenstein/codec-video", () => {
       expect(html).toContain('fill="red"');
       expect(html).toContain('fill="blue"');
       expect(html).toContain('data-duration="4"');
+      expect(result.metadata.videoRender?.durationSec).toBe(4);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it("keeps HTML output on the distilled backend by default", async () => {
+    const parsed = videoCodec.parse(JSON.stringify({ durationSec: 1, fps: 60 }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const dir = await mkdtemp(join(tmpdir(), "wittgenstein-video-backend-"));
+    try {
+      const result = await videoCodec.render(parsed.value, {
+        runId: "backend-default",
+        runDir: dir,
+        seed: 4,
+        outPath: join(dir, "out.html"),
+        logger: {
+          debug: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+        },
+      });
+      expect(result.metadata.videoRender?.backend).toBe("distilled-internal");
+      expect(result.metadata.videoRender?.fps).toBe(60);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("builds the documented HyperFrames CLI render command shape", () => {
+    expect(
+      buildHyperframesCliRenderArgs({
+        outputMp4: "/tmp/out.mp4",
+        fps: 24,
+        quality: "standard",
+      }),
+    ).toEqual([
+      "--no-install",
+      "hyperframes",
+      "render",
+      ".",
+      "--composition",
+      "index.html",
+      "-o",
+      "/tmp/out.mp4",
+      "--fps",
+      "24",
+      "--quality",
+      "standard",
+      "--quiet",
+    ]);
   });
 });

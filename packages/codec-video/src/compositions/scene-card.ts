@@ -8,8 +8,10 @@ import type { VideoComposition } from "../schema.js";
 import { buildClipTimelineCss } from "../slideshow-timeline-css.js";
 import {
   BASE_CSS,
+  FRAME_TIME_SCRIPT,
   STAGE_HEIGHT,
   STAGE_WIDTH,
+  buildFrameTimeCss,
   escapeHtml,
   sanitizeCompositionId,
 } from "./shared.js";
@@ -59,6 +61,10 @@ export function buildSceneCardHtml(
     totalDurationSec,
     { iterationCount: 1 },
   );
+  const frameTimeCss = buildFrameTimeCss(
+    clips.map((c) => ({ index: c.index, start: c.start, durationSec: c.scene.durationSec })),
+    totalDurationSec,
+  );
 
   const bodyInner = clips.map(({ scene, index, start }) => {
     const trackIndex = index % 8;
@@ -101,6 +107,7 @@ export function buildSceneCardHtml(
     `.hf-body { margin: 0; font-size: 34px; line-height: 1.35; color: rgba(255,255,255,0.78); white-space: pre-wrap; }`,
     `.hf-meta { margin-top: 34px; font-size: 18px; color: rgba(255,255,255,0.45); }`,
     clipTimelineCss,
+    frameTimeCss,
     `</style>`,
     `</head>`,
     `<body>`,
@@ -114,6 +121,7 @@ export function buildSceneCardHtml(
     `>`,
     ...bodyInner,
     `</div>`,
+    `<script>${FRAME_TIME_SCRIPT}</script>`,
     `</body>`,
     `</html>`,
     "",
