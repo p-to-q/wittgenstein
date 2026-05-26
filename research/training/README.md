@@ -54,6 +54,51 @@ A frozen checkpoint released to HuggingFace Hub ships with this manifest
 beside it. The CLI's `wittgenstein replay <manifest>` works equally for a
 generation receipt and a training receipt — same spine.
 
+## Receipt smoke
+
+The shared manifest spine has a CPU-only smoke that writes a synthetic
+checkpoint plus `manifest.json` without importing torch or touching real
+datasets:
+
+```bash
+python3 -m research.training._shared.smoke_manifest
+python3 -m unittest research.training._shared.test_manifest
+```
+
+This is the receipt floor for #435 / #441. It does not claim that tokenizer,
+adapter, or LLM-head training has run; it only proves that future training
+programs can emit the required manifest shape before GPU work starts.
+
+## M1B audit receipts
+
+The VQGAN-class Gate C/D audit has a separate stdlib-only receipt harness:
+
+```bash
+pnpm m1b:audit-self-check
+
+python3 -m research.validation.vqgan_gate_audit \
+  --out artifacts/m1b-audit/vqgan-gates.json
+python3 -m research.validation.m1b_export_llamagen_decoder_onnx --help
+python3 -m research.validation.m1b_gate_c_roundtrip --help
+python3 -m research.validation.m1b_gate_d_onnx_cpu --help
+python3 -m unittest \
+  research.validation.test_vqgan_gate_audit \
+  research.validation.test_m1b_metric_producers
+```
+
+Without local weights the receipt is expected to stay `blocked` / `skipped`.
+Gate C passes only after empirical round-trip metrics include
+`roundtrip_passed=true`, `sample_count>=3`, and `token_hamming_rate=0.0`.
+Gate D passes only after ONNX/CPU metrics include `onnx_cpu_passed=true`,
+`cpu_decode_seconds<=30`, and `output_shape=[256,256,3]`. That makes #334 /
+#335 close over evidence rather than prose.
+
+When lab compute is available, use the lab gate runbook rather than treating a
+contributor laptop as the full empirical gate:
+[docs/research/2026-05-26-m1b-lab-gate-runbook.md](../../docs/research/2026-05-26-m1b-lab-gate-runbook.md).
+The local machine still owns contract preflight and blocked-receipt shape; the
+lab owns full-weight Gate C/D evidence.
+
 ## Compute
 
 Training is GPU-only and not part of CI's free tier. Run targets:

@@ -1,0 +1,68 @@
+{
+  "candidate": "vqgan-class/llamagen",
+  "environment": {
+    "accelerator": "CPU",
+    "hardware": "fixture",
+    "labRunId": "fixture-blocked"
+  },
+  "generated_at": "2026-05-26T00:00:00Z",
+  "git_sha": "fixture",
+  "gates": [
+    {
+      "evidence": ["research/validation/fixtures/m1b-audit/gate-c-pass.fixture.json"],
+      "gate": "C",
+      "metrics": {
+        "pass_check": {
+          "passed": true,
+          "required": {
+            "roundtrip_passed": true,
+            "sample_count_min": 3,
+            "token_hamming_rate_max": 0.0
+          }
+        },
+        "roundtrip_passed": true,
+        "sample_count": 3,
+        "token_hamming_rate": 0.0
+      },
+      "notes": ["Fixture only; not empirical evidence."],
+      "required_inputs": [
+        "local PyTorch environment",
+        "SHA-pinned VQGAN-class weights",
+        "encode -> decode -> re-encode metric JSON"
+      ],
+      "status": "passed",
+      "tracker": "https://github.com/p-to-q/wittgenstein/issues/334"
+    },
+    {
+      "evidence": ["research/validation/fixtures/m1b-audit/gate-d-fail.fixture.json"],
+      "gate": "D",
+      "metrics": {
+        "cpu_decode_seconds": 42.5,
+        "onnx_cpu_passed": false,
+        "output_shape": [128, 128, 3],
+        "pass_check": {
+          "passed": false,
+          "required": {
+            "cpu_decode_seconds_max": 30.0,
+            "node_available": true,
+            "onnx_cpu_passed": true,
+            "output_shape": [256, 256, 3]
+          }
+        }
+      },
+      "notes": ["Fixture only; not empirical evidence."],
+      "required_inputs": [
+        "local PyTorch export environment",
+        "SHA-pinned VQGAN-class weights",
+        "exported ONNX decoder",
+        "Node/ONNX CPU smoke metric JSON"
+      ],
+      "status": "blocked",
+      "tracker": "https://github.com/p-to-q/wittgenstein/issues/335"
+    }
+  ],
+  "platform": "fixture",
+  "python_version": "3.13.0",
+  "schema_version": "m1b-vqgan-gate-audit.v0",
+  "status": "blocked"
+}

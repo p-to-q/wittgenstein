@@ -25,6 +25,17 @@ interface VideoRenderDoctor {
   chrome: DoctorCheck;
 }
 
+interface ImageDecoderDoctor {
+  status: "blocked";
+  decoderManifest: DoctorCheck;
+  onnxRuntime: DoctorCheck;
+  blockers: {
+    decoderDelivery: string;
+    gateCDeterminism: string;
+    gateDOnnxCpu: string;
+  };
+}
+
 export function registerDoctorCommand(program: Command): void {
   program
     .command("doctor")
@@ -50,6 +61,7 @@ export function registerDoctorCommand(program: Command): void {
             artifactsDir: config.runtime.artifactsDir,
             tiers: runtimeTierReadiness(),
             videoRender: checkVideoRenderDependencies(),
+            imageDecoder: checkImageDecoderReadiness(),
           },
           null,
           2,
@@ -196,7 +208,7 @@ function checkChrome(): DoctorCheck {
 }
 
 function checkChromeCandidate(candidate: string): DoctorCheck {
-  const result = spawnSync(candidate, ["--version"], {
+  const result = spawnSync(candidate, ["--version"],
     encoding: "utf8",
     timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
   });
@@ -210,6 +222,46 @@ function checkChromeCandidate(candidate: string): DoctorCheck {
   }
 
   return { status: "missing" };
+}
+
+function checkImageDecoderReadiness(): ImageDecoderDoctor {
+  return {
+    status: "blocked",
+    decoderManifest: {
+      status: "missing",
+      message:
+        "No decoder-family manifest has been blessed for the image install tier yet; #402 owns the decision.",
+    },
+    onnxRuntime: checkOptionalNodePeer("onnxruntime-node", "wittgenstein install image"),
+    blockers: {
+      decoderDelivery: "https://github.com/p-to-q/wittgenstein/issues/402",
+      gateCDeterminism: "https://github.com/p-to-q/wittgenstein/issues/334",
+      gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
+    },
+  };
+}
+
+function checkOptionalNodePeer(packageName: string, installHint: string): DoctorCheck {
+  const result = spawnSync(
+    process.execPath,
+    ["-e", `console.log(require.resolve(${JSON.stringify(packageName)}))`],
+    {
+      encoding: "utf8",
+      timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
+    },
+  );
+
+  if (result.status === 0) {
+    return {
+      status: "ok",
+      path: firstOutputLine(result.stdout, result.stderr),
+    };
+  }
+
+  return {
+    status: "missing",
+    message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
+  };
 }
 
 function firstOutputLine(stdout: string, stderr: string): string {

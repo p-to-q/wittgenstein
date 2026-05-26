@@ -28,6 +28,16 @@ describe("doctor tier readiness", () => {
         ffmpeg: { status: string };
         chrome: { status: string };
       };
+      imageDecoder: {
+        status: string;
+        decoderManifest: { status: string; message: string };
+        onnxRuntime: { status: string; message?: string; path?: string };
+        blockers: {
+          decoderDelivery: string;
+          gateCDeterminism: string;
+          gateDOnnxCpu: string;
+        };
+      };
     };
     expect(payload.tiers.tier0.ready).toBe(true);
     expect(payload.tiers.tier1.ready).toBe(false);
@@ -38,6 +48,13 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.hyperframesCli.status).toBe("skipped");
     expect(payload.videoRender.ffmpeg.status).toBe("skipped");
     expect(payload.videoRender.chrome.status).toBe("skipped");
+    expect(payload.imageDecoder.status).toBe("blocked");
+    expect(payload.imageDecoder.decoderManifest.status).toBe("missing");
+    expect(payload.imageDecoder.decoderManifest.message).toMatch(/#402/);
+    expect(["ok", "missing"]).toContain(payload.imageDecoder.onnxRuntime.status);
+    expect(payload.imageDecoder.blockers.decoderDelivery).toMatch(/issues\/402$/);
+    expect(payload.imageDecoder.blockers.gateCDeterminism).toMatch(/issues\/334$/);
+    expect(payload.imageDecoder.blockers.gateDOnnxCpu).toMatch(/issues\/335$/);
   });
 
   it("prints structured video dependency checks when HyperFrames MP4 rendering is enabled", () => {
