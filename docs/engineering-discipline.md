@@ -143,6 +143,20 @@ Maintain established functionality unless change is explicitly needed. Select st
 
 Manifests and run records are not overhead — they are the evidence that reproducibility holds.
 
+### Structured-error testing pattern (codec authors)
+
+Every codec exposes a typed `Result<T, CodecError>` boundary. The tests must assert the **error code**, not just `result.ok === false`. Refusing `result.ok === false` alone lets a future drift (renamed code, swapped silent fallback) slip through CI.
+
+The minimum contract per codec, per the [#367](https://github.com/p-to-q/wittgenstein/issues/367) audit closeout:
+
+1. **Parse failure** — feed `codec.parse()` a string that isn't JSON; assert `error.code === "{CODEC}_SCHEMA_PARSE_FAILED"` and `error.cause instanceof SyntaxError`.
+2. **Schema validation failure** — feed `codec.parse()` JSON that doesn't match the schema; assert `error.code === "{CODEC}_SCHEMA_INVALID"` and that `error.details.issues[].path` points at the offending field.
+3. **Domain-specific invariant** — when the codec has a refinement beyond raw schema shape (e.g. sensor's `affineNormalize.min < max`, video's `outputKind ↔ renderPath`), test that the invariant returns a structured error rather than silently coercing.
+
+Working references: `packages/codec-sensor/test/codec.test.ts` (the "structured error paths" describe block) and `packages/codec-asciipng/test/codec.test.ts`.
+
+Codec packages that introduce new error categories should add a corresponding test the same PR. New codecs that ship without these tests will be requested-changes at review.
+
 ### Untrusted-code execution boundary
 
 The `polyglot-mini` painter sandbox (`subprocess + 20 s timeout + safe globals`) is **research-grade only**. ADR-0016 locks this boundary: any environment that runs painter code on behalf of another user, sits on shared infrastructure, is exposed to the public internet, or processes prompts outside the operator's trust boundary must engage the painter path through `@wittgenstein/sandbox` (`packages/sandbox/`), whose `execProgram` today throws on call (an explicit not-implemented contract) and is intentionally designed to **hard-error rather than silently fall back** to the research-grade subprocess. Production implementation against `nsjail` / `bubblewrap` / Pyodide-WASM is its own engineering line. See [ADR-0016](adrs/0016-untrusted-code-execution-boundary.md) for the full doctrine and `SECURITY.md` for the operator-facing summary.
