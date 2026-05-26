@@ -7,6 +7,33 @@ describe("@wittgenstein/codec-asciipng", () => {
     expect(asciipngCodec.modality).toBe("asciipng");
   });
 
+  it("returns ASCIIPNG_SCHEMA_PARSE_FAILED for invalid JSON (#367 error-path coverage)", () => {
+    const result = asciipngCodec.parse("definitely-not-json");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ASCIIPNG_SCHEMA_PARSE_FAILED");
+    expect(result.error.cause).toBeInstanceOf(SyntaxError);
+  });
+
+  it("returns ASCIIPNG_SCHEMA_INVALID with zod issues for out-of-range columns", () => {
+    // columns has min: 8, max: 120 — passing 5000 should fail validation.
+    const result = asciipngCodec.parse(JSON.stringify({ columns: 5000 }));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ASCIIPNG_SCHEMA_INVALID");
+    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
+      .issues;
+    expect(issues.some((issue) => issue.path.includes("columns"))).toBe(true);
+  });
+
+  it("returns ASCIIPNG_SCHEMA_INVALID for malformed fg color tuple", () => {
+    // fg expects [r, g, b] integers in [0, 255]; passing a wrong shape fails.
+    const result = asciipngCodec.parse(JSON.stringify({ fg: ["red"] }));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ASCIIPNG_SCHEMA_INVALID");
+  });
+
   it("post-processes Minimax-style text into a fixed-size grid IR", () => {
     const raw = "```\n##\n..##\n```";
     const ir = minimaxTextToAsciiIr(raw, 6, 3, 4);

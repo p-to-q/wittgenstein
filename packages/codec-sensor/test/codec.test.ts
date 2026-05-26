@@ -349,6 +349,83 @@ describe("sensor patchGrammar operator", () => {
   });
 });
 
+/**
+ * Structured error-path coverage (#367 — sparse error-path coverage audit
+ * finding). Verifies that `parse()` returns the typed `SENSOR_SCHEMA_*` codes
+ * for the obvious boundary failures rather than throwing, returning silently
+ * `{ ok: true }`, or losing the structured shape.
+ */
+describe("@wittgenstein/codec-sensor structured error paths", () => {
+  it("returns SENSOR_SCHEMA_PARSE_FAILED for invalid JSON", () => {
+    const result = sensorCodec.parse("not-json {");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SENSOR_SCHEMA_PARSE_FAILED");
+    expect(result.error.message).toBe("Sensor signal spec was not valid JSON.");
+    expect(result.error.cause).toBeInstanceOf(SyntaxError);
+  });
+
+  it("returns SENSOR_SCHEMA_INVALID with zod issues for unknown signal type", () => {
+    const result = sensorCodec.parse(
+      JSON.stringify({
+        signal: "not-a-real-signal-kind",
+        sampleRateHz: 100,
+        durationSec: 1,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SENSOR_SCHEMA_INVALID");
+    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
+      .issues;
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.some((issue) => issue.path.includes("signal"))).toBe(true);
+  });
+
+  it("returns SENSOR_SCHEMA_INVALID for affineNormalize range violation (#247)", () => {
+    const result = sensorCodec.parse(
+      JSON.stringify({
+        signal: "gyro",
+        sampleRateHz: 50,
+        durationSec: 1,
+        operators: [
+          {
+            type: "patchGrammar",
+            patchLengthSec: 1,
+            patches: [
+              {
+                operators: [{ type: "oscillator", frequencyHz: 1, amplitude: 1, phaseRad: 0 }],
+                // Inverted range — schema requires min < max strictly.
+                affineNormalize: { minOutput: 1, maxOutput: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SENSOR_SCHEMA_INVALID");
+  });
+
+  it("returns SENSOR_SCHEMA_INVALID for unknown operator type (discriminated-union miss)", () => {
+    const result = sensorCodec.parse(
+      JSON.stringify({
+        signal: "gyro",
+        sampleRateHz: 20,
+        durationSec: 1,
+        operators: [{ type: "totally-fictional-operator", amplitude: 1 }],
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SENSOR_SCHEMA_INVALID");
+    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
+      .issues;
+    expect(issues.some((issue) => issue.path.includes("operators"))).toBe(true);
+  });
+});
+
 async function renderToCsv(spec: SensorSignalSpec, seed: number): Promise<Buffer> {
   const dir = await mkdtemp(join(tmpdir(), "witt-sensor-pg-"));
   await sensorCodec.render(spec, {
