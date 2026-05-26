@@ -26,7 +26,7 @@ export interface DecoderPreflightReceipt {
   readonly family: string | null;
   readonly runtimeTier: DecoderRuntimeTier | null;
   readonly installHint: string | null;
-  readonly tracker: string;
+  readonly tracker: string | null;
   readonly details: Record<string, unknown>;
 }
 
@@ -141,7 +141,7 @@ export async function preflightImageDecoder(
     status: "ready",
     reason: null,
     installHint: null,
-    tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+    tracker: null,
     details: {
       weights: {
         source: resolvedWeights.source,
