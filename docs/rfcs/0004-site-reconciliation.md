@@ -1,7 +1,7 @@
 # RFC-0004 — Site reconciliation actions
 
 **Date:** 2026-04-25
-**Author:** engineering (max.zhuang.yan@gmail.com)
+**Author:** engineering (@Jah-yee @Moapacha)
 **Status:** 🟡 Draft v0.1
 **Feeds from:** Brief F
 **Ratified by:** — (no ADR; site-ops RFC, revertible)

@@ -1,7 +1,7 @@
 # v0.2 Alignment Review — self-audit against original intent
 
 **Date:** 2026-04-25
-**Author:** review (max.zhuang.yan@gmail.com)
+**Author:** review (@Jah-yee @Moapacha)
 **Status:** Decisions merged into this PR
 **Scope:** P1–P5 of the v0.2 restructuring vs. the original hackathon-era PPT deck and repeated product statements.
 
@@ -17,9 +17,9 @@ The bulk of the doc stack does what it was commissioned to do. In particular:
 
 - **Compression ↔ world-models position (Brief B, ADR-0006).** Matches the deck's Ilya
   quote ("a good enough LLM is a system approximating Kolmogorov-optimal compression")
-  and its "Text LLM 已经在参数里压缩了大量图像的结构信息" frame. The *Layered* position
-  + *Agnostic* engineering contract (only `Text` inhabited today) is the right posture.
-  Keep.
+  and its "Text LLM 已经在参数里压缩了大量图像的结构信息" frame. The _Layered_ position
+  - _Agnostic_ engineering contract (only `Text` inhabited today) is the right posture.
+    Keep.
 - **VQ / LFQ lineage audit (Brief A, feeds ADR-0008).** Matches the timeline slide
   (Wittgenstein 1921 → van den Oord 2017 → Brown/Sutskever 2020 → Rombach/Esser 2021–22
   → Ge/Zhao/Shan 2023–24 → Wittgenstein 2026). The "VQ decoder → LFQ-family discrete-token
@@ -44,14 +44,14 @@ Six drift points. Each has a named decision and a named output.
 
 ### 2.1. "text-first models" vs "text-first LLMs"
 
-**Drift.** P1's THESIS.md locked *"the modality harness for text-first models."* The PPT
-deck, `AGENTS.md`, and the root `README.md:5` all say *"text-first LLMs."* The user's
-follow-up message also says *"Text-First LLMs."* Inside THESIS.md itself the two forms
+**Drift.** P1's THESIS.md locked _"the modality harness for text-first models."_ The PPT
+deck, `AGENTS.md`, and the root `README.md:5` all say _"text-first LLMs."_ The user's
+follow-up message also says _"Text-First LLMs."_ Inside THESIS.md itself the two forms
 co-exist (§Master says "models", §Extension says "text-only LLMs"). Brief F caught a
 README↔THESIS mismatch and chose "models" as canonical — that choice was the drift, not
 the fix.
 
-**Decision.** Revert to *"text-first LLMs"* everywhere. The PPT is the source of truth;
+**Decision.** Revert to _"text-first LLMs"_ everywhere. The PPT is the source of truth;
 "LLMs" is the word the user actually uses; and LLMs is already the word `AGENTS.md`
 sends first-contact agents home with.
 
@@ -62,7 +62,7 @@ and any stray "text-first models" occurrence. Root README stays on "LLMs" (alrea
 
 **Drift.** RFC-0003 / ADR-0010 introduced four new names: **Loom** (middleware layer),
 **Transducer** (Adapter+Decoder pair), **Score** (Build Artifact primitive), **Handoff**
-(IR sum type). The architecture slide uses exactly *one* word for the middleware
+(IR sum type). The architecture slide uses exactly _one_ word for the middleware
 layer — **Codec** — and one word for the middle artifact — **Scene Spec JSON** (or per
 modality: "audio plan", "algorithm spec"). The intermediate type is literally labelled
 **Modality IR**.
@@ -74,22 +74,22 @@ replaces the existing "Spec" vocabulary with a musical metaphor that doesn't tra
 to sensor / audio. "Handoff" replaces "IR" — a word compiler people already understand
 — with a business metaphor.
 
-The user's bar, restated: *"像 Senior 研究员、工程师或 Hacker 做出来的东西"* (should look
+The user's bar, restated: _"像 Senior 研究员、工程师或 Hacker 做出来的东西"_ (should look
 like a senior researcher / engineer / hacker made this). Four creative-writing names in
 place of industry-standard ones fails that bar.
 
 **Decision.** Supersede RFC-0003 with RFC-0005 (v0.2 naming revision) and paired
 ADR-0011. Retire Loom, Transducer, Score, Handoff. Lock the PPT-native vocabulary:
 
-| What | Name | Source |
-|---|---|---|
-| L1 runtime + dispatch | **Harness** | already canonical |
-| L2 middleware layer | **Codec** | PPT architecture slide, AGENTS.md §Thesis |
-| L3 byte producer | **Decoder** | PPT strict-image-path slide |
-| L4 optional learned bridge | **Adapter** | PPT strict-image-path slide |
-| L5 packaging / CLI surface | **Packaging** | AGENTS.md §Thesis |
-| middle structured artifact | **Spec** | PPT: "Scene Spec JSON", "audio plan", "algorithm spec" |
-| IR sum type | **IR** (`IR = Text \| Latent \| Hybrid`) | PPT: "Modality IR" |
+| What                       | Name                                     | Source                                                 |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| L1 runtime + dispatch      | **Harness**                              | already canonical                                      |
+| L2 middleware layer        | **Codec**                                | PPT architecture slide, AGENTS.md §Thesis              |
+| L3 byte producer           | **Decoder**                              | PPT strict-image-path slide                            |
+| L4 optional learned bridge | **Adapter**                              | PPT strict-image-path slide                            |
+| L5 packaging / CLI surface | **Packaging**                            | AGENTS.md §Thesis                                      |
+| middle structured artifact | **Spec**                                 | PPT: "Scene Spec JSON", "audio plan", "algorithm spec" |
+| IR sum type                | **IR** (`IR = Text \| Latent \| Hybrid`) | PPT: "Modality IR"                                     |
 
 No new invented words. Future readers (human or agent) read the PPT, AGENTS.md, or any
 paper in the VQ lineage and can map to our code directly.
@@ -99,8 +99,8 @@ ratifies. RFC-0003 status flips to ⚫ Superseded. ADR-0010 amended with superse
 
 ### 2.3. Two-round LLM pipeline was over-specified as default
 
-**Drift.** RFC-0001 § Interface recommended *two* LLM rounds (round 1 free-form expansion,
-round 2 schema-constrained JSON) as the default. The strict-image-path slide shows *one*
+**Drift.** RFC-0001 § Interface recommended _two_ LLM rounds (round 1 free-form expansion,
+round 2 schema-constrained JSON) as the default. The strict-image-path slide shows _one_
 call producing Scene Spec JSON directly. Two rounds doubles price and latency for a
 quality claim we haven't measured on Wittgenstein's own prompts; the XGrammar/Outlines
 evidence is strong but is not the same thing as "our prompts need this."
@@ -120,8 +120,8 @@ Two-round stays as an opt-in documented in RFC-0001 §Appendix.
 
 **Drift.** `docs/exec-plans/active/codec-v2-port.md` phased the codec-v2 port as
 M1 sensor → M2 audio → M3 image. The argument was "cheapest first" (sensor is a trivial
-three-function dispatch). But the user's explicit priority is *"我们要先实现的是 LLM to
-Image 这条管线"* — image first. The product story, the showcase images, the strict image
+three-function dispatch). But the user's explicit priority is _"我们要先实现的是 LLM to
+Image 这条管线"_ — image first. The product story, the showcase images, the strict image
 path that makes the repo distinctive all live on the image codec. Shipping sensor v2
 first delivers zero demoable progress against the LLM→Image goal.
 
@@ -142,8 +142,8 @@ one, and we'd discover the hole when we hit image.
 **Drift.** The user wants a research doc on (a) what network to build for the image
 codec's learned adapter, (b) training strategy, (c) data sources, (d) GPT-4o image-gen
 prior art including partial-redraw, (e) package form (npx, MCP, Claude skill, curl). None
-of P1–P5 captured this. Brief A audited the *decoder* family (VQGAN, LFQ, etc.); no brief
-surveyed the *adapter* training story or the end-user packaging story.
+of P1–P5 captured this. Brief A audited the _decoder_ family (VQGAN, LFQ, etc.); no brief
+surveyed the _adapter_ training story or the end-user packaging story.
 
 **Decision.** Open **Brief G — Image Network Clues** as a starter/clues document, not a
 full four-station brief yet. Its purpose is to capture the threads the user named so the
@@ -155,7 +155,7 @@ Scope for the clues doc:
 - GPT-4o image generation: what is publicly documented about its tokenizer, its
   adapter-or-lack-thereof, its partial-redraw / inpainting mechanism;
 - The open-weights candidates from Brief A (LlamaGen, MAGVIT-v2, Emu3, TA-TiTok, SEED-LLaMA)
-  reread for *what we would train against*, not just *what we would decode with*;
+  reread for _what we would train against_, not just _what we would decode with_;
 - Post-training cost frame (LoRA / adapter-size sweet spot for scene-spec → latent);
 - Data source options (LAION subsets, SAM masks for spatial grounding, synthetic
   scene-spec data generated from our own pipeline for bootstrapping);
@@ -182,7 +182,7 @@ Cross-reference from RFC-0002.
 
 ## 3. Where the bar was already right (confirming, not changing)
 
-The user said *"合理把控东西的边界，不要被我的话吓到"* (reasonably control scope; don't
+The user said _"合理把控东西的边界，不要被我的话吓到"_ (reasonably control scope; don't
 be frightened by the ask). These items look like drift-candidates but are actually fine:
 
 - **Five layers (L1–L5)** — matches the architecture slide. Keep.
@@ -200,15 +200,15 @@ The user asked for agent-friendly to be the #1 priority, not user-friendly. Curr
 state:
 
 - ✅ `AGENTS.md` at the repo root, loaded early, contains the thesis + L1–L5 + repo map
-  + read order. Good.
+  - read order. Good.
 - ✅ All doc layers are grep-able (THESIS / briefs / RFCs / ADRs / exec-plans have
   headings designed for agent retrieval).
 - ✅ Structured errors, schemas at every boundary, manifest-per-run. Agents get
   traceable failures.
 - ⚠️ Agent read order in `AGENTS.md` doesn't mention `docs/tracks.md` (P5 new),
   `docs/rfcs/`, or `docs/adrs/` beyond implication. Fix: extend the read order.
-- ⚠️ `CONTRIBUTING.md` currently frames architectural proposals as *"update both code
-  and an ADR"* — the P5 update clarified this as brief → RFC → ADR → code, which is
+- ⚠️ `CONTRIBUTING.md` currently frames architectural proposals as _"update both code
+  and an ADR"_ — the P5 update clarified this as brief → RFC → ADR → code, which is
   the agent-friendly chain. Already queued (CONTRIBUTING was updated in P5 but reverted
   on main; P5 PR #36 carries the fix). No new action here.
 
@@ -217,23 +217,23 @@ state:
 
 ## 5. Packaging form — recorded, not decided
 
-The user explicitly said the npx / MCP / skill / curl external packaging is *"目前也不
-急"* (not urgent). Captured in Brief G §Package form so it isn't forgotten when the next
+The user explicitly said the npx / MCP / skill / curl external packaging is _"目前也不
+急"_ (not urgent). Captured in Brief G §Package form so it isn't forgotten when the next
 round comes back to it. No decision this round.
 
 ## 6. Summary of decisions
 
-| # | Drift | Decision | New / changed artifact |
-|---|---|---|---|
-| 2.1 | "text-first models" vs "LLMs" | Revert to **LLMs** | THESIS.md, SYNTHESIS_v0.2.md, inheritance-audit.md edits |
-| 2.2 | Naming over-engineered | Retire Loom/Transducer/Score/Handoff; lock **Codec / Decoder / Adapter / Spec / IR** | RFC-0005 supersedes RFC-0003; ADR-0011 ratifies; RFC-0003 → ⚫ |
-| 2.3 | Two-round LLM default | **One round** default; two rounds opt-in | RFC-0001 §Interface + ADR-0008 §Decision amended |
-| 2.4 | Exec plan ordered wrong | **Image first**, then audio, sensor, cleanup | codec-v2-port.md phase table rewritten |
-| 2.5 | Image-network research not captured | Open **Brief G** as starter/clues | docs/research/briefs/G_image_network_clues.md |
-| 2.6 | Lark CLI not cited | Add lark citation + cross-refs | Brief D + RFC-0002 amended |
-| 4 | Agent read-order incomplete | Extend AGENTS.md §Read Order | AGENTS.md edit |
+| #   | Drift                               | Decision                                                                             | New / changed artifact                                         |
+| --- | ----------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| 2.1 | "text-first models" vs "LLMs"       | Revert to **LLMs**                                                                   | THESIS.md, SYNTHESIS_v0.2.md, inheritance-audit.md edits       |
+| 2.2 | Naming over-engineered              | Retire Loom/Transducer/Score/Handoff; lock **Codec / Decoder / Adapter / Spec / IR** | RFC-0005 supersedes RFC-0003; ADR-0011 ratifies; RFC-0003 → ⚫ |
+| 2.3 | Two-round LLM default               | **One round** default; two rounds opt-in                                             | RFC-0001 §Interface + ADR-0008 §Decision amended               |
+| 2.4 | Exec plan ordered wrong             | **Image first**, then audio, sensor, cleanup                                         | codec-v2-port.md phase table rewritten                         |
+| 2.5 | Image-network research not captured | Open **Brief G** as starter/clues                                                    | docs/research/briefs/G_image_network_clues.md                  |
+| 2.6 | Lark CLI not cited                  | Add lark citation + cross-refs                                                       | Brief D + RFC-0002 amended                                     |
+| 4   | Agent read-order incomplete         | Extend AGENTS.md §Read Order                                                         | AGENTS.md edit                                                 |
 
-## 7. What this review explicitly does *not* touch
+## 7. What this review explicitly does _not_ touch
 
 - The master statement ("the modality harness for text-first LLMs") and the L1–L5
   architecture stay locked.

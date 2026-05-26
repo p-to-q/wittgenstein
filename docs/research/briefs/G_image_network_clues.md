@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-24
 **Last amended:** 2026-04-25 (stub → draft v0.1; G1/G2/G3 each carry a steelman / red team / kill criteria / verdict)
-**Author:** research (max.zhuang.yan@gmail.com)
+**Author:** research (@Jah-yee @Moapacha)
 **Status:** 🟡 Draft v0.1 — G1 has a concrete pick; G2 has a v0.2 path and a v0.3 escalation; G3 has a release-train recommendation
 **Feeds from:** `docs/v02-alignment-review.md` §2.5, Brief A (VQ/VLM lineage), Brief B (compression vs world models), `docs/exec-plans/active/codec-v2-port.md` (M1 image port)
 

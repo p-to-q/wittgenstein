@@ -1,7 +1,7 @@
 # v0.2 Final Audit — pre-lock review
 
 **Date:** 2026-04-25  
-**Author:** engineering + review (max.zhuang.yan@gmail.com)  
+**Author:** engineering + review (@Jah-yee @Moapacha)
 **Feeds from:** `docs/v02-alignment-review.md`, `docs/THESIS.md`, `docs/inheritance-audit.md`, Briefs A–G, RFCs 0001–0005, ADRs 0006–0011, the P2b–P5 branch train (`docs/p2b-research-briefs` → `docs/p5b-alignment-review`)  
 **Status:** 🟢 Pre-lock doctrine audit for the v0.2 milestone
 

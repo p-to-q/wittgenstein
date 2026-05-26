@@ -25,8 +25,9 @@ channels, demo venues, and any one-on-one communication about the project.
 
 1. Open a private security advisory on the repo ("Report a vulnerability" flow) **if the
    incident also involves a security concern.**
-2. Otherwise, email the maintainer listed in `CODEOWNERS` (`@max`) via the address in your
-   GitHub profile, or DM on the project's primary chat channel.
+2. Otherwise, contact the current maintainer pair (`@Jah-yee @Moapacha`) via
+   the address in their GitHub profiles, or DM on the project's primary chat
+   channel.
 3. We aim to acknowledge within 5 business days.
 
 Retaliation against a reporter is itself a violation.

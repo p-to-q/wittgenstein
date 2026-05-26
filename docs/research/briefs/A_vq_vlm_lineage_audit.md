@@ -1,7 +1,7 @@
 # Brief A — VQ / VLM Lineage Audit
 
 **Date:** 2026-04-23 (v0.1) · amended 2026-04-26 (v0.2 — VAR + FlexTok lineage refresh)
-**Author:** research (max.zhuang.yan@gmail.com)
+**Author:** research (@Jah-yee @Moapacha)
 **Status:** Draft v0.2
 **Summary:** Audits whether Wittgenstein's "LLM plans in symbols → trained adapter → frozen pretrained VQ decoder → pixels" bet still holds in April 2026 against Chameleon, MAGVIT-v2 / LFQ, Emu3, SPAE, DeepSeek-VL2, TA-TiTok, **VAR (NeurIPS 2024 Best Paper, added v0.2)**, and **FlexTok (ICML 2025, added v0.2)**. Verdict: bet still right, with one forced revision to the word "codebook" and one forced extension to the word "raster" — next-scale and flexible-length 1D token sequences are now part of the LFQ-family lineage Wittgenstein bets on.
 

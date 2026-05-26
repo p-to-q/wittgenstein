@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-23 (v0.1) · amended 2026-04-26 (v0.2 — added H9, H10)
 **Status:** Draft v0.2
-**Author:** research pass, max.zhuang.yan@gmail.com
+**Author:** research pass, @Jah-yee @Moapacha
 **One-line summary:** Ten load-bearing hypotheses that are neither settled science (Brief A) nor live theoretical tension (Brief B) but, if they resolve the way we suspect, each flips one decision in Wittgenstein's 18-month roadmap — we name them, price them, and mark which ones to bet on now.
 
 > **v0.2 amendment scope.** Two horizon hypotheses surfaced from a 2026-04-26 conversation pass — H9 (patch-grid / next-scale IR) and H10 (long-code clarity via test-time caption expansion). Both grew out of the user's "ViT global-relations" and "short-code → long-code compiler" framings; both are operational (each names a specific live experiment hook in RFC-0001 / Brief E) so they belong in this scan rather than Brief A or B. v0.1 hypotheses H1–H8 are unchanged. See cross-link in Brief A's lineage refresh (separate PR).

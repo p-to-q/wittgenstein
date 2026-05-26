@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-26
 **Status:** 🟡 Draft v0.1
-**Author:** engineering (max.zhuang.yan@gmail.com)
+**Author:** engineering (@Jah-yee @Moapacha)
 **Question:** Which production-validated TypeScript projects have a shape analogous to `Codec<Req, Art>.produce(req, ctx) → Art + manifest rows`, and what concrete engineering practices should we transfer into M1A of the codec-v2 port before the first port lands?
 **Feeds into:** `docs/agent-guides/image-port.md`, RFC-0001 addendum (2026-04-26), `docs/exec-plans/active/codec-v2-port.md` §M1.
 

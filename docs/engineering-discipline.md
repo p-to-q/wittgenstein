@@ -200,7 +200,7 @@ For Wittgenstein's doctrine-bearing work, authorship and ratification must be se
 
 - The person or agent who writes a PR does **not** count as the sole reviewer of that PR.
 - Any PR that changes doctrine, exec plans, port guides, shared protocol contracts, or codec-shape assumptions requires a **second independent review pass** before merge.
-- In the current maintainer setup, the default pair is **Max + Moapacha**. Equivalent agent-assisted work is acceptable only if the two review passes are genuinely independent.
+- In the current maintainer setup, the default pair is **@Jah-yee @Moapacha**. Equivalent agent-assisted work is acceptable only if the two review passes are genuinely independent.
 - "Independent" means the second pass can disagree, request changes, or block merge; it is not a rubber stamp from the same authoring context.
 - If a second reviewer is unavailable, the PR can be prepared and validated, but it should not be treated as ratified.
 
