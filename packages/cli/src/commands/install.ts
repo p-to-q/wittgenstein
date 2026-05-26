@@ -7,6 +7,23 @@ interface InstallCommandOptions {
   allowResearchWeights?: boolean;
 }
 
+interface ImageDecoderPreflightReceipt {
+  schemaVersion: "witt.image.decoder-preflight/v0.1";
+  status: "blocked";
+  reason: "manifest-missing";
+  decoderId: null;
+  family: null;
+  runtimeTier: "node-onnx-cpu" | "node-onnx-gpu";
+  installHint: string;
+  tracker: string;
+  details: {
+    message: string;
+    decisionTracker: string;
+    gateCDeterminism: string;
+    gateDOnnxCpu: string;
+  };
+}
+
 export function registerInstallCommand(program: Command): void {
   program
     .command("install")
@@ -42,6 +59,7 @@ export function registerInstallCommand(program: Command): void {
               ok: true,
               action: "plan-only",
               plan,
+              decoderPreflight: imageDecoderPreflightForPlan(plan),
             },
             null,
             2,
@@ -58,6 +76,25 @@ export function registerInstallCommand(program: Command): void {
       });
       process.exitCode = 1;
     });
+}
+
+function imageDecoderPreflightForPlan(plan: ReturnType<typeof buildInstallTierPlan>): ImageDecoderPreflightReceipt {
+  return {
+    schemaVersion: "witt.image.decoder-preflight/v0.1",
+    status: "blocked",
+    reason: "manifest-missing",
+    decoderId: null,
+    family: null,
+    runtimeTier: plan.tier === "image-gpu" ? "node-onnx-gpu" : "node-onnx-cpu",
+    installHint: plan.tier === "image-gpu" ? "wittgenstein install image --gpu" : "wittgenstein install image",
+    tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+    details: {
+      message: "Image tier installation is blocked until a decoder-family manifest is blessed.",
+      decisionTracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      gateCDeterminism: "https://github.com/p-to-q/wittgenstein/issues/334",
+      gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
+    },
+  };
 }
 
 function printInstallError(error: Record<string, unknown>): void {
