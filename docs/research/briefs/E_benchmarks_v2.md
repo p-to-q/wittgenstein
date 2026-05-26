@@ -1,7 +1,7 @@
 # Brief E — Per-modality quality benchmarks (v2)
 
 **Date:** 2026-04-23
-**Author:** research (max.zhuang.yan@gmail.com)
+**Author:** research (@Jah-yee @Moapacha)
 **Status:** Draft v0.1
 **Summary:** Picks the smallest set of real (non-structural) quality metrics per modality that Wittgenstein can actually run locally and reproducibly without breaking the Latency / Price / Quality contract. For v0.2 the shipping target is a **default tier only**; heavier metrics remain a documented v0.3+ reservation, not a CLI promise.
 

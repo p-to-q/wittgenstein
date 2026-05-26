@@ -26,7 +26,7 @@ For any PR that touches a **doctrine-bearing surface**, authorship and ratificat
    - any change that materially alters the `BaseCodec` lifecycle
 
 2. **Independent ratification rule**: the author of a doctrine-bearing PR is not its sole reviewer. A second independent pass — distinct from the authoring context — is required before merge.
-   - The default reviewer pair is **Max + Moapacha**. Equivalent agent-assisted work counts only if the two passes are genuinely independent (the second reviewer can disagree, request changes, or block).
+   - The default reviewer pair is **@Jah-yee @Moapacha**. Equivalent agent-assisted work counts only if the two passes are genuinely independent (the second reviewer can disagree, request changes, or block).
    - "Independent" excludes self-review by the same agent, even with different prompts.
    - A formal GitHub Review (`Approve` / `Request changes`), not a PR comment, is the mechanism. Where the same GitHub identity is used by multiple agents (e.g. Jah-yee fork shared by Codex + Claude), the ratification is recorded in the PR body by the human maintainer naming the reviewers explicitly.
 
@@ -39,4 +39,4 @@ For any PR that touches a **doctrine-bearing surface**, authorship and ratificat
 - The PR template carries a doctrine-bearing checkbox; checking it off without a second review is a process violation.
 - Doctrine PRs that have already merged without independent ratification (specifically #71, #72) are not retroactively void — but the doctrine they introduced is now retroactively ratified by ADRs 0012 and 0014, which **are** going through the chain.
 - Future doctrine-bearing PRs should pair with the ratifying ADR in the same PR (or land the ADR first), eliminating the "doctrine without audit trail" failure mode.
-- Kill criterion: if independent review becomes a merge bottleneck (queue > 5 doctrine PRs waiting on Max), reopen this ADR to delegate ratification authority to a named non-author agent / contributor pool.
+- Kill criterion: if independent review becomes a merge bottleneck (queue > 5 doctrine PRs waiting on @Jah-yee @Moapacha), reopen this ADR to delegate ratification authority to a named non-author agent / contributor pool.

@@ -1,7 +1,7 @@
 # RFC-0003 — Naming pass
 
 **Date:** 2026-04-25
-**Author:** engineering (max.zhuang.yan@gmail.com)
+**Author:** engineering (@Jah-yee @Moapacha)
 **Status:** ⛔ **Superseded by RFC-0005 (2026-04-24)** per `docs/v02-alignment-review.md` §2.2. Kept as a historical record of the naming-pass reasoning; the four proposed names (Loom / Transducer / Score / Handoff) are **not** adopted. See RFC-0005 for the actual locked vocabulary (Codec / IR / Spec / Adapter / Decoder), which matches the original PPT and the existing `AGENTS.md` §Architectural vocabulary.
 **Feeds from:** RFC-0001 (Codec Protocol v2), Brief B (agnostic IR)
 **Ratified by:** — (superseded before ratification; ADR-0010 also superseded by ADR-0011)
@@ -86,7 +86,7 @@ The renames are concrete and, because the code hasn't landed yet, mostly cost-fr
 
 // Now:
 type Handoff =
-  | { kind: "Text";   tokens: TokenStream }
+  | { kind: "Text"; tokens: TokenStream }
   | { kind: "Latent"; tensor: LatentTensor }
   | { kind: "Hybrid"; tokens: TokenStream; tensor: LatentTensor };
 ```
@@ -95,13 +95,13 @@ The `Transducer` name lives at the conceptual layer; in code, the Adapter and De
 
 **Doc-level.** `docs/architecture.md` gains a "Conceptual name" column on the L1–L5 table:
 
-| Layer | Implementation name | Conceptual name |
-|-------|---------------------|-----------------|
-| L1    | Harness             | Harness         |
-| L2    | Codec               | Codec           |
+| Layer | Implementation name | Conceptual name        |
+| ----- | ------------------- | ---------------------- |
+| L1    | Harness             | Harness                |
+| L2    | Codec               | Codec                  |
 | L3    | Decoder             | Transducer (pair half) |
 | L4    | Adapter             | Transducer (pair half) |
-| L5    | Packaging           | Packaging       |
+| L5    | Packaging           | Packaging              |
 
 L3 and L4 are jointly referred to as the **Transducer** when the pair is the object of discussion.
 
@@ -124,7 +124,7 @@ Phased, but the phases are short — this is a docs-only change until P6.
 
 **"'Loom' is whimsical; industry prefers boring names like Gateway, Bridge, Router."** Those names are colonized. Every one of them lives in dozens of namespaces already — search any of them and you get noise, not signal. Distinctiveness is a feature here: "Loom" is grep-unique, the weaving metaphor matches the harness framing, and it reads as a proper-noun concept rather than a generic piece of plumbing. Boring names are a luxury for architectures that already own their vocabulary.
 
-**"'Transducer' already means something specific in Clojure and in signal processing; users will be confused."** The signal-processing meaning *is* our meaning — text signal in, artifact signal out. Clojure's transducers are a different community with a different context; in a Wittgenstein code review or design doc, the meaning resolves from context without ambiguity. If this does cause confusion, the glossary handles it in one sentence.
+**"'Transducer' already means something specific in Clojure and in signal processing; users will be confused."** The signal-processing meaning _is_ our meaning — text signal in, artifact signal out. Clojure's transducers are a different community with a different context; in a Wittgenstein code review or design doc, the meaning resolves from context without ambiguity. If this does cause confusion, the glossary handles it in one sentence.
 
 ## Kill criteria
 

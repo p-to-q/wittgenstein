@@ -1,7 +1,7 @@
 # RFC-0001 — Codec Protocol v2
 
 **Date:** 2026-04-25
-**Author:** engineering (max.zhuang.yan@gmail.com)
+**Author:** engineering (@Jah-yee @Moapacha)
 **Status:** 🟢 Accepted
 **Feeds from:** Brief A (VQ / VLM lineage audit, 2026-04-23), Brief B (Compression vs. World Models — Ilya↔LeCun verdict: Position iii Layered + iv Agnostic contract), Brief C (Unproven horizon hypotheses H1 / H4 / H7), v0.2 action plan code-smell inventory.
 **Ratified by:** ADR-0008

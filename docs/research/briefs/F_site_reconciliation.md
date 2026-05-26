@@ -1,7 +1,7 @@
 # Brief F — Site ↔ repo reconciliation
 
 **Date:** 2026-04-23
-**Author:** research (max.zhuang.yan@gmail.com)
+**Author:** research (@Jah-yee @Moapacha)
 **Status:** Draft v0.1 — **reconciliation direction partially superseded 2026-04-25** by the v0.2 alignment + final-audit pass. `THESIS.md`, `AGENTS.md`, and `README.md` now consistently use _"text-first LLMs."_ The site tagline remains the thinner placeholder surface and should be updated by the site rewrite rather than treated as canonical doctrine.
 **Summary:** `https://wittgenstein.wtf` resolves, but the page returns nothing more than the tagline _"Wittgenstein — The modality harness for text-first models."_ There is no architecture section, no showcase, no CLI, no CTA to contradict — which means the public narrative is not drifting from the repo, it is simply absent. The correct move is not reconciliation; it is to stand up a minimal v0.1 site straight out of `docs/THESIS.md` and `docs/showcase.md`, then treat Brief F as dormant until there is actually prose on the page to diff.
 

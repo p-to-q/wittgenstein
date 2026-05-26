@@ -1,7 +1,7 @@
 # RFC-0002 — CLI ergonomics
 
 **Date:** 2026-04-25
-**Author:** engineering (max.zhuang.yan@gmail.com)
+**Author:** engineering (@Jah-yee @Moapacha)
 **Status:** 🟢 Accepted
 **Feeds from:** Brief D (`docs/research/briefs/D_cli_and_sdk_conventions.md`)
 **Ratified by:** ADR-0009

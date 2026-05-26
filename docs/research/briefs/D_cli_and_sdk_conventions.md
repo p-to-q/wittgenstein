@@ -1,7 +1,7 @@
 # Brief D — CLI / SDK / harness conventions
 
 **Date:** 2026-04-23
-**Author:** research (max.zhuang.yan@gmail.com)
+**Author:** research (@Jah-yee @Moapacha)
 **Status:** Draft v0.1
 **Summary:** Surveys what a modern AI CLI / SDK looks like in April 2026 — subcommand taxonomy, flag vocabulary, config resolution order, auth, pipe discipline, doctor patterns, one-liner install — and audits where `wittgenstein`'s current CLI is on the industry grid and where it is off. Verdict: the shape is mostly right (noun-first subcommands, `--seed`, `--dry-run`, a `doctor`), but the output contract, config precedence, and install story are under-specified; RFC-0002 should adopt a small set of hard conventions (`--json`/NDJSON on stdout, stderr for logs, `flag > env > project file > user file > defaults`, a single `npx @wittgenstein/cli` one-liner) and deliberately diverge from the "LLM-chat CLI" pattern — Wittgenstein is a harness, not a chatbot, and its CLI is first a pipeline tool, second a demo.
 

@@ -2,19 +2,19 @@
 
 ## Ownership
 
-| Path | Owner |
-| --- | --- |
-| `packages/core/src/runtime/` | core maintainers |
-| `packages/core/src/codecs/image.ts` | image-team |
-| `packages/core/src/codecs/audio.ts` | audio-team |
-| `packages/core/src/llm/` | core maintainers |
-| `packages/schemas/` | core maintainers |
-| `packages/sandbox/` | core maintainers |
-| `packages/codec-image/` | image-team |
-| `packages/codec-audio/` | audio-team |
-| `packages/codec-video/` | video-team |
-| `packages/codec-sensor/` | sensor-team |
-| `apps/site/` | `@max` |
+| Path                                | Owner                |
+| ----------------------------------- | -------------------- |
+| `packages/core/src/runtime/`        | core maintainers     |
+| `packages/core/src/codecs/image.ts` | image-team           |
+| `packages/core/src/codecs/audio.ts` | audio-team           |
+| `packages/core/src/llm/`            | core maintainers     |
+| `packages/schemas/`                 | core maintainers     |
+| `packages/sandbox/`                 | core maintainers     |
+| `packages/codec-image/`             | image-team           |
+| `packages/codec-audio/`             | audio-team           |
+| `packages/codec-video/`             | video-team           |
+| `packages/codec-sensor/`            | sensor-team          |
+| `apps/site/`                        | `@Jah-yee @Moapacha` |
 
 ## Day 1 Handshake
 
