@@ -1,0 +1,25 @@
+{
+  "environment": {
+    "opset": 17,
+    "platform": "fixture",
+    "python_version": "3.13.0",
+    "torch_version": "fixture"
+  },
+  "error": null,
+  "generated_at": "2026-05-26T00:00:00Z",
+  "inputs": {
+    "codebook_embed_dim": 8,
+    "codebook_size": 16384,
+    "downsample_size": 16,
+    "image_size": 256,
+    "llamagen_root": "/fixture/FoundationVision/LlamaGen",
+    "token_grid": [16, 16],
+    "vq_ckpt": "/fixture/vqgan.ckpt",
+    "vq_ckpt_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "vq_model": "VQ-16"
+  },
+  "onnx": "/fixture/decoder.onnx",
+  "onnx_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "schema_version": "m1b-gate-d-onnx-export.v0",
+  "status": "passed"
+}
