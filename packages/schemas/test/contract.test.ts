@@ -70,6 +70,43 @@ describe("@wittgenstein/schemas", () => {
     ).toBe(true);
   });
 
+  it("rejects malformed videoRender metadata at the render-result boundary", () => {
+    const parsed = RenderResultSchema.safeParse({
+      artifactPath: "/tmp/out.mp4",
+      mimeType: "video/mp4",
+      bytes: 1,
+      metadata: {
+        codec: "video",
+        llmTokens: { input: 0, output: 0 },
+        costUsd: 0,
+        durationMs: 0,
+        seed: null,
+        videoRender: {
+          renderPath: "hyperframes-mp4",
+          backend: "made-up-backend",
+          backendVersion: "internal",
+          determinismClass: "structural-parity-cross-platform",
+          fps: 24,
+          quality: "standard",
+          frameCount: 1,
+          width: 1920,
+          height: 1080,
+          durationSec: 1,
+          outputKind: "mp4",
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: ["metadata", "videoRender", "backend"] }),
+        ]),
+      );
+    }
+  });
+
   it("requires artifact evidence on successful manifests", () => {
     const parsed = RunManifestSchema.safeParse({
       runId: "run-success",
@@ -108,6 +145,43 @@ describe("@wittgenstein/schemas", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("rejects inconsistent videoRender output kinds", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...videoManifestFields("hyperframes-html"),
+      videoRender: {
+        ...videoManifestFields("hyperframes-html").videoRender,
+        outputKind: "mp4",
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: ["videoRender", "outputKind"] })]),
+      );
+    }
+  });
+
+  it("rejects mismatched video route and videoRender renderPath", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...videoManifestFields("hyperframes-mp4"),
+      videoRender: {
+        ...videoManifestFields("hyperframes-mp4").videoRender,
+        renderPath: "hyperframes-html",
+        outputKind: "html",
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: ["videoRender", "renderPath"] }),
+        ]),
+      );
+    }
   });
 
   it("requires failed manifests to carry an error payload", () => {
@@ -338,35 +412,23 @@ describe("@wittgenstein/schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("requires videoRender receipts on successful video manifests (Issue #361)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...videoManifestFields("hyperframes-mp4"),
+      videoRender: undefined,
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: ["videoRender"] })]),
+      );
+    }
+  });
+
   it("accepts canonical video route literals (Issue #190)", () => {
     for (const route of ["hyperframes-mp4", "hyperframes-html"]) {
-      const parsed = RunManifestSchema.safeParse({
-        runId: `run-video-route-${route}`,
-        gitSha: "abc123",
-        lockfileHash: "def456",
-        nodeVersion: process.version,
-        wittgensteinVersion: "0.0.0",
-        command: "wittgenstein video",
-        args: ["hello"],
-        seed: 7,
-        codec: "video",
-        route,
-        license: { weightsRestriction: "permissive" },
-        llmProvider: "anthropic",
-        llmModel: "claude-opus-4-7",
-        llmTokens: { input: 10, output: 20 },
-        costUsd: 0,
-        promptRaw: "hello",
-        promptExpanded: "hello",
-        llmOutputRaw: "{}",
-        llmOutputParsed: {},
-        artifactPath: "/tmp/out.mp4",
-        artifactSha256: "sha256",
-        startedAt: new Date().toISOString(),
-        durationMs: 10,
-        ok: true,
-        error: null,
-      });
+      const parsed = RunManifestSchema.safeParse(videoManifestFields(route));
       expect(parsed.success).toBe(true);
     }
   });
@@ -555,6 +617,48 @@ describe("@wittgenstein/schemas", () => {
     llmOutputParsed: {},
     artifactPath: "/tmp/out.png",
     artifactSha256: "sha256",
+    startedAt: new Date().toISOString(),
+    durationMs: 10,
+    ok: true,
+    error: null,
+  });
+
+  const videoManifestFields = (route: string) => ({
+    runId: `run-video-route-${route}`,
+    gitSha: "abc123",
+    lockfileHash: "def456",
+    nodeVersion: process.version,
+    wittgensteinVersion: "0.0.0",
+    command: "wittgenstein video",
+    args: ["hello"],
+    seed: 7,
+    codec: "video",
+    route,
+    license: { weightsRestriction: "permissive" },
+    llmProvider: "anthropic",
+    llmModel: "claude-opus-4-7",
+    llmTokens: { input: 10, output: 20 },
+    costUsd: 0,
+    promptRaw: "hello",
+    promptExpanded: "hello",
+    llmOutputRaw: "{}",
+    llmOutputParsed: {},
+    artifactPath: route === "hyperframes-html" ? "/tmp/out.html" : "/tmp/out.mp4",
+    artifactSha256: "sha256",
+    videoRender: {
+      renderPath: route,
+      backend: "distilled-internal",
+      backendVersion: "internal",
+      determinismClass:
+        route === "hyperframes-html" ? "byte-parity-on-platform" : "structural-parity-cross-platform",
+      fps: 24,
+      quality: "standard",
+      frameCount: route === "hyperframes-html" ? 0 : 72,
+      width: 1920,
+      height: 1080,
+      durationSec: 3,
+      outputKind: route === "hyperframes-html" ? "html" : "mp4",
+    },
     startedAt: new Date().toISOString(),
     durationMs: 10,
     ok: true,

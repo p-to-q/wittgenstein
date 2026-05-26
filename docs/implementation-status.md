@@ -103,10 +103,13 @@ codecs are wired. Image and video codecs are typed stubs — intentional until t
 
 ### @wittgenstein/codec-video
 
-| Component                | Status   | Notes                                                     |
-| ------------------------ | -------- | --------------------------------------------------------- |
-| Schema + Zod             | ✅ Ships |                                                           |
-| `hyperframes-wrapper.ts` | 🔴 Stub  | Throws `NotImplementedError` — HyperFrames not yet forked |
+| Component                  | Status     | Notes                                                                                          |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| Schema + Zod               | ✅ Ships   | Validates `VideoComposition`                                                                   |
+| HTML composition renderer  | ✅ Ships   | Emits self-contained HyperFrames-shaped HTML via `scene-card` / `svg-slide` compositions       |
+| Distilled MP4 renderer     | ⚠️ Opt-in  | Default MP4 backend with `WITTGENSTEIN_HYPERFRAMES_RENDER=1`; local Chrome/Chromium + FFmpeg required |
+| Upstream CLI backend       | ⚠️ Opt-in  | `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli` keeps an explicit parity / experiment path          |
+| `videoRender` receipts     | ✅ Ships   | Records backend, FPS, quality, dimensions, frame count / duration, output kind, tool versions  |
 
 ### @wittgenstein/cli
 
@@ -115,8 +118,8 @@ codecs are wired. Image and video codecs are typed stubs — intentional until t
 | `wittgenstein image`  | ✅ Ships | Calls codec-image; renders with available adapter/decoder |
 | `wittgenstein audio`  | ✅ Ships | Full speech + soundscape + music routes                   |
 | `wittgenstein sensor` | ✅ Ships | Full signal expand + Loupe dashboard                      |
-| `wittgenstein video`  | 🔴 Stub  | Codec throws `NotImplementedError`                        |
-| `wittgenstein doctor` | ✅ Ships | Checks node, pnpm, env vars, package links                |
+| `wittgenstein video`  | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in |
+| `wittgenstein doctor` | ✅ Ships | Checks node, pnpm, env vars, package links, optional video MP4 deps |
 
 ### @wittgenstein/sandbox
 
@@ -140,7 +143,9 @@ These are explicit scope decisions, not omissions:
 
 - **LlamaGen / SEED VQ-VAE decoder weights** — neural image codec requires a trained adapter;
   stubs are typed and ready to wire. See `docs/codecs/image.md`.
-- **HyperFrames video integration** — reserved post-hackathon. Schema and codec interface are locked.
+- **Video quality metrics** — the HyperFrames-shaped renderer now emits HTML by default
+  and opt-in MP4 via repo-owned Chrome + FFmpeg code, but M5b scoring (clip-frame-drift,
+  FVD / Video-Bench-style heavy paths) remains downstream.
 - **Real LLM fine-tuning** — the only trained models are the two tiny MLPs (image style adapter +
   audio ambient classifier). No fine-tuning of base models.
 - **Cloud render APIs** — no DALL·E, ElevenLabs, or Runway calls anywhere in the stack.

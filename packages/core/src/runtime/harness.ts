@@ -347,6 +347,9 @@ export class Wittgenstein {
     if (rendered.metadata.renderPath !== undefined) {
       manifest.renderPath = rendered.metadata.renderPath;
     }
+    if (rendered.metadata.videoRender !== undefined) {
+      manifest.videoRender = rendered.metadata.videoRender;
+    }
     if (rendered.metadata.sidecars !== undefined) {
       manifest.artifactSidecars = rendered.metadata.sidecars;
     }

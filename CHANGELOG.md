@@ -6,6 +6,23 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Repo-owned HyperFrames-shaped video MP4 renderer: `codec-video` now captures
+  deterministic HTML frames through local Chrome/Chromium (`puppeteer-core`) and
+  encodes MP4 with local FFmpeg when `WITTGENSTEIN_HYPERFRAMES_RENDER=1`.
+- Explicit upstream HyperFrames CLI backend for parity / experiments via
+  `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli`; default MP4 backend remains
+  `distilled-internal`.
+- `videoRender` manifest receipts for video outputs, plus
+  `research/validation/video_mp4_renderer_validate.ts` for HTML receipt checks and
+  opt-in double-render MP4 validation.
+
+### Changed
+
+- `wittgenstein doctor` video checks now report the selected backend and only
+  require the upstream HyperFrames CLI when `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli`.
+
 ## [0.3.0-alpha.3] — 2026-05-13 — maintainer-onboarding sweep, M1B prep, tier doctrine
 
 This prerelease packages the May-2026 maintainer-onboarding session: an
