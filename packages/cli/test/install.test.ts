@@ -23,6 +23,18 @@ describe("install tier command", () => {
       ok: boolean;
       action: string;
       plan: { tier: string; runtimeTier: string; blockedBy: string };
+      decoderPreflight: {
+        schemaVersion: string;
+        status: string;
+        reason: string;
+        runtimeTier: string;
+        tracker: string;
+        details: {
+          decisionTracker: string;
+          gateCDeterminism: string;
+          gateDOnnxCpu: string;
+        };
+      };
     };
 
     expect(payload.ok).toBe(true);
@@ -30,6 +42,16 @@ describe("install tier command", () => {
     expect(payload.plan.tier).toBe("image");
     expect(payload.plan.runtimeTier).toBe("tier1");
     expect(payload.plan.blockedBy).toBe("decoder-manifest");
+    expect(payload.decoderPreflight).toMatchObject({
+      schemaVersion: "witt.image.decoder-preflight/v0.1",
+      status: "blocked",
+      reason: "manifest-missing",
+      runtimeTier: "node-onnx-cpu",
+      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+    });
+    expect(payload.decoderPreflight.details.decisionTracker).toMatch(/issues\/402$/);
+    expect(payload.decoderPreflight.details.gateCDeterminism).toMatch(/issues\/334$/);
+    expect(payload.decoderPreflight.details.gateDOnnxCpu).toMatch(/issues\/335$/);
   });
 
   it("maps --gpu to the image GPU tier", () => {
@@ -43,10 +65,15 @@ describe("install tier command", () => {
     );
 
     expect(install.status).toBe(0);
-    const payload = JSON.parse(install.stdout) as { plan: { tier: string; runtimeTier: string } };
+    const payload = JSON.parse(install.stdout) as {
+      plan: { tier: string; runtimeTier: string };
+      decoderPreflight: { runtimeTier: string; reason: string };
+    };
 
     expect(payload.plan.tier).toBe("image-gpu");
     expect(payload.plan.runtimeTier).toBe("tier2");
+    expect(payload.decoderPreflight.reason).toBe("manifest-missing");
+    expect(payload.decoderPreflight.runtimeTier).toBe("node-onnx-gpu");
   });
 
   it("refuses real installation until a decoder manifest exists", () => {

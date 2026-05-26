@@ -43,9 +43,12 @@ coverage/
 artifacts/runs/*
 artifacts/benchmarks/*
 artifacts/logs/*
+artifacts/m1b-audit/*
 !artifacts/runs/.gitkeep
 !artifacts/benchmarks/.gitkeep
 !artifacts/logs/.gitkeep
+!artifacts/m1b-audit/.gitkeep
+!artifacts/m1b-audit/README.md
 
 # Local image-adapter training outputs (keep raw data private / large)
 data/image_adapter/train/*.jsonl
