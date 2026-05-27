@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
+import { CLOSED_TRACKERS, TRACKERS } from "@wittgenstein/schemas";
 import type { LoadDecoderBridgeOptions } from "./types.js";
 
 export const DecoderWeightsManifestSchema = z
@@ -67,7 +68,7 @@ export class ResearchWeightsRequiresOptInError extends Error {
       repoId: manifest.repoId,
       weightsRestriction: manifest.license.weights,
       adr: "docs/adrs/0020-code-weights-license-divergence-policy.md",
-      tracker: "https://github.com/p-to-q/wittgenstein/issues/376",
+      tracker: CLOSED_TRACKERS.adr0020Implementation,
     };
   }
 }
@@ -90,7 +91,7 @@ export class DecoderWeightsNotInstalledError extends Error {
       weightsSha256: manifest.weightsSha256,
       cachePath,
       installHint: "wittgenstein install image",
-      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      tracker: TRACKERS.decoderDeliveryDecision,
     };
   }
 }
@@ -110,7 +111,7 @@ export class DecoderWeightsSha256MismatchError extends Error {
       filename: asset.filename,
       expectedSha256: asset.sha256,
       actualSha256,
-      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      tracker: TRACKERS.decoderDeliveryDecision,
     };
   }
 }
@@ -129,7 +130,7 @@ export class DecoderWeightsFetchFailedError extends Error {
       revision: manifest.revision,
       assetKind: asset.kind,
       filename: asset.filename,
-      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      tracker: TRACKERS.decoderDeliveryDecision,
     };
   }
 }

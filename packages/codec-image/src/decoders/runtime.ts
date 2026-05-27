@@ -24,6 +24,7 @@
 //     bridges actually use, not against `onnxruntime-node`'s full types,
 //     so the package can compile cleanly without the peer installed.
 import { z } from "zod";
+import { CLOSED_TRACKERS } from "@wittgenstein/schemas";
 
 /**
  * The minimal structural surface a bridge needs from `onnxruntime-node`.
@@ -90,7 +91,7 @@ export async function ensureOnnxRuntime(): Promise<OnnxRuntime> {
         tier: "image",
         installHint: "wittgenstein install image",
         cause,
-        tracker: "https://github.com/p-to-q/wittgenstein/issues/404",
+        tracker: CLOSED_TRACKERS.onnxRuntimeOptionalPeer,
       },
     );
   }
