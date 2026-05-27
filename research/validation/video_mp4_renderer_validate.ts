@@ -77,6 +77,11 @@ async function main(): Promise<void> {
       .split(",")
       .map((value) => value.trim())
       .filter((value) => value === "distilled-internal" || value === "npx-cli");
+    if (backends.length === 0) {
+      throw new Error(
+        "No valid MP4 backends selected. Use distilled-internal and/or npx-cli.",
+      );
+    }
     const mp4 = [];
     for (const backend of backends) {
       process.env.WITTGENSTEIN_HYPERFRAMES_BACKEND = backend;
