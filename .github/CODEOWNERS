@@ -6,6 +6,7 @@
 # independent ratification pass, not just self-review.
 #
 # Maintainer pair (per ADR-0013): @Jah-yee + @Moapacha.
+# ML specialist reviewer: @koriyoshi2041 (a.k.a. Parafee).
 #
 # Per-modality team handles (@wittgenstein-image / -audio / -video / -sensor /
 # -core) were previously listed alongside the maintainer pair as aspirational
@@ -29,11 +30,13 @@
 /packages/schemas/ @Jah-yee @Moapacha
 /packages/sandbox/ @Jah-yee @Moapacha
 /packages/codec-image/ @Jah-yee @Moapacha
+/packages/codec-image/ @koriyoshi2041
 /packages/codec-audio/ @Jah-yee @Moapacha
 /packages/codec-video/ @Jah-yee @Moapacha
 /packages/codec-sensor/ @Jah-yee @Moapacha
 /apps/site/ @Jah-yee @Moapacha
 /docs/codecs/image.md @Jah-yee @Moapacha
+/docs/codecs/image.md @koriyoshi2041
 /docs/codecs/audio.md @Jah-yee @Moapacha
 /docs/codecs/video.md @Jah-yee @Moapacha
 /docs/codecs/sensor.md @Jah-yee @Moapacha
