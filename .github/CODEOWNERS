@@ -7,6 +7,9 @@
 #
 # Maintainer pair (per ADR-0013): @Jah-yee + @Moapacha.
 # ML specialist reviewer: @koriyoshi2041 (a.k.a. Parafee).
+# Intentionally NOT in the global fallback (`*`) to keep review requests high-signal:
+# the maintainer pair still sees every PR; the specialist is routed only for image /
+# training critical surfaces (and via `needs-ml-specialist` escalation).
 #
 # Per-modality team handles (@wittgenstein-image / -audio / -video / -sensor /
 # -core) were previously listed alongside the maintainer pair as aspirational
