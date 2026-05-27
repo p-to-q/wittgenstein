@@ -1,7 +1,6 @@
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
-import { firstOutputLine } from "@wittgenstein/process-runner";
+import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
@@ -14,8 +13,6 @@ interface DoctorCheck {
   path?: string;
   message?: string;
 }
-
-const OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS = 1_000;
 
 interface VideoRenderDoctor {
   enabled: boolean;
@@ -83,11 +80,17 @@ function checkVideoRenderDependencies(): VideoRenderDoctor {
     hyperframesNode:
       backend === "npx-cli"
         ? checkNodeForHyperframesCli()
-        : { status: "skipped", message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli." },
+        : {
+            status: "skipped",
+            message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
+          },
     hyperframesCli:
       backend === "npx-cli"
         ? checkHyperframesCli()
-        : { status: "skipped", message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli." },
+        : {
+            status: "skipped",
+            message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
+          },
     ffmpeg: checkCommandVersion("ffmpeg", ["-version"], "Install FFmpeg for video MP4 rendering."),
     chrome: checkChrome(),
   };
@@ -116,17 +119,14 @@ function readVideoBackend(): "distilled-internal" | "npx-cli" {
 }
 
 function checkHyperframesCli(): DoctorCheck {
-  const result = spawnSync("npx", ["--no-install", "hyperframes", "--version"], {
-    encoding: "utf8",
-    timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
+  const result = spawnVersionCheck("npx", ["--no-install", "hyperframes", "--version"], {
     env: {
-      ...process.env,
       HYPERFRAMES_NO_TELEMETRY: process.env.HYPERFRAMES_NO_TELEMETRY ?? "1",
       HYPERFRAMES_NO_UPDATE_CHECK: process.env.HYPERFRAMES_NO_UPDATE_CHECK ?? "1",
     },
   });
 
-  if (result.status === 0) {
+  if (result.ok) {
     return {
       status: "ok",
       version: firstOutputLine(result.stdout, result.stderr),
@@ -141,12 +141,9 @@ function checkHyperframesCli(): DoctorCheck {
 }
 
 function checkCommandVersion(command: string, args: string[], missingMessage: string): DoctorCheck {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
-    timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
-  });
+  const result = spawnVersionCheck(command, args);
 
-  if (result.status === 0) {
+  if (result.ok) {
     return {
       status: "ok",
       version: firstOutputLine(result.stdout, result.stderr),
@@ -191,18 +188,14 @@ function checkChrome(): DoctorCheck {
 
   return {
     status: "missing",
-    message:
-      "Install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH for video MP4 rendering.",
+    message: "Install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH for video MP4 rendering.",
   };
 }
 
 function checkChromeCandidate(candidate: string): DoctorCheck {
-  const result = spawnSync(candidate, ["--version"], {
-    encoding: "utf8",
-    timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
-  });
+  const result = spawnVersionCheck(candidate, ["--version"]);
 
-  if (result.status === 0) {
+  if (result.ok) {
     return {
       status: "ok",
       path: candidate,
