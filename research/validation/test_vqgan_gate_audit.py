@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from .vqgan_gate_audit import main as audit_main
 
@@ -27,7 +28,10 @@ class VqganGateAuditTests(unittest.TestCase):
             self.assertIn("issues/335", parsed["gates"][1]["tracker"])
 
     def test_records_passed_metrics_when_empirical_inputs_are_present(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch("shutil.which", side_effect=lambda cmd: "/usr/bin/node" if cmd == "node" else None),
+        ):
             tmp_path = Path(tmp)
             weights = tmp_path / "decoder.pt"
             onnx = tmp_path / "decoder.onnx"
