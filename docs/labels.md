@@ -120,6 +120,11 @@ Color: `#d93f0b` (red-orange).
 
 Escalation label for **image + training + ML-sensitive** changes. When present on a PR, the repo will automatically request review from the ML specialist reviewer (`koriyoshi2041`).
 
+**Relationship to queue labels:**
+
+- `stage/m1-image` and `milestone/m1b-image-depth` are roadmap/queue metadata; they do **not** automatically request review.
+- `needs-ml-specialist` is the explicit escalation switch: apply it when you want specialist review (or let the path labeler apply it for image/training critical files).
+
 **Intended scope (high-signal only):**
 
 - `packages/codec-image/**` (image codec + adapter/decoder seams)
