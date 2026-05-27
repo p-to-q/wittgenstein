@@ -24,6 +24,7 @@ git add \
   docs/research/2026-05-26-m1b-lab-gate-runbook.md \
   docs/research/2026-05-26-m1b-pr-boundary-audit.md \
   docs/research/2026-05-26-m1b-staging-plan.md \
+  docs/research/2026-05-27-m1b-review-and-cleanup-checklist.md \
   packages/cli/src/commands/doctor.ts \
   packages/cli/src/commands/install.ts \
   packages/cli/test/doctor.test.ts \
@@ -44,6 +45,7 @@ git add \
   research/validation/m1b_gate_d_onnx_cpu.py \
   research/validation/test_m1b_metric_producers.py \
   research/validation/test_vqgan_gate_audit.py \
+  research/validation/video_mp4_renderer_validate.ts \
   research/validation/vqgan_gate_audit.py \
   scripts/m1b-audit-artifact-check.mjs \
   scripts/m1b-audit-self-check.mjs \
