@@ -164,7 +164,11 @@ def write_blocked_receipt(path: Path, error: str, args: argparse.Namespace) -> N
             "codebook_embed_dim": args.codebook_embed_dim,
             "image_size": args.image_size,
             "downsample_size": args.downsample_size,
-            "token_grid": [latent_size(args), latent_size(args)] if args.image_size % args.downsample_size == 0 else None,
+            "token_grid": (
+                [latent_size(args), latent_size(args)]
+                if args.downsample_size > 0 and args.image_size % args.downsample_size == 0
+                else None
+            ),
         },
     }
     write_json(path, receipt)
