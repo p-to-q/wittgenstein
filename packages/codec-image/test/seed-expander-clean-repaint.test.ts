@@ -18,18 +18,25 @@ describe("clean-repaint conditioning", () => {
   });
 
   const knownPositions = [
-    true, false, false, false,
-    false, false, true, false,
-    false, false, false, false,
-    false, false, false, true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
   ];
 
-  const knownTokens = [
-    1111, 0, 0, 0,
-    0, 0, 2222, 0,
-    0, 0, 0, 0,
-    0, 0, 0, 3333,
-  ];
+  const knownTokens = [1111, 0, 0, 0, 0, 0, 2222, 0, 0, 0, 0, 0, 0, 0, 0, 3333];
 
   describe("placeholderSeedExpander", () => {
     it("preserves known positions exactly", () => {
@@ -93,6 +100,27 @@ describe("clean-repaint conditioning", () => {
       });
       expect(withMask.tokens).toEqual(withoutMask.tokens);
     });
+
+    it("rejects clean-repaint arrays that do not match the latent grid", () => {
+      expect(() =>
+        placeholderSeedExpander.expand({
+          seedCode: baseSeedCode,
+          decoder,
+          seed: 7,
+          knownPositions: [true],
+          knownTokens,
+        }),
+      ).toThrow(/knownPositions length 1 does not match totalTokens 16/);
+      expect(() =>
+        placeholderSeedExpander.expand({
+          seedCode: baseSeedCode,
+          decoder,
+          seed: 7,
+          knownPositions,
+          knownTokens: [1111],
+        }),
+      ).toThrow(/knownTokens length 1 does not match totalTokens 16/);
+    });
   });
 
   describe("tileMosaicSeedExpander", () => {
@@ -124,6 +152,18 @@ describe("clean-repaint conditioning", () => {
       for (const token of result.tokens) {
         expect(token).toBeGreaterThanOrEqual(0);
       }
+    });
+
+    it("rejects clean-repaint arrays that do not match the latent grid", () => {
+      expect(() =>
+        tileMosaicSeedExpander.expand({
+          seedCode: baseSeedCode,
+          decoder,
+          seed: 7,
+          knownPositions: [true],
+          knownTokens,
+        }),
+      ).toThrow(/knownPositions length 1 does not match totalTokens 16/);
     });
   });
 });

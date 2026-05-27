@@ -10,7 +10,11 @@
  */
 import { describe, expect, it } from "vitest";
 import { placeholderSeedExpander } from "../src/adapters/seed-expander.js";
-import { ImageVisualSeedCodeSchema, ImageSceneSpecSchema, type ImageSceneSpec } from "../src/schema.js";
+import {
+  ImageVisualSeedCodeSchema,
+  ImageSceneSpecSchema,
+  type ImageSceneSpec,
+} from "../src/schema.js";
 
 /** Build a minimal ImageSceneSpec with overrides. */
 function makeSpec(overrides: Partial<ImageSceneSpec> = {}): ImageSceneSpec {

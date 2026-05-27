@@ -48,7 +48,9 @@ class TrainingManifestTests(unittest.TestCase):
             )
 
             write_training_manifest(manifest, manifest_path)
-            parsed = json.loads(manifest_path.read_text(encoding="utf-8"))
+            raw = manifest_path.read_text(encoding="utf-8")
+            self.assertEqual(raw, json.dumps(manifest.to_json_dict(), indent=2, sort_keys=True) + "\n")
+            parsed = json.loads(raw)
 
             self.assertEqual(parsed["schema_version"], "training-manifest.v0")
             self.assertEqual(parsed["run_id"], "run-test")

@@ -75,6 +75,17 @@ IMAGE_PROMPTS = [
     "A desert sand dune at dawn with long shadows",
 ]
 
+EXPECTED_TOKENS = 32
+TOKEN_MIN = 0
+TOKEN_MAX = 4095
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
 
 def call_anthropic(prompt: str, temperature: float = 0.3) -> str:
     """Call Anthropic API."""
@@ -126,8 +137,10 @@ def extract_tokens(response: str) -> list[int] | None:
             text = "\n".join(lines[1:-1])
         data = json.loads(text)
         tokens = data.get("seedCode", {}).get("tokens", [])
-        if isinstance(tokens, list) and len(tokens) > 0:
-            return [int(t) for t in tokens]
+        if isinstance(tokens, list) and len(tokens) == EXPECTED_TOKENS:
+            parsed_tokens = [int(t) for t in tokens]
+            if all(TOKEN_MIN <= token <= TOKEN_MAX for token in parsed_tokens):
+                return parsed_tokens
     except (json.JSONDecodeError, KeyError, ValueError, TypeError):
         pass
     return None
@@ -168,11 +181,13 @@ def run_experiment(
     """Run the full experiment and return results."""
     call_fn = call_anthropic if provider == "anthropic" else call_openai
     prompts = IMAGE_PROMPTS[:num_prompts]
+    actual_prompts = len(prompts)
 
     results: dict[str, Any] = {
         "provider": provider,
         "temperature": temperature,
-        "num_prompts": num_prompts,
+        "num_prompts": actual_prompts,
+        "requested_prompts": num_prompts,
         "num_runs": num_runs,
         "per_prompt": [],
     }
@@ -301,10 +316,10 @@ def run_experiment(
         "mean_hamming": sum(all_hamming) / len(all_hamming) if all_hamming else None,
         "parse_success_rate": sum(
             p["successful_runs"] for p in results["per_prompt"]
-        ) / (num_prompts * num_runs) if num_prompts * num_runs > 0 else 0,
+        ) / (actual_prompts * num_runs) if actual_prompts * num_runs > 0 else 0,
         "reasoning_rate": sum(
             p.get("reasoning_rate", 0) for p in results["per_prompt"]
-        ) / num_prompts if num_prompts > 0 else 0,
+        ) / actual_prompts if actual_prompts > 0 else 0,
     }
 
     return results
@@ -320,8 +335,8 @@ def main() -> None:
         default="anthropic",
         help="LLM provider (default: anthropic)",
     )
-    parser.add_argument("--runs", type=int, default=5, help="Runs per prompt (default: 5)")
-    parser.add_argument("--prompts", type=int, default=5, help="Number of prompts (default: 5)")
+    parser.add_argument("--runs", type=positive_int, default=5, help="Runs per prompt (default: 5)")
+    parser.add_argument("--prompts", type=positive_int, default=5, help="Number of prompts (default: 5)")
     parser.add_argument("--temperature", type=float, default=0.3, help="Sampling temperature")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path")
     args = parser.parse_args()

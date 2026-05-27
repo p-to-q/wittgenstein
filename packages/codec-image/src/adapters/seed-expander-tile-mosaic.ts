@@ -4,7 +4,7 @@ import {
   type ImageSceneSpec,
   type ImageVisualSeedCode,
 } from "../schema.js";
-import type { SeedExpander } from "./seed-expander.js";
+import { validateCleanRepaintInputs, type SeedExpander } from "./seed-expander.js";
 
 const PLACEHOLDER_CODEBOOK_SIZE = 8192;
 
@@ -47,7 +47,13 @@ function pickCoarseLayout(tokenCount: number): { coarseW: number; coarseH: numbe
  * `(seedCode, decoder, seed)` triple → byte-identical `ImageLatentCodes`.
  */
 export const tileMosaicSeedExpander: SeedExpander = {
-  expand({ seedCode, decoder, seed, knownPositions, knownTokens }: {
+  expand({
+    seedCode,
+    decoder,
+    seed,
+    knownPositions,
+    knownTokens,
+  }: {
     seedCode: ImageVisualSeedCode;
     decoder: ImageSceneSpec["decoder"];
     seed: number;
@@ -56,6 +62,7 @@ export const tileMosaicSeedExpander: SeedExpander = {
   }): ImageLatentCodes {
     const [width, height] = decoder.latentResolution;
     const totalTokens = width * height;
+    validateCleanRepaintInputs(knownPositions, knownTokens, totalTokens);
     const tokens = new Array<number>(totalTokens);
     const { coarseW, coarseH } = pickCoarseLayout(seedCode.tokens.length);
 

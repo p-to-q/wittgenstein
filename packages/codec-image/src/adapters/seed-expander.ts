@@ -51,6 +51,23 @@ export interface SeedExpander {
 
 const PLACEHOLDER_CODEBOOK_SIZE = 8192;
 
+export function validateCleanRepaintInputs(
+  knownPositions: readonly boolean[] | undefined,
+  knownTokens: readonly number[] | undefined,
+  totalTokens: number,
+): void {
+  if (knownPositions && knownPositions.length !== totalTokens) {
+    throw new Error(
+      `knownPositions length ${knownPositions.length} does not match totalTokens ${totalTokens}`,
+    );
+  }
+  if (knownTokens && knownTokens.length !== totalTokens) {
+    throw new Error(
+      `knownTokens length ${knownTokens.length} does not match totalTokens ${totalTokens}`,
+    );
+  }
+}
+
 /**
  * Deterministic, dependency-free SeedExpander used in v0.3 scaffolding.
  *
@@ -69,6 +86,7 @@ export const placeholderSeedExpander: SeedExpander = {
   expand({ seedCode, decoder, seed, knownPositions, knownTokens }) {
     const [width, height] = decoder.latentResolution;
     const totalTokens = width * height;
+    validateCleanRepaintInputs(knownPositions, knownTokens, totalTokens);
     const tokens = new Array<number>(totalTokens);
 
     for (let index = 0; index < totalTokens; index += 1) {
