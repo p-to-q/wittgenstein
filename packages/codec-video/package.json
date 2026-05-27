@@ -27,5 +27,15 @@
     "puppeteer-core": {
       "optional": true
     }
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/p-to-q/wittgenstein.git",
+    "directory": "packages/codec-video"
+  },
+  "homepage": "https://github.com/p-to-q/wittgenstein",
+  "bugs": {
+    "url": "https://github.com/p-to-q/wittgenstein/issues"
   }
 }

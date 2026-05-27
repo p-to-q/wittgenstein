@@ -2,5 +2,15 @@
   "name": "@wittgenstein/agent-contact-text",
   "version": "0.0.0",
   "private": true,
-  "description": "Extended agent-facing primers (00–03) and narrative context for coding agents."
+  "description": "Extended agent-facing primers (00–03) and narrative context for coding agents.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/p-to-q/wittgenstein.git",
+    "directory": "packages/agent-contact-text"
+  },
+  "homepage": "https://github.com/p-to-q/wittgenstein",
+  "bugs": {
+    "url": "https://github.com/p-to-q/wittgenstein/issues"
+  }
 }
