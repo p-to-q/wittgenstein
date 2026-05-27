@@ -114,6 +114,24 @@ Code restructure with no behaviour change — same inputs produce the same outpu
 
 `refactor` PRs should be reviewable as "is this a true no-op for behaviour?" — if a reviewer cannot answer that question from the diff, the PR is too big.
 
+#### `needs-ml-specialist`
+
+Color: `#0e8a16` (green).
+
+Escalation label for **image + training + ML-sensitive** changes. When present on a PR, the repo will automatically request review from the ML specialist reviewer (`koriyoshi2041`).
+
+**Intended scope (high-signal only):**
+
+- `packages/codec-image/**` (image codec + adapter/decoder seams)
+- `packages/core/src/codecs/image.ts` (image routing shim)
+- `docs/codecs/image.md` (image contract/doctrine surface)
+- `data/image_adapter/**` and `python/image_adapter/**` (adapter training data/scripts)
+
+**Engineering-only (do not use this label):**
+
+- generic infra/CI changes not specific to image or training
+- purely doc/typo changes outside the image codec surface
+
 ### Audience
 
 #### `good first issue`

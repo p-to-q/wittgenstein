@@ -2,7 +2,7 @@ name: Request ML specialist review
 
 on:
   pull_request_target:
-    types: [labeled]
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
 
 permissions:
   contents: read
@@ -16,16 +16,34 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const label = context.payload.label?.name ?? "";
-            if (label !== "needs-ml-specialist") {
-              core.info(`Label "${label}" does not match trigger; skipping.`);
-              return;
-            }
-
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pull_number = context.payload.pull_request.number;
             const reviewer = "koriyoshi2041";
+
+            const requiredLabel = "needs-ml-specialist";
+            const labelFromEvent = context.payload.label?.name;
+
+            // Fast path: if we're here due to a label event and it isn't our label, skip.
+            if (labelFromEvent && labelFromEvent !== requiredLabel) {
+              core.info(`Label "${labelFromEvent}" does not match trigger; skipping.`);
+              return;
+            }
+
+            // Robust path: actions that apply labels may not always trigger downstream labeled workflows
+            // (depending on token / event restrictions). Re-check current labels on the PR.
+            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+              owner,
+              repo,
+              issue_number: pull_number,
+              per_page: 100,
+            });
+
+            const hasRequiredLabel = (currentLabels ?? []).some((l) => l.name === requiredLabel);
+            if (!hasRequiredLabel) {
+              core.info(`PR #${pull_number} does not have "${requiredLabel}" label; skipping.`);
+              return;
+            }
 
             const { data: requested } = await github.rest.pulls.listRequestedReviewers({
               owner,
