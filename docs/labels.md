@@ -116,7 +116,7 @@ Code restructure with no behaviour change — same inputs produce the same outpu
 
 #### `needs-ml-specialist`
 
-Color: `#0e8a16` (green).
+Color: `#d93f0b` (red-orange).
 
 Escalation label for **image + training + ML-sensitive** changes. When present on a PR, the repo will automatically request review from the ML specialist reviewer (`koriyoshi2041`).
 
