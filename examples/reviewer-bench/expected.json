@@ -7,7 +7,7 @@
       "route": "sensor",
       "args": ["sensor", "ECG 72 bpm resting", "--dry-run", "--seed", "42"],
       "artifactBasename": "out.html",
-      "sha256": "dbbf8ccae0815fac2801e132224623c4f641082732cdc8938b942abb48e27d14",
+      "sha256": "2684d511d6016207c771d2dee1a2712b0b444adb76442f29d986664df676eb4d",
       "description": "sensor route, ECG dry-run @ seed 42 — HTML artifact byte-stable"
     },
     {
@@ -39,7 +39,7 @@
       "route": "sensor",
       "args": ["sensor", "replay smoke target ECG", "--dry-run", "--seed", "1234"],
       "artifactBasename": "out.html",
-      "sha256": "7fe25f0e0e06d87dc8028e92a867295285e6f44273a921b17d116f7b903ac742",
+      "sha256": "bce0ef868809af08416cceeda9f86454b851a5911a2ed35746b6b8030e30bc04",
       "description": "sensor replay target (different seed to isolate from sensor-ecg row)"
     }
   ]
