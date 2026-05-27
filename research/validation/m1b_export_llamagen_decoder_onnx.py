@@ -120,6 +120,10 @@ def deterministic_token_fixture(torch: Any, args: argparse.Namespace) -> Any:
 
 
 def latent_size(args: argparse.Namespace) -> int:
+    if args.downsample_size < 1:
+        raise SystemExit("--downsample-size must be >= 1")
+    if args.image_size < 1:
+        raise SystemExit("--image-size must be >= 1")
     if args.image_size % args.downsample_size != 0:
         raise SystemExit("--image-size must be divisible by --downsample-size")
     return args.image_size // args.downsample_size

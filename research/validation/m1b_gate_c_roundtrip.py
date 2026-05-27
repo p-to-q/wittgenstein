@@ -42,10 +42,16 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.sample_count < 1:
         raise SystemExit("--sample-count must be >= 1")
+    if args.downsample_size < 1:
+        raise SystemExit("--downsample-size must be >= 1")
+    if args.image_size < 1:
+        raise SystemExit("--image-size must be >= 1")
+    if args.image_size % args.downsample_size != 0:
+        raise SystemExit(
+            f"--image-size ({args.image_size}) must be divisible by --downsample-size ({args.downsample_size})"
+        )
 
     torch = import_torch()
-    if args.image_size % args.downsample_size != 0:
-        raise SystemExit("--image-size must be divisible by --downsample-size")
     configure_determinism(torch, args.seed)
     device = resolve_device(torch, args.device)
     model = load_vq_model(torch, args, device)
