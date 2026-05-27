@@ -260,12 +260,3 @@ function checkOptionalNodePeer(packageName: string, installHint: string): Doctor
     message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
   };
 }
-
-function firstOutputLine(stdout: string, stderr: string): string {
-  return (
-    (stdout || stderr)
-      .split(/\r?\n/)
-      .find((line) => line.trim().length > 0)
-      ?.trim() ?? ""
-  );
-}
