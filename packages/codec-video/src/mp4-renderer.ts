@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { firstOutputLine, runProcess } from "@wittgenstein/process-runner";
+import { firstOutputLine, runProcess, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { VideoRenderManifest } from "@wittgenstein/schemas";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
 import { ensurePuppeteerCore } from "./mp4-renderer-runtime.js";
@@ -75,10 +75,12 @@ export async function renderHtmlToMp4(
   };
 }
 
-async function captureFrames(params: InternalMp4RenderParams & {
-  frameDir: string;
-  frameCount: number;
-}): Promise<string> {
+async function captureFrames(
+  params: InternalMp4RenderParams & {
+    frameDir: string;
+    frameCount: number;
+  },
+): Promise<string> {
   const puppeteer = await ensurePuppeteerCore();
   const executablePath = resolveChromeExecutable();
   const browser = await puppeteer.launch({
@@ -112,12 +114,14 @@ async function captureFrames(params: InternalMp4RenderParams & {
   }
 }
 
-async function encodeFrames(params: InternalMp4RenderParams & {
-  frameDir: string;
-  frameCount: number;
-}): Promise<string> {
+async function encodeFrames(
+  params: InternalMp4RenderParams & {
+    frameDir: string;
+    frameCount: number;
+  },
+): Promise<string> {
   await mkdir(dirname(params.outputMp4), { recursive: true });
-  const version = await readFfmpegVersion(params.runDir, params.timeoutMs);
+  const version = readFfmpegVersion();
   const args = [
     "-y",
     "-framerate",
@@ -166,20 +170,15 @@ async function encodeFrames(params: InternalMp4RenderParams & {
   return version;
 }
 
-async function readFfmpegVersion(cwd: string, timeoutMs: number): Promise<string> {
-  try {
-    const { spawnSync } = await import("node:child_process");
-    const result = spawnSync("ffmpeg", ["-version"], {
-      cwd,
-      env: process.env,
-      encoding: "utf8",
-      timeout: timeoutMs,
-    });
-    if (result.status === 0) {
-      return firstOutputLine(result.stdout, result.stderr) || "ffmpeg";
-    }
-  } catch {
-    // The encode step below will raise the structured process error.
+function readFfmpegVersion(): string {
+  // `ffmpeg -version` is a synchronous version probe — the encode timeout
+  // (10-minute render budget) is the wrong policy here; use the
+  // process-runner default (1s) which is the right floor for version checks.
+  // On failure, fall back to the literal "ffmpeg" — the encode call below
+  // will surface any real process error via runProcess.
+  const result = spawnVersionCheck("ffmpeg", ["-version"]);
+  if (result.ok) {
+    return firstOutputLine(result.stdout, result.stderr) || "ffmpeg";
   }
   return "ffmpeg";
 }

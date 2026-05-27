@@ -5,7 +5,12 @@
  * timeout + bounded-capture + structured-error invariants directly.
  */
 import { describe, expect, it } from "vitest";
-import { firstOutputLine, runProcess } from "../src/index.js";
+import {
+  DEFAULT_VERSION_CHECK_TIMEOUT_MS,
+  firstOutputLine,
+  runProcess,
+  spawnVersionCheck,
+} from "../src/index.js";
 
 const baseOptions = {
   cwd: process.cwd(),
@@ -126,5 +131,51 @@ describe("firstOutputLine (#487 consolidation)", () => {
 
   it("works in single-argument mode (legacy mp4-renderer firstLine call shape)", () => {
     expect(firstOutputLine("ffmpeg version 8.1.1 …\nbuild")).toBe("ffmpeg version 8.1.1 …");
+  });
+});
+
+/**
+ * Coverage for the consolidated `spawnVersionCheck` helper (#487 item 3).
+ * Pins the timeout policy, env merge, missing-binary fallback, and the
+ * `ok` / `status` / `timedOut` triple that callers branch on. Uses `node`
+ * itself as the test command because it's guaranteed to exist wherever
+ * tests run.
+ */
+describe("spawnVersionCheck (#487 item 3)", () => {
+  it("exports the canonical version-check timeout policy", () => {
+    expect(DEFAULT_VERSION_CHECK_TIMEOUT_MS).toBe(1_000);
+  });
+
+  it("returns ok=true with stdout populated for a successful probe", () => {
+    const result = spawnVersionCheck("node", ["--version"]);
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe(0);
+    expect(result.stdout.length).toBeGreaterThan(0);
+    expect(result.timedOut).toBe(false);
+  });
+
+  it("returns ok=false with status=null when the binary is missing", () => {
+    const result = spawnVersionCheck("definitely-not-a-real-binary-xyz", ["--version"]);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(null);
+    expect(result.timedOut).toBe(false);
+  });
+
+  it("returns ok=false for a non-zero exit", () => {
+    // `node -e "process.exit(7)"` exits 7 without printing version-shaped output.
+    const result = spawnVersionCheck("node", ["-e", "process.exit(7)"]);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(7);
+    expect(result.timedOut).toBe(false);
+  });
+
+  it("merges options.env over process.env without overwriting unspecified keys", () => {
+    const result = spawnVersionCheck(
+      "node",
+      ["-e", "console.log(process.env.WITTGENSTEIN_TEST_MARKER || 'absent')"],
+      { env: { WITTGENSTEIN_TEST_MARKER: "present" } },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout.trim()).toBe("present");
   });
 });

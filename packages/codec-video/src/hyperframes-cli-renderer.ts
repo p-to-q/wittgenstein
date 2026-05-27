@@ -1,6 +1,5 @@
-import { spawnSync } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { firstOutputLine, runProcess } from "@wittgenstein/process-runner";
+import { firstOutputLine, runProcess, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { VideoRenderManifest } from "@wittgenstein/schemas";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
 import type { InternalMp4RenderParams, InternalMp4RenderResult } from "./mp4-renderer.js";
@@ -60,16 +59,17 @@ export function buildHyperframesCliRenderArgs(params: {
 }
 
 export function readHyperframesCliVersion(): string {
-  const result = spawnSync("npx", ["--no-install", "hyperframes", "--version"], {
-    encoding: "utf8",
-    timeout: 10_000,
+  const result = spawnVersionCheck("npx", ["--no-install", "hyperframes", "--version"], {
+    // npx --no-install on a cold-cache machine can occasionally exceed
+    // the default 1s policy; the receipt path benefits from a longer
+    // ceiling than the doctor probe.
+    timeoutMs: 10_000,
     env: {
-      ...process.env,
       HYPERFRAMES_NO_TELEMETRY: process.env.HYPERFRAMES_NO_TELEMETRY ?? "1",
       HYPERFRAMES_NO_UPDATE_CHECK: process.env.HYPERFRAMES_NO_UPDATE_CHECK ?? "1",
     },
   });
-  if (result.status === 0) {
+  if (result.ok) {
     return firstOutputLine(result.stdout, result.stderr) || "hyperframes";
   }
   return "hyperframes";
