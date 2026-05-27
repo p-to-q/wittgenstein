@@ -100,6 +100,14 @@ jobs:
       - name: Golden tests
         run: pnpm test:golden
 
+      - name: Reviewer bench (Tier-0 deterministic surface)
+        # Verifies the sensor / svg-local / asciipng deterministic routes
+        # plus `wittgenstein replay` still match the pinned SHA-256
+        # receipts in examples/reviewer-bench/expected.json. Catches
+        # silent byte drift across PRs that touch a deterministic codec
+        # without updating its pin. See #471 (post-#426/#389 drift fix).
+        run: pnpm reviewer-bench
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
