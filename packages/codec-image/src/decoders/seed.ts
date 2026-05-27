@@ -11,6 +11,7 @@
  *   - Audit (P3-5): `docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md`
  *   - Bridge contract: `./types.ts`
  */
+import { TRACKERS } from "@wittgenstein/schemas";
 import type { ImageDecoderBridge, LoadDecoderBridgeOptions } from "./types.js";
 
 export const SEED_DECODER_ID = "seed-frozen-vq-v0" as const;
@@ -32,8 +33,8 @@ function createBridgeNotImplementedError(): Error & { code: string; details: obj
       family: "seed",
       decoderId: SEED_DECODER_ID,
       blockers: {
-        audit: "https://github.com/p-to-q/wittgenstein/issues/331",
-        umbrella: "https://github.com/p-to-q/wittgenstein/issues/283",
+        audit: TRACKERS.m1bOpenMagvit2Audit,
+        umbrella: TRACKERS.m1bImageDecoderUmbrella,
       },
     },
   });

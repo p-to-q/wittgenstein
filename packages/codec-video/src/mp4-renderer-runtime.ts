@@ -17,6 +17,7 @@
 //     on disk, because all types are local and the import is hidden behind a
 //     dynamic-import-from-variable shape.
 import { z } from "zod";
+import { CLOSED_TRACKERS } from "@wittgenstein/schemas";
 
 /**
  * Minimal structural surface this codec needs from `puppeteer-core`. Extending
@@ -40,7 +41,11 @@ export interface PuppeteerBrowser {
 }
 
 export interface PuppeteerPage {
-  setViewport(viewport: { width: number; height: number; deviceScaleFactor?: number }): Promise<void>;
+  setViewport(viewport: {
+    width: number;
+    height: number;
+    deviceScaleFactor?: number;
+  }): Promise<void>;
   goto(url: string, options?: { waitUntil?: string }): Promise<unknown>;
   $(selector: string): Promise<PuppeteerElementHandle | null>;
 }
@@ -102,7 +107,7 @@ export async function ensurePuppeteerCore(): Promise<PuppeteerCore> {
         tier: "video",
         installHint: "pnpm add puppeteer-core",
         cause,
-        tracker: "https://github.com/p-to-q/wittgenstein/issues/464",
+        tracker: CLOSED_TRACKERS.puppeteerCoreOptionalPeer,
       },
     );
   }

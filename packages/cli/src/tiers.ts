@@ -1,3 +1,5 @@
+import { TRACKERS } from "@wittgenstein/schemas";
+
 export type InstallTierId = "image" | "image-gpu";
 
 export interface RuntimeTierStatus {
@@ -18,7 +20,7 @@ export interface InstallTierPlan {
   blockedBy: "decoder-manifest";
 }
 
-const IMAGE_INSTALL_TRACKER = "https://github.com/p-to-q/wittgenstein/issues/403";
+const IMAGE_INSTALL_TRACKER = TRACKERS.installTierCli;
 
 export function runtimeTierReadiness(): Record<
   "tier0" | "tier1" | "tier2" | "tier3",

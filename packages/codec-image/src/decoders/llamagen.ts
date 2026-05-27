@@ -14,6 +14,7 @@
  *   - Bridge contract: `./types.ts`
  *   - Replay verifier for the wired path: `wittgenstein replay` (#384)
  */
+import { TRACKERS } from "@wittgenstein/schemas";
 import type { ImageDecoderBridge, LoadDecoderBridgeOptions } from "./types.js";
 
 /**
@@ -59,9 +60,9 @@ function createBridgeNotImplementedError(): Error & { code: string; details: obj
       family: "llamagen",
       decoderId: LLAMAGEN_DECODER_ID,
       blockers: {
-        gateC: "https://github.com/p-to-q/wittgenstein/issues/334",
-        gateD: "https://github.com/p-to-q/wittgenstein/issues/335",
-        umbrella: "https://github.com/p-to-q/wittgenstein/issues/283",
+        gateC: TRACKERS.m1bGateCDeterminism,
+        gateD: TRACKERS.m1bGateDOnnxCpu,
+        umbrella: TRACKERS.m1bImageDecoderUmbrella,
       },
     },
   });
