@@ -97,3 +97,21 @@ export async function runProcess(
     });
   });
 }
+
+/**
+ * Returns the first non-empty line from a combined stdout / stderr pair,
+ * trimmed. Used by `--version` probes that print one informative line and
+ * sometimes deliver it on stderr instead of stdout (ffmpeg does, npx does
+ * for some commands, headless Chrome does for `--version`).
+ *
+ * Consolidated from previous in-file copies in `packages/cli/doctor.ts`,
+ * `packages/codec-video/hyperframes-cli-renderer.ts`, and the single-arg
+ * `firstLine()` variant in `packages/codec-video/mp4-renderer.ts` per the
+ * pre-training audit follow-up (#487 item 1).
+ *
+ * Accepts an optional `stderr` for the common probe-two-streams pattern.
+ * When omitted, behaves identically to the older single-arg variant.
+ */
+export function firstOutputLine(stdout: string, stderr = ""): string {
+  return (stdout || stderr).split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
+}

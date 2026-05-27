@@ -269,6 +269,9 @@ importers:
       '@wittgenstein/core':
         specifier: workspace:*
         version: link:../core
+      '@wittgenstein/process-runner':
+        specifier: workspace:*
+        version: link:../process-runner
       '@wittgenstein/schemas':
         specifier: workspace:*
         version: link:../schemas

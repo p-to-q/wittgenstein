@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
+import { firstOutputLine } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
@@ -210,8 +211,4 @@ function checkChromeCandidate(candidate: string): DoctorCheck {
   }
 
   return { status: "missing" };
-}
-
-function firstOutputLine(stdout: string, stderr: string): string {
-  return (stdout || stderr).split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
 }

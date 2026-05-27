@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { runProcess } from "@wittgenstein/process-runner";
+import { firstOutputLine, runProcess } from "@wittgenstein/process-runner";
 import type { VideoRenderManifest } from "@wittgenstein/schemas";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
 import { ensurePuppeteerCore } from "./mp4-renderer-runtime.js";
@@ -176,7 +176,7 @@ async function readFfmpegVersion(cwd: string, timeoutMs: number): Promise<string
       timeout: timeoutMs,
     });
     if (result.status === 0) {
-      return firstLine(result.stdout || result.stderr) || "ffmpeg";
+      return firstOutputLine(result.stdout, result.stderr) || "ffmpeg";
     }
   } catch {
     // The encode step below will raise the structured process error.
@@ -211,10 +211,6 @@ function resolveChromeExecutable(): string {
     "Video MP4 renderer requires Chrome/Chromium. Install Chrome or set PUPPETEER_EXECUTABLE_PATH.",
     { checkedCandidates: candidates },
   );
-}
-
-function firstLine(value: string): string {
-  return value.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
 }
 
 function ffmpegPreset(quality: InternalMp4RenderParams["quality"]): string {
