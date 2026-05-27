@@ -38,3 +38,14 @@ rfc-derived:
   - changed-files:
       - any-glob-to-any-file:
           - "docs/rfcs/**"
+
+# ML/image specialist escalation. Use path-based routing to avoid requesting
+# reviews on unrelated PRs while still making image + training changes loud.
+needs-ml-specialist:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/codec-image/**"
+          - "packages/core/src/codecs/image.ts"
+          - "docs/codecs/image.md"
+          - "data/image_adapter/**"
+          - "python/image_adapter/**"
