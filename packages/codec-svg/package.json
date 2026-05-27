@@ -18,5 +18,15 @@
   "dependencies": {
     "@wittgenstein/schemas": "workspace:*",
     "zod": "^3.23.8"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/p-to-q/wittgenstein.git",
+    "directory": "packages/codec-svg"
+  },
+  "homepage": "https://github.com/p-to-q/wittgenstein",
+  "bugs": {
+    "url": "https://github.com/p-to-q/wittgenstein/issues"
   }
 }
