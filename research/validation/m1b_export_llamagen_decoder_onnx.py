@@ -36,12 +36,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    torch = import_torch()
-    configure_determinism(torch, args.seed)
-    model = load_vq_model(torch, args, "cpu")
-    wrapper = build_decoder_wrapper(torch, model, args.codebook_embed_dim, latent_size(args))
-    wrapper.eval()
-    tokens = deterministic_token_fixture(torch, args)
+    receipt_path = Path(args.receipt)
+    try:
+        torch = import_torch()
+        configure_determinism(torch, args.seed)
+        model = load_vq_model(torch, args, "cpu")
+        wrapper = build_decoder_wrapper(torch, model, args.codebook_embed_dim, latent_size(args))
+        wrapper.eval()
+        tokens = deterministic_token_fixture(torch, args)
+    except Exception as error:
+        write_blocked_receipt(receipt_path, f"{type(error).__name__}: {error}", args)
+        return 1
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -134,6 +139,35 @@ def file_sha256(path: Path) -> str:
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def write_blocked_receipt(path: Path, error: str, args: argparse.Namespace) -> None:
+    receipt = {
+        "schema_version": "m1b-gate-d-onnx-export.v0",
+        "generated_at": utc_now_iso(),
+        "status": "blocked",
+        "error": error,
+        "onnx": None,
+        "onnx_sha256": None,
+        "environment": {
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "torch_version": "unknown",
+            "opset": args.opset,
+        },
+        "inputs": {
+            "llamagen_root": str(Path(args.llamagen_root).resolve()),
+            "vq_ckpt": str(Path(args.vq_ckpt).resolve()),
+            "vq_ckpt_sha256": None,
+            "vq_model": args.vq_model,
+            "codebook_size": args.codebook_size,
+            "codebook_embed_dim": args.codebook_embed_dim,
+            "image_size": args.image_size,
+            "downsample_size": args.downsample_size,
+            "token_grid": [latent_size(args), latent_size(args)] if args.image_size % args.downsample_size == 0 else None,
+        },
+    }
+    write_json(path, receipt)
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:

@@ -231,7 +231,10 @@ def load_metrics(path: str | None) -> dict[str, Any]:
     metrics_path = Path(path)
     if not metrics_path.exists():
         return {"metrics_error": f"metrics file not found: {path}"}
-    parsed = json.loads(metrics_path.read_text(encoding="utf-8"))
+    try:
+        parsed = json.loads(metrics_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        return {"metrics_error": f"invalid metrics JSON: {error}"}
     if not isinstance(parsed, dict):
         return {"metrics_error": "metrics JSON must be an object"}
     return parsed

@@ -224,6 +224,14 @@ export function validateDecoderManifestAuditReceipts(
       continue;
     }
 
+    if (receipt.data.status === "blocked") {
+      issues.push({
+        path: `receipts.${gateManifest.receipt}.status`,
+        message: "audit receipt has status 'blocked' — cannot accept a passed manifest gate.",
+      });
+      continue;
+    }
+
     const expectedGate = gate === "gateC" ? "C" : "D";
     const gateReceipt = receipt.data.gates.find((entry) => entry.gate === expectedGate);
     if (!gateReceipt) {
