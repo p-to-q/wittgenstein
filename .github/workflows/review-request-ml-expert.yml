@@ -1,0 +1,53 @@
+name: Request ML specialist review
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request review from koriyoshi2041
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const label = context.payload.label?.name ?? "";
+            if (label !== "needs-ml-specialist") {
+              core.info(`Label "${label}" does not match trigger; skipping.`);
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+            const reviewer = "koriyoshi2041";
+
+            const { data: requested } = await github.rest.pulls.listRequestedReviewers({
+              owner,
+              repo,
+              pull_number,
+            });
+
+            const alreadyRequested = [
+              ...(requested.users ?? []).map((user) => user.login),
+              ...(requested.teams ?? []).map((team) => team.slug),
+            ].includes(reviewer);
+
+            if (alreadyRequested) {
+              core.info(`Reviewer "${reviewer}" is already requested on PR #${pull_number}; skipping.`);
+              return;
+            }
+
+            await github.rest.pulls.requestReviewers({
+              owner,
+              repo,
+              pull_number,
+              reviewers: [reviewer],
+            });
+
+            core.info(`Requested review from "${reviewer}" on PR #${pull_number}.`);
