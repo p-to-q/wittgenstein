@@ -223,6 +223,13 @@ export function validateDecoderManifestAuditReceipts(
       });
       continue;
     }
+    if (receipt.data.status !== "passed") {
+      issues.push({
+        path: `receipts.${gateManifest.receipt}.status`,
+        message: "audit receipt top-level status must be 'passed'.",
+      });
+      continue;
+    }
 
     const expectedGate = gate === "gateC" ? "C" : "D";
     const gateReceipt = receipt.data.gates.find((entry) => entry.gate === expectedGate);

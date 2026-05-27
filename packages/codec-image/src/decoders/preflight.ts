@@ -119,7 +119,10 @@ export async function preflightImageDecoder(
     });
   }
 
-  if (options.checkRuntime ?? true) {
+  const needsNodeOrt =
+    manifest.capabilities.runtimeTier === "node-onnx-cpu" ||
+    manifest.capabilities.runtimeTier === "node-onnx-gpu";
+  if ((options.checkRuntime ?? true) && needsNodeOrt) {
     try {
       await ensureOnnxRuntime();
     } catch (error) {
