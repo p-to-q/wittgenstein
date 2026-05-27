@@ -44,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--sample-count must be >= 1")
 
     torch = import_torch()
+    if args.image_size % args.downsample_size != 0:
+        raise SystemExit("--image-size must be divisible by --downsample-size")
     configure_determinism(torch, args.seed)
     device = resolve_device(torch, args.device)
     model = load_vq_model(torch, args, device)

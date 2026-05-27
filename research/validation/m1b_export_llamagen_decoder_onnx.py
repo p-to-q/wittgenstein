@@ -36,18 +36,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    torch = import_torch()
-    configure_determinism(torch, args.seed)
-    model = load_vq_model(torch, args, "cpu")
-    wrapper = build_decoder_wrapper(torch, model, args.codebook_embed_dim, latent_size(args))
-    wrapper.eval()
-    tokens = deterministic_token_fixture(torch, args)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     export_status = "passed"
     export_error = None
+    torch = None
     try:
+        torch = import_torch()
+        configure_determinism(torch, args.seed)
+        model = load_vq_model(torch, args, "cpu")
+        wrapper = build_decoder_wrapper(torch, model, args.codebook_embed_dim, latent_size(args))
+        wrapper.eval()
+        tokens = deterministic_token_fixture(torch, args)
         torch.onnx.export(
             wrapper,
             (tokens,),
@@ -74,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         "environment": {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
-            "torch_version": getattr(torch, "__version__", "unknown"),
+            "torch_version": getattr(torch, "__version__", "unavailable") if torch is not None else "unavailable",
             "opset": args.opset,
         },
         "inputs": {
