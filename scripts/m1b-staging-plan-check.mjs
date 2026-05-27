@@ -15,7 +15,9 @@ const stageSet = new Set(stageEntries);
 const doNotStageSet = new Set(doNotStageEntries);
 
 const unclassified = changedFiles.filter((path) => !stageSet.has(path) && !doNotStageSet.has(path));
-const stagedPlanNotChanged = stageEntries.filter((path) => !changedSet.has(path) && existsSync(path));
+const stagedPlanNotChanged = stageEntries.filter(
+  (path) => !changedSet.has(path) && existsSync(path),
+);
 const doNotStageStillChanged = doNotStageEntries.filter((path) => changedSet.has(path));
 
 const result = {
@@ -68,18 +70,40 @@ function parseDoNotStageEntries(text) {
 }
 
 function changedFilesFromGit() {
-  const tracked = spawnSync("git", ["diff", "--name-only"], { encoding: "utf8" });
+  const baseRef = resolveBaseRef();
+  const prDiff = spawnSync("git", ["diff", "--name-only", `${baseRef}...HEAD`], {
+    encoding: "utf8",
+  });
+  const worktreeDiff = spawnSync("git", ["diff", "--name-only"], { encoding: "utf8" });
   const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"], {
     encoding: "utf8",
   });
-  if (tracked.status !== 0 || untracked.status !== 0) {
+  if (prDiff.status !== 0 || worktreeDiff.status !== 0 || untracked.status !== 0) {
     throw new Error("failed to read git status");
   }
-  return [...tracked.stdout.split(/\r?\n/), ...untracked.stdout.split(/\r?\n/)]
+  const files = [
+    ...prDiff.stdout.split(/\r?\n/),
+    ...worktreeDiff.stdout.split(/\r?\n/),
+    ...untracked.stdout.split(/\r?\n/),
+  ]
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((path) => !path.includes("__pycache__"))
     .map((path) => normalizeDirectoryEntry(path));
+  return [...new Set(files)];
+}
+
+function resolveBaseRef() {
+  const candidates = [process.env.M1B_STAGING_BASE_REF, "upstream/main", "origin/main"].filter(
+    Boolean,
+  );
+  for (const ref of candidates) {
+    const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+      encoding: "utf8",
+    });
+    if (result.status === 0) return ref;
+  }
+  throw new Error("failed to resolve a staging-plan base ref");
 }
 
 function normalizeDirectoryEntry(path) {
