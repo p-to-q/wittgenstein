@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { runProcess } from "@wittgenstein/process-runner";
+import { firstOutputLine, runProcess } from "@wittgenstein/process-runner";
 import type { VideoRenderManifest } from "@wittgenstein/schemas";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "./compositions/shared.js";
 import type { InternalMp4RenderParams, InternalMp4RenderResult } from "./mp4-renderer.js";
@@ -89,8 +89,4 @@ function buildHyperframesCliReceipt(params: InternalMp4RenderParams): VideoRende
     durationSec: params.durationSec,
     outputKind: "mp4",
   };
-}
-
-function firstOutputLine(stdout: string, stderr: string): string {
-  return (stdout || stderr).split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "";
 }

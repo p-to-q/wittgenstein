@@ -5,7 +5,7 @@
  * timeout + bounded-capture + structured-error invariants directly.
  */
 import { describe, expect, it } from "vitest";
-import { runProcess } from "../src/index.js";
+import { firstOutputLine, runProcess } from "../src/index.js";
 
 const baseOptions = {
   cwd: process.cwd(),
@@ -89,5 +89,42 @@ describe("runProcess (Issue #356)", () => {
     }
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toContain("Failed to spawn missing-binary");
+  });
+});
+
+/**
+ * Coverage for the consolidated `firstOutputLine` helper (lifted from three
+ * in-file copies per #487 item 1). The helper feeds `--version`-style probes
+ * across the doctor and video paths; its contract has to survive both
+ * single-stream (some commands print to stdout, some to stderr) and
+ * cross-platform line endings.
+ */
+describe("firstOutputLine (#487 consolidation)", () => {
+  it("returns the first non-empty trimmed line of stdout when present", () => {
+    expect(firstOutputLine("ffmpeg version 8.1.1 …\nbuild config", "")).toBe(
+      "ffmpeg version 8.1.1 …",
+    );
+  });
+
+  it("falls back to stderr when stdout is empty", () => {
+    expect(firstOutputLine("", "Chrome/Chromium 148.0.0.0 macOS")).toBe(
+      "Chrome/Chromium 148.0.0.0 macOS",
+    );
+  });
+
+  it("skips leading blank / whitespace-only lines", () => {
+    expect(firstOutputLine("\n   \n\thyperframes 0.6.46\n", "")).toBe("hyperframes 0.6.46");
+  });
+
+  it("handles CRLF line endings (Windows-shaped output)", () => {
+    expect(firstOutputLine("first line\r\nsecond line\r\n", "")).toBe("first line");
+  });
+
+  it("returns empty string when both streams are empty", () => {
+    expect(firstOutputLine("", "")).toBe("");
+  });
+
+  it("works in single-argument mode (legacy mp4-renderer firstLine call shape)", () => {
+    expect(firstOutputLine("ffmpeg version 8.1.1 …\nbuild")).toBe("ffmpeg version 8.1.1 …");
   });
 });
