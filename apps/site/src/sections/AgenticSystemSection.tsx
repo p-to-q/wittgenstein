@@ -37,7 +37,7 @@ export default function AgenticSystemSection() {
               <div className="bg-secondary rounded-lg p-4 mb-4 border border-border">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 border border-primary/35">
-                    <span className="text-xs font-medium text-primary">W</span>
+                    <span className="text-xs font-serif font-bold text-primary">W</span>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
