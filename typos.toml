@@ -40,6 +40,7 @@ PNGs = "PNGs"
 # typos extracts "PN" as a sub-token from "PNGs" and suggests "ON";
 # allowlist the extracted form too.
 PN = "PN"
+nin = "nin"
 FSQ = "FSQ"
 LoRA = "LoRA"
 SafeTensors = "SafeTensors"

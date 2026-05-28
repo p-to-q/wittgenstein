@@ -72,6 +72,7 @@ def evaluate_tokenizer_reconstruction(
     # eval to run with partial metric coverage if some are missing.
     psnr_metric = None
     ssim_metric = None
+    degradation_reasons: list[str] = []
     if cfg.compute_psnr_ssim:
         try:
             from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
@@ -79,6 +80,7 @@ def evaluate_tokenizer_reconstruction(
             ssim_metric = StructuralSimilarityIndexMeasure(data_range=255.0).to(device)
         except ImportError:
             print("[eval] torchmetrics not installed; skipping PSNR/SSIM")
+            degradation_reasons.append("torchmetrics-missing:psnr-ssim")
 
     lpips_metric = None
     if cfg.compute_lpips:
@@ -89,6 +91,7 @@ def evaluate_tokenizer_reconstruction(
                 p.requires_grad = False
         except ImportError:
             print("[eval] lpips not installed; skipping LPIPS")
+            degradation_reasons.append("lpips-missing")
 
     # rFID: defer the heavy clean-fid dependency to runtime. We accumulate
     # real/fake stats then call clean_fid.fid.compute_fid at the end.
@@ -103,6 +106,7 @@ def evaluate_tokenizer_reconstruction(
             (rfid_tmpdir / "fake").mkdir()
         except Exception as e:
             print(f"[eval] rFID tmpdir setup failed; skipping rFID: {e}")
+            degradation_reasons.append(f"rfid-tmpdir-unavailable:{type(e).__name__}")
             cfg = TokenizerEvalConfig(**{**cfg.__dict__, "compute_rfid": False})
 
     # Codebook usage histogram
@@ -145,7 +149,24 @@ def evaluate_tokenizer_reconstruction(
 
         n_images += img.shape[0]
 
-    metrics: dict[str, Any] = {"n_images_evaluated": n_images}
+    metrics: dict[str, Any] = {
+        "n_images_evaluated": n_images,
+        "degraded": len(degradation_reasons) > 0,
+        "degradation_reasons": degradation_reasons,
+        "requested_metrics": {
+            "psnr_ssim": cfg.compute_psnr_ssim,
+            "lpips": cfg.compute_lpips,
+            "rfid": cfg.compute_rfid,
+            "codebook_hist": cfg.compute_codebook_hist,
+        },
+        "computed_metrics": {
+            "psnr": psnr_metric is not None,
+            "ssim": ssim_metric is not None,
+            "lpips": lpips_metric is not None,
+            "rfid": rfid_tmpdir is not None,
+            "codebook_hist": codebook_hist is not None,
+        },
+    }
 
     if psnr_metric is not None:
         metrics["psnr"] = float(psnr_metric.compute().cpu())
@@ -168,8 +189,10 @@ def evaluate_tokenizer_reconstruction(
             ))
         except ImportError:
             metrics["rfid_error"] = "clean-fid not installed"
+            degradation_reasons.append("clean-fid-missing")
         except Exception as e:
             metrics["rfid_error"] = f"{type(e).__name__}: {e}"
+            degradation_reasons.append(f"rfid-failed:{type(e).__name__}")
         finally:
             import shutil
             shutil.rmtree(rfid_tmpdir, ignore_errors=True)
@@ -178,5 +201,8 @@ def evaluate_tokenizer_reconstruction(
         used = (codebook_hist > 0).sum().item()
         metrics["codebook_used_count"] = int(used)
         metrics["codebook_used_pct"] = float(used) / float(codebook_hist.numel())
+
+    metrics["degraded"] = len(degradation_reasons) > 0
+    metrics["degradation_reasons"] = degradation_reasons
 
     return metrics

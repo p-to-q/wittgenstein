@@ -53,6 +53,43 @@ torchrun --nproc-per-node 2 -m research.training.tokenizer.smoke_test
 Expected: 5 train steps in <30s, `[smoke] PASS` printed, a
 `final.manifest.json` written under `_shared/runs/smoke/tokenizer-*/`.
 
+## Minimum acceptance bar
+
+This scaffold is intentionally **receipt-first and claim-light**. Before
+any reviewer treats a tokenizer run as minimally acceptable, the following
+must be true:
+
+1. **Smoke run passes end-to-end** — `python -m research.training.tokenizer.smoke_test`
+   exits 0, writes `final.pt` + `final.manifest.json`, and reports a clean
+   acceptance summary.
+2. **Manifest spine is present** — every checkpoint being cited has a sibling
+   `*.manifest.json` with runtime, dataset, optimizer, checkpoint, and config
+   fields populated.
+3. **Dataset mode is explicit** — receipts clearly indicate whether the run
+   used synthetic smoke data or a real dataset fingerprint; no ambiguous
+   “training succeeded” wording across those two cases.
+4. **Metric degradation is observable** — if PSNR/SSIM, LPIPS, or rFID could
+   not be computed because optional dependencies or runtime prerequisites were
+   missing, the receipt must say so in `eval.metrics.degraded` and
+   `eval.metrics.degradation_reasons`; silent metric omission is not acceptable.
+5. **No research blessing from smoke alone** — smoke proves loop integrity,
+   manifest emission, and checkpoint I/O only. It does **not** count as model
+   quality validation, tokenizer architecture approval, or dataset-license sign-off.
+
+## Current fallback / robustness story
+
+- **No real dataset available** → falls back only when explicitly in smoke mode
+  or when `train_data_root` is empty, and records synthetic dataset usage in
+  the acceptance summary + manifest dataset notes.
+- **Corrupt image file during real-data training** → loader falls back
+  deterministically to the previous sample (or zeros at index 0) and increments
+  `corrupt_count`; this is a run-survival measure, not a quality claim.
+- **LPIPS missing at train time** → training continues with L2-only and logs
+  the downgrade.
+- **Eval dependencies missing (`torchmetrics`, `lpips`, `clean-fid`)** → eval
+  may run in degraded mode, but the missing metrics must be surfaced in the
+  receipt rather than silently dropped.
+
 ## Phase 1.1 launch (real)
 
 Once dataset prep lands, launch on qiyuan as:
@@ -127,3 +164,13 @@ back to the exact configuration and data slice that produced it.
   `.dvc` file rather than the cheap file-enumeration fingerprint.
 - **FSDP2 sharding** — only needed if larger tokenizer variants are
   trained. The current 72M model fits comfortably on one A800.
+
+## Minimal pass list for reviewers
+
+For this PR / scaffold line specifically, the minimum “pass” list is:
+
+- `smoke_test.py` passes on the claimed environment.
+- `final.manifest.json` exists and is parseable JSON.
+- `summary.acceptance` reports manifest + checkpoint present.
+- Any degraded eval coverage is explicit in receipt fields, not only in logs.
+- Any claim beyond loop integrity / receipt integrity gets deferred to ML specialist review.

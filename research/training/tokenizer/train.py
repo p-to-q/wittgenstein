@@ -245,7 +245,18 @@ def train(cfg: TrainConfig) -> dict:
     epoch_iter = iter(train_loader)
     last_log_t = t0
 
-    summary = {"final_step": 0, "final_components": {}, "run_dir": str(run_dir)}
+    summary = {
+        "final_step": 0,
+        "final_components": {},
+        "run_dir": str(run_dir),
+        "acceptance": {
+            "smoke_mode": cfg.smoke,
+            "manifest_written": False,
+            "final_checkpoint_written": False,
+            "used_synthetic_data": bool(cfg.smoke or not cfg.train_data_root),
+            "dataset_corrupt_count": 0,
+        },
+    }
 
     while step < cfg.max_steps:
         try:
@@ -318,6 +329,13 @@ def train(cfg: TrainConfig) -> dict:
     # ---- Final checkpoint + manifest ----
     if is_main(rank):
         _write_checkpoint(run_dir, model, optim, cfg, step, t0, run_id, runtime_fp, dataset_fp, final=True)
+        final_ckpt = run_dir / "ckpts" / "final.pt"
+        final_manifest = run_dir / "ckpts" / "final.manifest.json"
+        summary["acceptance"]["final_checkpoint_written"] = final_ckpt.exists()
+        summary["acceptance"]["manifest_written"] = final_manifest.exists()
+        summary["acceptance"]["dataset_corrupt_count"] = int(
+            getattr(train_ds, "corrupt_count", 0)
+        )
         elapsed = time.perf_counter() - t0
         print(f"[done] step={step} elapsed={elapsed:.1f}s run_dir={run_dir}")
 
