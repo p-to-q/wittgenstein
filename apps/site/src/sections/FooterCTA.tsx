@@ -1,3 +1,6 @@
+const LAUNCH_DOC_HREF =
+  "https://github.com/p-to-q/wittgenstein/blob/main/docs/modality-launch-surface.md";
+
 export default function FooterCTA() {
   return (
     <section className="py-20 px-4 border-t border-border bg-secondary" id="footer-cta">
@@ -10,17 +13,20 @@ export default function FooterCTA() {
           >
             Back to overview
           </a>
-          <span
-            className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-medium bg-card text-secondary-foreground border border-transparent shadow-[0_0_0_1px_hsl(var(--ring))] cursor-default"
-            title="In repository"
+          <a
+            href={LAUNCH_DOC_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-medium bg-card text-secondary-foreground border border-transparent shadow-[0_0_0_1px_hsl(var(--ring))] hover:bg-background hover:shadow-[0_0_0_1px_hsl(var(--stone))] transition-colors"
+            title="Open the launch surface doc on GitHub"
           >
             docs/modality-launch-surface.md
-          </span>
-          <span
-            className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-medium bg-card text-secondary-foreground border border-transparent shadow-[0_0_0_1px_hsl(var(--ring))] cursor-default"
-            title="From monorepo root"
-          >
-            pnpm launch:check
+          </a>
+        </div>
+
+        <div className="mb-12">
+          <span className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-medium bg-card text-secondary-foreground border border-transparent shadow-[0_0_0_1px_hsl(var(--ring))]">
+            <span className="font-mono text-[0.8125rem]">pnpm launch:check</span>
           </span>
         </div>
 

@@ -9,7 +9,7 @@ const toolChain = [
     name: "codec.registry",
     active: false,
     description:
-      "Dispatches per-modality WittgensteinCodec implementations through one shared contract.",
+      "Dispatches per-modality codecs through one shared `Codec<Req, Art>.produce()` contract.",
   },
   {
     name: "artifacts.replay",
@@ -28,7 +28,7 @@ export default function AgenticSystemSection() {
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
           The LLM plans; the harness owns routing, schema injection, validation, and traces.
           Modality codecs sit behind a shared contract surface so new file types can ship without
-          pretending the backbone has become a giant native VLM.
+          pretending the backbone has become a giant native multimodal model.
         </p>
 
         <div className="card-border p-6">

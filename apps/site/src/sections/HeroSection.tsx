@@ -2,7 +2,7 @@ import { GitFork } from "lucide-react";
 
 import { HeroAnimatedTitle } from "@/components/HeroAnimatedTitle";
 
-const GITHUB_REPO_HREF = "https://github.com/wittgenstein-cli/wittgenstein";
+const GITHUB_REPO_HREF = "https://github.com/p-to-q/wittgenstein";
 
 export default function HeroSection() {
   return (
@@ -12,8 +12,8 @@ export default function HeroSection() {
         A <strong className="text-foreground font-semibold">harness-first modality layer</strong>{" "}
         for text-first LLMs. The model stays a planner; modality contracts, codecs, seed expanders,
         frozen decoders, and deterministic runtimes turn structured outputs into real files such as{" "}
-        <strong className="text-foreground font-semibold">PNG, WAV, HTML, JSON,</strong> and, once
-        the video branch is fully wired back in,{" "}
+        <strong className="text-foreground font-semibold">PNG, WAV, HTML, JSON,</strong> and, on
+        machines with the local video renderer installed,{" "}
         <strong className="text-foreground font-semibold">MP4</strong>.
       </p>
       <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
