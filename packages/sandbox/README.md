@@ -9,7 +9,7 @@ The scaffold does not need a real sandbox today, but the repo reserves a stable 
 ## Stability Promise
 
 - `execProgram()` is the public seam.
-- The current implementation throws `NotImplementedError`-style behavior on purpose.
+- The current implementation throws a `NotImplementedError`-style failure on purpose.
 - Future versions may swap the backend implementation without changing the call shape.
 
 Reserved boundary for untrusted-code execution.

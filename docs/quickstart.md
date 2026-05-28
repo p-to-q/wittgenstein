@@ -130,9 +130,10 @@ python3 -m polyglot.cli sensor "treadmill walk, 3-axis accelerometer" --out /tmp
 
 ## What ran
 
-Every command above produces a real file. No mocks, no placeholders, no "I'll implement this
-later." If a command fails, it fails loudly with a structured error and a manifest recording
-the failure.
+Every command above produces a real file artifact (written to disk) and a run manifest. Some
+modalities may emit deterministic placeholder outputs on purpose (and mark `quality.partial`)
+until their frozen decoder bridges land — this is how the scaffold stays runnable without
+claiming capabilities it does not yet ship.
 
 For the full status of what's a real renderer vs what's a typed stub, see
 [`implementation-status.md`](implementation-status.md).
