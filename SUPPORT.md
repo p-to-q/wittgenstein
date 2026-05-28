@@ -19,8 +19,8 @@ get answered.
 
 Two minutes here save us both an hour later:
 
-1. **Run `pnpm doctor`** (TypeScript surface) or `python3 -m polyglot.cli --help`
-   (Python surface) — confirms the toolchain loads at all.
+1. **Run `pnpm --filter @wittgenstein/cli exec wittgenstein doctor`** (TypeScript surface) or
+   `python3 -m polyglot.cli --help` (Python surface) — confirms the toolchain loads at all.
 2. **Search existing issues**, including closed ones. Early-stage projects repeat their own
    mistakes fast.
 3. **If a command failed**, attach the manifest from `artifacts/runs/<id>/manifest.json` —

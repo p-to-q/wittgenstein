@@ -14,7 +14,7 @@ Reference: `README.md`
 
 ### 1.1 Monorepo and toolchain
 
-- Package manager: `pnpm` workspace (`workspaces: ["packages/*", "apps/*"]`)
+- Package manager: `pnpm` workspace (`pnpm-workspace.yaml`)
 - Runtime baseline: Node `>=20.19.0`
 - Language: TypeScript + zod contracts
 - Root scripts:
