@@ -87,5 +87,11 @@ Older tags are not patched; upgrade to `main` or the latest release for fixes.
 ## Dependencies
 
 The repo ships with a pinned `pnpm-lock.yaml`. CI installs with `--frozen-lockfile` to
-prevent silent upgrades. Dependency audits are advisory today; a CI step will land in a
-future phase (see `docs/roadmap.md`).
+prevent silent upgrades.
+
+Dependency review is enforced on pull requests via GitHub's Dependency Review Action:
+
+- blocks new **HIGH / CRITICAL** advisories introduced by the PR
+- blocks new **GPL-3.0 / AGPL-3.0** dependencies (Apache-2.0 incompatible)
+
+See `.github/workflows/ci.yml` (`Dependency review (PR)`).
