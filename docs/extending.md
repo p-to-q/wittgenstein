@@ -104,7 +104,12 @@ and failure modes.
 
 ### Step 8. Register in CODEOWNERS
 
-Add the codec path to `.github/CODEOWNERS` with the owning team.
+Add the codec path to `.github/CODEOWNERS` with its owning reviewer(s).
+
+Notes:
+
+- The repo currently routes by GitHub usernames (and a small maintainer roster), not org teams.
+- If you want team-based routing, provision the team in the GitHub org first, then add it to CODEOWNERS in a dedicated commit.
 
 ---
 
