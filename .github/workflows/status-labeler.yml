@@ -119,6 +119,47 @@ jobs:
               });
             }
 
+            function pathMatchesPattern(path, pattern) {
+              if (pattern.endsWith("/**")) {
+                const prefix = pattern.slice(0, -3);
+                return path === prefix || path.startsWith(`${prefix}/`);
+              }
+              return path === pattern;
+            }
+
+            async function prTouchesAnyPath(prNumber, patterns) {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: prNumber,
+                per_page: 100,
+              });
+
+              const paths = files.map((f) => f.filename);
+              return paths.some((path) => patterns.some((pattern) => pathMatchesPattern(path, pattern)));
+            }
+
+            function shouldEscalateNeedsMlSpecialistFromText(pr) {
+              const text = `${pr.title || ""}\n${pr.body || ""}`;
+              return /Visual Seed Code|\\bVSC\\b|SeedExpander|decoder bridge/i.test(text);
+            }
+
+            async function addNeedsMlSpecialistIfApplicable(pr) {
+              if (pr.draft) return;
+              if (!shouldEscalateNeedsMlSpecialistFromText(pr)) return;
+
+              const touchesImageCriticalPaths = await prTouchesAnyPath(pr.number, [
+                "packages/codec-image/**",
+                "packages/core/src/codecs/image.ts",
+                "docs/codecs/image.md",
+                "data/image_adapter/**",
+                "python/image_adapter/**",
+              ]);
+
+              if (!touchesImageCriticalPaths) return;
+              await addLabels(pr.number, ["needs-ml-specialist"]);
+            }
+
             function sizeFromPullRequest(pr) {
               const changedLines = pr.additions + pr.deletions;
               if (pr.changed_files <= 3 && changedLines <= 80) return "size/s";
@@ -344,6 +385,7 @@ jobs:
             if (context.eventName === "pull_request_target") {
               const pr = context.payload.pull_request;
               await addLabels(pr.number, labelsFromText(pr.title || ""));
+              await addNeedsMlSpecialistIfApplicable(pr);
               await addPullRequestSizeIfMissing(pr);
 
               if (context.payload.action === "closed") {
@@ -382,6 +424,7 @@ jobs:
                 const pr = await pullRequestPayload(prNumber);
                 if (pr) {
                   await addLabels(pr.number, labelsFromText(pr.title || ""));
+                  await addNeedsMlSpecialistIfApplicable(pr);
                   await addPullRequestSizeIfMissing(pr);
                   await setStatus(pr.number, await statusForPullRequest(pr.number, pr));
                   for (const issue_number of await closingReferencedOpenIssues(pr)) {
