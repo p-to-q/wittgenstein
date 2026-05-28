@@ -78,6 +78,7 @@ IMAGE_PROMPTS = [
 EXPECTED_TOKENS = 32
 TOKEN_MIN = 0
 TOKEN_MAX = 4095
+REASONING_FIELDS = ("spatialPlan", "colorPlan", "depthPlan", "tokenStrategy")
 
 
 def positive_int(value: str) -> int:
@@ -154,7 +155,17 @@ def extract_reasoning(response: str) -> dict[str, str] | None:
             lines = text.split("\n")
             text = "\n".join(lines[1:-1])
         data = json.loads(text)
-        return data.get("semantic", {}).get("reasoning")
+        reasoning = data.get("semantic", {}).get("reasoning")
+        if not isinstance(reasoning, dict):
+            return None
+
+        extracted: dict[str, str] = {}
+        for field in REASONING_FIELDS:
+            value = reasoning.get(field)
+            if not isinstance(value, str) or not value.strip():
+                return None
+            extracted[field] = value
+        return extracted
     except (json.JSONDecodeError, KeyError, ValueError, TypeError):
         return None
 
