@@ -190,8 +190,12 @@ consistency, and motion fidelity. More interpretable than FVD alone.
 
 ### Current status
 
-Video codec is a typed stub. No local proxy is defined until the MP4 renderer lands.
-This section will be the first place upgraded once that branch merges.
+Video codec ships deterministic HTML composition output, plus an opt-in local MP4 renderer
+when `WITTGENSTEIN_HYPERFRAMES_RENDER=1` is set (the renderer depends on Chrome/Chromium +
+ffmpeg being available on the host).
+
+This section is still intentionally light: video benchmarks that assume a neural generator
+(FVD, Video-Bench) are not meaningful for the current composition-first surface.
 
 ---
 
