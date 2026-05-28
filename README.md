@@ -362,7 +362,8 @@ for the full developer setup.
 See [`docs/implementation-status.md`](docs/implementation-status.md) for component-level detail.
 Summary: sensor, audio, polyglot-mini image fallback, and the Python image code-as-painter
 path all ship today; the TS neural image codec has real scene + adapter + placeholder
-latents and is waiting on a frozen VQ decoder bridge; video is a typed stub.
+latents and is waiting on a frozen VQ decoder bridge; video ships HTML composition output
+by default with an opt-in local MP4 renderer.
 
 **What's next.** Doctrine is locked; the active workstream is the Codec Protocol v2 port
 across all modalities, sequenced in [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md)
