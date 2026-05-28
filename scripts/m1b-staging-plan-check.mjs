@@ -21,7 +21,11 @@ const stagedPlanNotChanged = stageEntries.filter(
 const doNotStageStillChanged = doNotStageEntries.filter((path) => changedSet.has(path));
 
 const result = {
-  ok: missingOnDisk.length === 0 && unclassified.length === 0,
+  ok:
+    missingOnDisk.length === 0 &&
+    unclassified.length === 0 &&
+    stagedPlanNotChanged.length === 0 &&
+    doNotStageStillChanged.length === 0,
   stageEntries: stageEntries.length,
   changedFiles: changedFiles.length,
   missingOnDisk,
