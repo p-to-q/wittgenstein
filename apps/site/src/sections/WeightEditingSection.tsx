@@ -57,7 +57,7 @@ export default function WeightEditingSection() {
           <p className="text-sm text-muted-foreground mb-6">
             The percentages below are directional packaging signals, not release-gating numbers.
             They show where the shared runtime is already stable and where some modality surfaces
-            are still catching up.
+            still rely on opt-in local toolchains or unfinished closeout work.
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -118,7 +118,7 @@ export default function WeightEditingSection() {
               <div className="mt-4 flex items-center gap-2 text-sm">
                 <span className="text-[hsl(var(--muted-green))] font-mono">pnpm ok</span>
                 <span className="text-border">|</span>
-                <span className="text-primary font-mono">benchmark</span>
+                <span className="text-primary font-mono">checks</span>
               </div>
             </div>
           </div>

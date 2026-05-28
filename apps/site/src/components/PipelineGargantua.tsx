@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-/** Original look (550). Perf comes mainly from not rendering off-screen / in background. */
-const RAYMARCH_STEPS = 550;
+/** Slightly trimmed from the original 550 to keep the homepage demo smoother. */
+const RAYMARCH_STEPS = 500;
 
 const vertexShader = `
   varying vec2 vUv;
@@ -67,8 +67,8 @@ const fragmentShader = `
     float angle = atan(p.z, p.x) + u_time * (1.2 / sqrt(r));
     vec3 pRot = vec3(r * 2.0, p.y * 12.0, angle * 18.0);
 
-    float pNoise = pow(noise3D(pRot * 1.8), 16.0) * 120.0;
-    pNoise += pow(noise3D(pRot * 4.0 + u_time * 0.1), 24.0) * 180.0;
+    float pNoise = pow(noise3D(pRot * 1.8), 17.5) * 88.0;
+    pNoise += pow(noise3D(pRot * 4.0 + u_time * 0.1), 27.0) * 128.0;
 
     return pNoise * diskLayer * densityMask;
   }
@@ -166,7 +166,7 @@ const fragmentShader = `
       float particleAmount = getSuspendedParticles(p, r);
       if(particleAmount > 0.0) {
         vec3 pCol = getParticleColor(r, vUv, p);
-        finalCol += pCol * particleAmount * transmittance * 0.0075;
+        finalCol += pCol * particleAmount * transmittance * 0.0061;
       }
       vec3 ship = getShipColor(p, transmittance);
       finalCol += ship;
@@ -197,9 +197,9 @@ const fragmentShader = `
       if (r > 85.0) {
         vec3 starCoord = v * 320.0;
         float starSeed = hash(floor(starCoord.xy + starCoord.z));
-        float stars = pow(noise3D(starCoord), 45.0) * 1.5;
+        float stars = pow(noise3D(starCoord), 52.0) * 1.1;
         float twinkle = mix(0.3, 1.0, sin(u_time * (2.0 + starSeed * 4.0) + starSeed * 10.0) * 0.5 + 0.5);
-        finalCol += transmittance * vec3(stars * 0.8, stars * 0.9, stars * 1.1) * twinkle;
+        finalCol += transmittance * vec3(stars * 0.78, stars * 0.88, stars * 1.02) * twinkle;
         break;
       }
       if (transmittance < 0.01) break;
@@ -220,7 +220,7 @@ function getPixelRatioCap(): number {
   const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
   if (saveData || coarse) return Math.min(dpr, 1);
   // Match typical crispness on Retina; cap avoids extreme mobile/webview DPR blow-ups.
-  return Math.min(dpr, 2);
+  return Math.min(dpr, 1.75);
 }
 
 /** Same vertical inset idea as IntersectionObserver rootMargin — keep logic in one place. */
@@ -265,7 +265,9 @@ export default function PipelineGargantua({ className }: PipelineGargantuaProps)
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.045;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.22;
 
     const geometry = new THREE.PlaneGeometry(2, 2);
     const uniforms = {

@@ -49,7 +49,8 @@ export default function HumanReadabilitySection() {
             aria-hidden
           >
             <span className="text-[hsl(var(--coral))]">User prompt</span>
-            {"\n    →  schema preamble + image contract"}
+            {"\n    →  schema preamble + "}
+            <span className="text-[hsl(var(--coral))]">Visual Seed Code (VSC)</span>-bearing image contract
             {"\n          →  "}
             <span className="text-[hsl(var(--coral))]">LLM</span>
             {" (planner)"}
@@ -58,10 +59,10 @@ export default function HumanReadabilitySection() {
             {" (zod)"}
             {"\n                      →  "}
             <span className="text-[hsl(var(--coral))]">inspect</span>
-            {" (semantic, optional)"}
+            {" (semantic IR, optional)"}
             {"\n                            →  "}
             <span className="text-[hsl(var(--coral))]">expand</span>
-            {" (seedCode / coarse code)"}
+            {" (Visual Seed Code / coarse VQ hints)"}
             {"\n                                  →  "}
             <span className="text-[hsl(var(--coral))]">adapter</span>
             {" (seed expander)"}
@@ -104,8 +105,8 @@ export default function HumanReadabilitySection() {
             Illustrative only: these bars show relative scaffold depth, not benchmarked release
             scores. Runtime and shared contracts are ahead of some finished renderers. Image already
             centers on Visual Seed Code plus frozen-decoder wiring; sensor expands deterministic
-            operators; audio renders local WAV artifacts; video still waits on the fuller MP4 branch
-            to be merged back into the main flow.
+            operators; audio renders local WAV artifacts; video already ships HTML and can opt into
+            local MP4 export when the required renderer toolchain is present.
           </p>
         </div>
       </div>

@@ -9,7 +9,7 @@ const codecs = [
   },
   {
     label: "Video",
-    body: "Composition-first IR plus a HyperFrames-shaped render seam. The structure is in place; the fuller MP4 path is still being merged.",
+    body: "Composition-first IR plus a HyperFrames-shaped render seam. HTML output ships today; repo-owned MP4 export is local and opt-in rather than a universal default path.",
   },
   {
     label: "Sensor",
@@ -25,13 +25,14 @@ export default function FactualChecksSection() {
         <h2 className="text-4xl md:text-5xl font-serif mt-2 mb-4 lowercase">codecs</h2>
         <p className="text-muted-foreground text-sm max-w-xl mb-10 leading-relaxed">
           Each modality is an isolated package sharing the{" "}
-          <strong className="text-foreground font-semibold">WittgensteinCodec</strong>-shaped
+          <strong className="text-foreground font-semibold">Codec&lt;Req, Art&gt;</strong>-shaped
           contract through shared schemas, manifests, and runtime conventions.
         </p>
         <p className="text-muted-foreground text-sm max-w-2xl mb-10 leading-relaxed">
           In practice, that means each codec can move at its own speed while still fitting the same
           harness. Image is the strictest and most research-shaped path; audio and sensor already
-          produce useful local outputs; video is waiting for the fuller MP4 path to land.
+          produce useful local outputs; video already ships HTML and can opt into local MP4 export
+          when the machine has the required renderer toolchain.
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4">

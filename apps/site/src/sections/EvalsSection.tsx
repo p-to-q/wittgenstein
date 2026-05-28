@@ -23,9 +23,9 @@ const modalityChecks = [
   },
   {
     name: "Runnable surfaces",
-    subtitle: "image · audio · sensor",
+    subtitle: "image · audio · sensor · video html",
     description:
-      "Lightweight smoke checks track the currently runnable local paths while video catches up.",
+      "Lightweight smoke checks track the currently runnable local paths, while heavier video MP4 and benchmark surfaces stay opt-in.",
     metrics: [
       { label: "image editorial", value: 85, tone: "accent" as const },
       { label: "tts launch", value: 85, tone: "accent" as const },
@@ -58,7 +58,8 @@ export default function EvalsSection() {
           Contract-shaped checks for schemas, decoders, and runnable artifact paths. Every real run
           still leaves traces under <span className="font-mono text-xs">artifacts/runs/</span>. The
           percentages below are directional product surfaces, not release receipts; the ground truth
-          still lives in manifests, tests, and docs.
+          still lives in manifests, tests, and docs, and some heavier paths remain machine-local or
+          opt-in by design.
         </p>
 
         <div className="grid md:grid-cols-3 gap-6 mb-10">

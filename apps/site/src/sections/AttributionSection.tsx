@@ -1,5 +1,14 @@
 const promptTokens = ["Create", "a", "traceable", "PNG", "artifact", "from", "text"];
 const responseTokens = ["semantic", "seedCode", "decoder", "PNG", "manifest"];
+const vscTokens = [
+  "r81",
+  "bw4",
+  "q17·23",
+  "f12",
+  "x41",
+  "n2",
+  "z57m31",
+];
 
 export default function AttributionSection() {
   return (
@@ -49,6 +58,35 @@ export default function AttributionSection() {
                   key={i}
                   className={`px-2 py-1 text-sm rounded-md border shadow-[0_0_0_1px_hsl(var(--ring))] ${
                     ["semantic", "seedCode", "decoder", "manifest"].includes(token)
+                      ? "bg-primary/15 text-foreground border-primary/35"
+                      : "bg-secondary text-secondary-foreground"
+                  }`}
+                >
+                  {token}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex justify-center my-6 text-muted-foreground">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+            </div>
+
+            <div className="text-xs font-mono text-muted-foreground mb-4">visual seed code (vsc)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {vscTokens.map((token, i) => (
+                <span
+                  key={i}
+                  className={`px-2 py-1 text-sm rounded-md border shadow-[0_0_0_1px_hsl(var(--ring))] ${
+                    i < 2 || i === 4 || i === 6
                       ? "bg-primary/15 text-foreground border-primary/35"
                       : "bg-secondary text-secondary-foreground"
                   }`}
