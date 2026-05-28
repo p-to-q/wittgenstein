@@ -44,18 +44,13 @@ def load_weights(path: Path) -> tuple[MlpAdapter, dict]:
     return m, raw
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", type=Path, required=True)
-    parser.add_argument("--data", type=Path, required=True)
-    args = parser.parse_args()
-
-    model, meta = load_weights(args.weights)
+def evaluate_token_metrics(weights: Path, data: Path) -> dict:
+    model, meta = load_weights(weights)
     codebook_size = int(meta["codebookSize"])
     max_idx = max(0, codebook_size - 1)
 
     rows = []
-    with args.data.open(encoding="utf-8") as f:
+    with data.open(encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -81,7 +76,25 @@ def main() -> None:
 
     mae = total_abs / max(1, count)
     acc = total_exact / max(1, count)
-    print(f"samples={len(rows)} token_mae={mae:.4f} token_exact_rate={acc:.4f}")
+    return {
+        "samples": len(rows),
+        "token_mae": float(mae),
+        "token_exact_rate": float(acc),
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--weights", type=Path, required=True)
+    parser.add_argument("--data", type=Path, required=True)
+    args = parser.parse_args()
+
+    metrics = evaluate_token_metrics(args.weights, args.data)
+    print(
+        f"samples={metrics['samples']} "
+        f"token_mae={metrics['token_mae']:.4f} "
+        f"token_exact_rate={metrics['token_exact_rate']:.4f}"
+    )
 
 
 if __name__ == "__main__":

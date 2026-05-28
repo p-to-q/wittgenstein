@@ -18,6 +18,7 @@ Apple Silicon: PyTorch uses MPS when available.
 | `train.py` | trains MLP (PyTorch), writes `adapter_mlp.json` |
 | `train_numpy.py` | same JSON contract, **pure NumPy + Adam** (no torch) — good for CI / parity with polyglot-style loops |
 | `eval_metrics.py` | token MAE / exact-match rate on a held-out file |
+| `eval_all.py` | one-shot runner: token metrics + spectrum health checks |
 | `spectrum_check.py` | singular-value spectrum + effective-rank health checks for adapter weights (detect rank-collapse) |
 | `build_natural_dataset.py` | optional: generate or download a larger, category-bounded dataset |
 
@@ -49,4 +50,10 @@ Run:
 
 ```bash
 python3 spectrum_check.py --weights /absolute/path/to/adapter_mlp.json
+```
+
+Or run the bundle (token metrics + spectrum) in one command:
+
+```bash
+python3 eval_all.py --weights /absolute/path/to/adapter_mlp.json --data /absolute/path/to/encoded.jsonl
 ```
