@@ -54,11 +54,27 @@ process.once("uncaughtException", (error) => {
   throw error;
 });
 
-/** Per-file patterns that MUST NOT appear in any published tarball. */
+/**
+ * Per-file patterns that MUST NOT appear in any published tarball.
+ *
+ * Covers the dev / research / training surfaces that the Apache-2.0 TS
+ * packages must never bundle, plus heavy model-weight extensions. The
+ * directory list mirrors the delivery doctrine
+ * (`docs/research/2026-05-13-delivery-and-componentization.md`): a user
+ * running `npm install @wittgenstein/cli` pulls runtime code only, never
+ * training/research Python, benchmark harnesses, examples, or weights.
+ */
 const FORBIDDEN_PATTERNS = [
   /^research\//,
-  /^bench\//,
+  // NOTE: the dir is `benchmarks/`, not `bench/` — the old `^bench\/`
+  // pattern silently never matched. Fixed to the real directory name.
+  /^benchmarks\//,
   /^examples\//,
+  // Python training / research surfaces. `python/` is the image-adapter
+  // trainer (added 2026-05 via the M1B adapter work); `polyglot-mini/` is
+  // the Python rapid-prototype surface. Neither ships in the TS tarball.
+  /^python\//,
+  /^polyglot-mini\//,
   /\.pt$/,
   /\.ckpt$/,
   /\.safetensors$/,
@@ -311,7 +327,7 @@ async function main() {
 
   if (leaks.length === 0) {
     process.stdout.write(
-      `✓ ${packages.length} publishable package(s) clean — no research/, bench/, examples/, large binaries.\n`,
+      `✓ ${packages.length} publishable package(s) clean — no research/, benchmarks/, examples/, python/, polyglot-mini/, weights, or large binaries.\n`,
     );
     process.exit(0);
   }
