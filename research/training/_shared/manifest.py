@@ -95,7 +95,7 @@ class EvalSnapshot:
 
     eval_set: str  # e.g. "imagenet-val-50k"
     eval_set_sha256: str
-    metrics: dict[str, float] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     eval_step: int = -1  # which training step the eval ran AT
     eval_wall_clock_s: float = 0.0
 

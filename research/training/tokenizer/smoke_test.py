@@ -54,6 +54,26 @@ def main() -> int:
     if not manifests:
         print("[smoke] FAIL: no manifest written")
         return 1
+    acceptance = summary.get("acceptance", {})
+    if summary.get("final_step") != cfg.max_steps:
+        print(
+            f"[smoke] FAIL: final_step={summary.get('final_step')} expected={cfg.max_steps}"
+        )
+        return 1
+    if acceptance.get("manifest_written") is not True:
+        print("[smoke] FAIL: final manifest missing from acceptance summary")
+        return 1
+    if acceptance.get("final_checkpoint_written") is not True:
+        print("[smoke] FAIL: final checkpoint missing from acceptance summary")
+        return 1
+    if acceptance.get("used_synthetic_data") is not True:
+        print("[smoke] FAIL: smoke run did not report synthetic dataset usage")
+        return 1
+    if acceptance.get("dataset_corrupt_count", 0) != 0:
+        print(
+            f"[smoke] FAIL: corrupt_count={acceptance.get('dataset_corrupt_count')} during smoke"
+        )
+        return 1
     print(f"[smoke] PASS: {len(manifests)} manifest(s) at {run_dir / 'ckpts'}")
     return 0
 
