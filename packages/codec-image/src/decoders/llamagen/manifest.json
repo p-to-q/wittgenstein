@@ -1,0 +1,11 @@
+{
+  "family": "llamagen",
+  "repoId": "FoundationVision/LlamaGen",
+  "revision": "81e41139272c038412e4fe8f1c52a51ebbf95b8b",
+  "weightsFilename": "llamagen_vq_ds16_decoder.onnx",
+  "weightsSha256": "fd6800b3df8193968656e3e6b01ab48bd8899ebede829dfd1166da5f5b9f9389",
+  "license": {
+    "code": "MIT",
+    "weights": "permissive"
+  }
+}
