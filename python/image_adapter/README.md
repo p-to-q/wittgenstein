@@ -18,6 +18,7 @@ Apple Silicon: PyTorch uses MPS when available.
 | `train.py` | trains MLP (PyTorch), writes `adapter_mlp.json` |
 | `train_numpy.py` | same JSON contract, **pure NumPy + Adam** (no torch) — good for CI / parity with polyglot-style loops |
 | `eval_metrics.py` | token MAE / exact-match rate on a held-out file |
+| `spectrum_check.py` | singular-value spectrum + effective-rank health checks for adapter weights (detect rank-collapse) |
 | `build_natural_dataset.py` | optional: generate or download a larger, category-bounded dataset |
 
 ## Environment (runtime)
@@ -39,3 +40,13 @@ export WITTGENSTEIN_IMAGE_ADAPTER_LEGACY_PATH=/absolute/path/to/adapter_mlp_old.
 ## MiniMax `providerLatents`
 
 If the text API returns validated `ImageLatentCodes` JSON under `providerLatents` in the scene spec, the harness **skips** this MLP and decodes those tokens directly. The MLP is for the common case: **spec-only** from the LLM.
+
+## Spectrum health checks (M1B due diligence)
+
+Singular-value spectrum and effective-rank are not “quality scores”. They are cheap probes for **rank collapse / low-rank bottlenecks** in adapter/projector training.
+
+Run:
+
+```bash
+python3 spectrum_check.py --weights /absolute/path/to/adapter_mlp.json
+```
