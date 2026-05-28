@@ -18,7 +18,7 @@ Current maintainer pointers:
 - Engineering source of truth: [`exec-plans/active/codec-v2-port.md`](exec-plans/active/codec-v2-port.md)
 - Current M1B owner-review hub: [Issue #435](https://github.com/p-to-q/wittgenstein/issues/435)
 - Current decoder-delivery decision: [Issue #402](https://github.com/p-to-q/wittgenstein/issues/402)
-- Current truth-surface cleanup tracker: [Issue #436](https://github.com/p-to-q/wittgenstein/issues/436)
+- Current governance / re-audit tracker: [Issue #439](https://github.com/p-to-q/wittgenstein/issues/439)
 
 ## Then understand the thesis and governance
 
