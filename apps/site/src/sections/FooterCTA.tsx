@@ -22,11 +22,8 @@ export default function FooterCTA() {
           >
             docs/modality-launch-surface.md
           </a>
-        </div>
-
-        <div className="mb-12">
           <span className="inline-flex items-center px-5 py-2.5 rounded-md text-sm font-medium bg-card text-secondary-foreground border border-transparent shadow-[0_0_0_1px_hsl(var(--ring))]">
-            <span className="font-mono text-[0.8125rem]">pnpm launch:check</span>
+            pnpm launch:check
           </span>
         </div>
 
