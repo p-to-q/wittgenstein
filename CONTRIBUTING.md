@@ -10,7 +10,7 @@ valid as wiring a new codec. This page tells you where to start and what we look
 # clone your fork (see branch workflow below)
 git clone git@github.com:<you>/wittgenstein.git
 cd wittgenstein
-git remote add upstream https://github.com/Moapacha/wittgenstein.git
+git remote add upstream https://github.com/p-to-q/wittgenstein.git
 
 # TypeScript side
 nvm use            # installs Node 20.19 if you use nvm

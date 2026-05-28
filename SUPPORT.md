@@ -8,11 +8,11 @@ get answered.
 
 | You want to... | Go here |
 |---|---|
-| Report a bug (crash, wrong output, broken command) | [Open an issue → Bug report](https://github.com/Moapacha/wittgenstein/issues/new?template=bug.md) |
-| Suggest a feature or new modality | [Open an issue → Feature request](https://github.com/Moapacha/wittgenstein/issues/new?template=feature.md) |
-| Ask "how do I...", "why does X..." | [Open an issue → Question](https://github.com/Moapacha/wittgenstein/issues/new?template=question.md) |
-| Give feedback on an experimental part (⚠️) | [Open an issue → Experimental feedback](https://github.com/Moapacha/wittgenstein/issues/new?template=experimental-feedback.md) |
-| Report a security vulnerability | Private advisory via [the "Report a vulnerability" button](https://github.com/Moapacha/wittgenstein/security/advisories/new) — **do not open a public issue** |
+| Report a bug (crash, wrong output, broken command) | [Open an issue → Bug report](https://github.com/p-to-q/wittgenstein/issues/new?template=bug.md) |
+| Suggest a feature or new modality | [Open an issue → Feature request](https://github.com/p-to-q/wittgenstein/issues/new?template=feature.md) |
+| Ask "how do I...", "why does X..." | [Open an issue → Question](https://github.com/p-to-q/wittgenstein/issues/new?template=question.md) |
+| Give feedback on an experimental part (⚠️) | [Open an issue → Experimental feedback](https://github.com/p-to-q/wittgenstein/issues/new?template=experimental-feedback.md) |
+| Report a security vulnerability | Private advisory via [the "Report a vulnerability" button](https://github.com/p-to-q/wittgenstein/security/advisories/new) — **do not open a public issue** |
 | Propose an architectural change | Draft a PR that updates both the code and an ADR under `docs/adrs/` |
 
 ## Before you open an issue
@@ -48,6 +48,6 @@ If you want the fastest path to a resolved issue:
 
 ## Community
 
-- Project repo: <https://github.com/Moapacha/wittgenstein>
+- Project repo: <https://github.com/p-to-q/wittgenstein>
 - Discussions: we haven't enabled GitHub Discussions yet; issues are the primary channel
   until volume warrants a separate space.
