@@ -43,9 +43,5 @@ PN = "PN"
 FSQ = "FSQ"
 LoRA = "LoRA"
 SafeTensors = "SafeTensors"
-# `nin_shortcut` is the canonical VQGAN / taming-transformers ResnetBlock
-# identifier (network-in-network shortcut conv). typos extracts the `nin`
-# sub-token and suggests inn/min/bin/nine; allowlist it so vendored
-# VQGAN-class tokenizer code (research/training/tokenizer/, M1B Phase 1)
-# passes the spelling gate. See PR #493.
+# typos extracts the sub-token `nin` from vendored upstream `nin_shortcut`.
 nin = "nin"
