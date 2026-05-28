@@ -11,6 +11,9 @@ Wittgenstein is designed to be installable and skill-friendly, not just a local 
 
 Maintainers:
 
+- Publish owner(s): `@Jah-yee`, `@Moapacha` (CODEOWNERS maintainer pair)
+- Image/training specialist reviewer: `@koriyoshi2041` (for `needs-ml-specialist` escalations; see `docs/labels.md`)
+
 **Do not run `npm publish` from the repo root** — the root package is `private` and you will get `EPRIVATE`, and npm may try to pack the whole tree.
 
 From the **monorepo root**:
