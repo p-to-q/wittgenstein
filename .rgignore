@@ -1,0 +1,7 @@
+# ripgrep ignore file.
+#
+# Purpose: keep repo-wide scans usable by default. The paths below contain large
+# downloaded training datasets that are intentionally gitignored but may still
+# exist in local checkouts.
+
+polyglot-mini/train/coco/*.json
