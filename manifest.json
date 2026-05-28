@@ -1,0 +1,25 @@
+{
+  "created": "2026-05-28",
+  "package": "wittgenstein_closeout_docs_2026-05-28",
+  "file_count": 18,
+  "files": [
+    "00-README.md",
+    "00-document-decision-ledger.md",
+    "SOURCES.md",
+    "docs/acceptance/m1b-image.md",
+    "docs/acceptance/m4-video-renderer.md",
+    "docs/evals/image-quality-ladder.md",
+    "docs/failure-receipts/m1b-image.md",
+    "docs/history/image-route-evolution.md",
+    "docs/model-cards/llamagen-frozen-vq-v0.md",
+    "docs/model-cards/witt-vqgan-tokenizer.md",
+    "docs/release/closeout-pr-template.md",
+    "docs/release/distribution-guide.md",
+    "docs/release/m1b-closeout-ledger.md",
+    "docs/research/2026-05-28-m1b-ml-review-checklist.md",
+    "docs/research/2026-05-28-vsc-emission-validation.md",
+    "docs/research/bibliography.md",
+    "docs/research/prior-work-map.md",
+    "docs/research/seed-length-sweep-report.md"
+  ]
+}
