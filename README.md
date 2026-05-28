@@ -182,9 +182,9 @@ agents; current implementation guidance lives in the codec-v2 plan and agent gui
       ▼
   L2 CODEC / SPEC     LLM → structured Spec / Visual Seed Code contract
       │   ▲           image: Visual Seed Code (VSC) primary; Semantic IR / VQ hints optional
-      │               audio: AudioPlan / route spec
-      │               sensor: SignalSpec / operator spec
-      │               contracts may carry text / code / hybrid sections by modality
+      │   │           audio: AudioPlan / route spec
+      │   │           sensor: SignalSpec / operator spec
+      │   │           contracts may carry text / code / hybrid sections by modality
       │   └── schema preamble + codec playbook injected before the LLM call
       ▼
   L3 DECODER          code-bearing Spec/IR → real file (deterministic; never generative)
