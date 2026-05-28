@@ -47,6 +47,8 @@ The monorepo root [`vercel.json`](../../vercel.json) now builds `@wittgenstein/s
 
 This app also includes [`vercel.json`](./vercel.json) for a Vercel project whose root directory is set to `apps/site`. Vercel Git Source is still a manual follow-up step: the production project may still point at the old external repository ([`Jah-yee/wittgenstein-www`](https://github.com/Jah-yee/wittgenstein-www)) until a maintainer switches it.
 
+If PR checks show a failing `Vercel` status context with an authorization URL, track it under Issue #460 (repo ↔ Vercel integration), not as a regression in the PR.
+
 Supported Vercel configurations:
 
 - Root directory: repository root
