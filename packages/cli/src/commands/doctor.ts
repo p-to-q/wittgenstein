@@ -1,9 +1,13 @@
+import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
 import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
+
+const OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS = 10_000;
 
 type DoctorCheckStatus = "ok" | "missing" | "skipped";
 
@@ -21,6 +25,17 @@ interface VideoRenderDoctor {
   hyperframesCli: DoctorCheck;
   ffmpeg: DoctorCheck;
   chrome: DoctorCheck;
+}
+
+interface ImageDecoderDoctor {
+  status: "blocked";
+  decoderManifest: DoctorCheck;
+  onnxRuntime: DoctorCheck;
+  blockers: {
+    decoderDelivery: string;
+    gateCDeterminism: string;
+    gateDOnnxCpu: string;
+  };
 }
 
 export function registerDoctorCommand(program: Command): void {
@@ -48,6 +63,7 @@ export function registerDoctorCommand(program: Command): void {
             artifactsDir: config.runtime.artifactsDir,
             tiers: runtimeTierReadiness(),
             videoRender: checkVideoRenderDependencies(),
+            imageDecoder: checkImageDecoderReadiness(),
           },
           null,
           2,
@@ -204,4 +220,37 @@ function checkChromeCandidate(candidate: string): DoctorCheck {
   }
 
   return { status: "missing" };
+}
+
+function checkImageDecoderReadiness(): ImageDecoderDoctor {
+  return {
+    status: "blocked",
+    decoderManifest: {
+      status: "missing",
+      message:
+        "No decoder-family manifest has been blessed for the image install tier yet; #402 owns the decision.",
+    },
+    onnxRuntime: checkOptionalNodePeer("onnxruntime-node", "wittgenstein install image"),
+    blockers: {
+      decoderDelivery: "https://github.com/p-to-q/wittgenstein/issues/402",
+      gateCDeterminism: "https://github.com/p-to-q/wittgenstein/issues/334",
+      gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
+    },
+  };
+}
+
+function checkOptionalNodePeer(packageName: string, installHint: string): DoctorCheck {
+  const requireFromDoctor = createRequire(import.meta.url);
+  try {
+    const resolvedPath = requireFromDoctor.resolve(packageName);
+    return {
+      status: "ok",
+      path: resolvedPath,
+    };
+  } catch {
+    return {
+      status: "missing",
+      message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
+    };
+  }
 }

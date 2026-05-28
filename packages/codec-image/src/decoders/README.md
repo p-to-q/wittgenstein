@@ -52,10 +52,22 @@ infrastructure lands).
 
 - [`./types.ts`](./types.ts) — the bridge contract; locked surface every
   impl PR fills.
+- [`./manifest.ts`](./manifest.ts) — decoder-family manifest schema for #402.
+  It ties the upstream revision, pinned assets, capabilities, audit gates, and
+  blessed/candidate status together so decoder delivery is testable before
+  any bridge loads weights. `validateDecoderManifestAuditReceipts()` cross-checks
+  passed Gate C/D claims against the audit receipt emitted by
+  `research/validation/vqgan_gate_audit.py`; a manifest cannot be treated as
+  blessed on schema shape alone.
 - [`./runtime.ts`](./runtime.ts) — `ensureOnnxRuntime()` helper that every
   bridge calls before building an inference session. Turns missing-peer
   failures into typed `DECODER_RUNTIME_UNAVAILABLE` errors instead of
   leaking Node's `ERR_MODULE_NOT_FOUND`.
+- [`./preflight.ts`](./preflight.ts) — non-training readiness receipt for
+  future CLI / pipeline wiring. It checks decoder manifest selection, blessed
+  audit receipts, cached weights, and optional ONNX runtime availability, then
+  returns a stable `witt.image.decoder-preflight/v0.1` receipt instead of
+  loading a model or silently falling back.
 - [`./weights.ts`](./weights.ts) — cache/sha256/license helper for #402.
   It verifies already-cached bytes, supports injected fetchers for tests and
   future installers, and enforces ADR-0020 before any runtime session starts.
