@@ -1,12 +1,10 @@
-import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
 import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
-
-const OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS = 10_000;
 
 type DoctorCheckStatus = "ok" | "missing" | "skipped";
 
@@ -239,24 +237,17 @@ function checkImageDecoderReadiness(): ImageDecoderDoctor {
 }
 
 function checkOptionalNodePeer(packageName: string, installHint: string): DoctorCheck {
-  const result = spawnSync(
-    process.execPath,
-    ["-e", `console.log(require.resolve(${JSON.stringify(packageName)}))`],
-    {
-      encoding: "utf8",
-      timeout: OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS,
-    },
-  );
-
-  if (result.status === 0) {
+  try {
+    const require_ = createRequire(import.meta.url);
+    const resolved = require_.resolve(packageName);
     return {
       status: "ok",
-      path: firstOutputLine(result.stdout, result.stderr),
+      path: resolved,
+    };
+  } catch {
+    return {
+      status: "missing",
+      message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
     };
   }
-
-  return {
-    status: "missing",
-    message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
-  };
 }
