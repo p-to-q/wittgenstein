@@ -1,0 +1,25 @@
+{
+  "cpu_decode_seconds": 42.5,
+  "cpu_decode_seconds_all": [42.5, 41.9, 42.1],
+  "environment": {
+    "onnxruntime_version": "fixture",
+    "platform": "fixture",
+    "providers": ["CPUExecutionProvider"],
+    "python_version": "3.13.0"
+  },
+  "generated_at": "2026-05-26T00:00:00Z",
+  "inputs": {
+    "expected_output_shape": [256, 256, 3],
+    "input_dtype": "tensor(int64)",
+    "input_name": "tokens",
+    "input_shape": [1, 16, 16],
+    "onnx": "/fixture/decoder.onnx",
+    "onnx_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "token_grid": [16, 16]
+  },
+  "onnx_cpu_passed": false,
+  "output_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+  "output_shape": [128, 128, 3],
+  "sample_count": 3,
+  "schema_version": "m1b-gate-d-onnx-cpu-metrics.v0"
+}
