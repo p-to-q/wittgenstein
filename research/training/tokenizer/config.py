@@ -4,8 +4,8 @@ Pulls hyperparameters into a single dataclass that's snapshotted into the
 training manifest (so every checkpoint records exactly what config produced
 it). Override via CLI flags in train.py.
 
-Defaults follow research-program note §1.1 with adjustments for the
-qiyuan cluster (8× A800-80GB) — see `batch_size` doc below.
+Defaults follow research-program note §1.1 with adjustments for an
+8× A800-80GB node — see `batch_size` doc below.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ class TrainConfig:
 
     # Batch size:
     #   - LlamaGen recipe: 128 per-GPU at 256² on A100-80G is comfortable.
-    #   - 8× A800-80GB on qiyuan node1048 → effective 1024 with DDP, no grad
+    #   - 8× A800-80GB single node → effective 1024 with DDP, no grad
     #     accumulation. Matches the research-program §1.1 target.
     batch_size_per_gpu: int = 128
 
