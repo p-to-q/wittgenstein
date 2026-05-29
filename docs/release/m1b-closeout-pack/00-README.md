@@ -11,23 +11,30 @@ Wittgenstein now has a stronger text-first modality harness, a clearer manifest/
 
 ## Files in this pack
 
+### Included in this PR (PR 1)
+
 1. `00-document-decision-ledger.md` — why each document should exist, what it may claim, and what remains uncertain.
 2. `docs/history/image-route-evolution.md` — route history from early procedural PNG to VSC and frozen decoder.
 3. `docs/acceptance/m1b-image.md` — M1B acceptance gates.
 4. `docs/release/m1b-closeout-ledger.md` — PR/issue map for #457/#491/#492/#493/#455/#402/#507.
 5. `docs/research/2026-05-28-m1b-ml-review-checklist.md` — ML review checklist beyond singular-value intuition.
 6. `docs/research/2026-05-28-vsc-emission-validation.md` — VSC emission validation plan.
-7. `docs/evals/image-quality-ladder.md` — layered quality/eval ladder.
-8. `docs/research/seed-length-sweep-report.md` — pre-registered seed-length sweep template.
-9. `docs/model-cards/llamagen-frozen-vq-v0.md` — candidate model card skeleton.
-10. `docs/model-cards/witt-vqgan-tokenizer.md` — future own-trained tokenizer card template.
-11. `docs/failure-receipts/m1b-image.md` — M1B failure receipt taxonomy.
-12. `docs/acceptance/m4-video-renderer.md` — structured video renderer acceptance checklist.
-13. `docs/research/prior-work-map.md` — research map across controller/codec/tokens/renderer/reproducibility.
-14. `docs/research/bibliography.md` — curated bibliography.
-15. `docs/release/distribution-guide.md` — PR split and distribution instructions.
-16. `docs/release/closeout-pr-template.md` — copyable PR body.
-17. `SOURCES.md` — source anchors.
+7. `SOURCES.md` — source anchors.
+
+### Planned follow-up docs (PR 2–5)
+
+These follow-up docs are planned pack slices and are not included in this PR.
+
+8. `docs/evals/image-quality-ladder.md` — layered quality/eval ladder.
+9. `docs/research/seed-length-sweep-report.md` — pre-registered seed-length sweep template.
+10. `docs/model-cards/llamagen-frozen-vq-v0.md` — candidate model card skeleton.
+11. `docs/model-cards/witt-vqgan-tokenizer.md` — future own-trained tokenizer card template.
+12. `docs/failure-receipts/m1b-image.md` — M1B failure receipt taxonomy.
+13. `docs/acceptance/m4-video-renderer.md` — structured video renderer acceptance checklist.
+14. `docs/research/prior-work-map.md` — research map across controller/codec/tokens/renderer/reproducibility.
+15. `docs/research/bibliography.md` — curated bibliography.
+16. `docs/release/distribution-guide.md` — PR split and distribution instructions.
+17. `docs/release/closeout-pr-template.md` — copyable PR body.
 
 ## Recommended PR split
 
