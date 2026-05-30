@@ -6,6 +6,7 @@
   },
   "include": ["src/**/*"],
   "references": [
+    { "path": "../codec-image" },
     { "path": "../core" },
     { "path": "../process-runner" },
     { "path": "../schemas" }
