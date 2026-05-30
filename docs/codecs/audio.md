@@ -79,7 +79,8 @@ tested macOS and Linux targets.
 - Optional ambient layer.
 - Not a music-generation model. Quality is _structurally correct_, not _aesthetically frontier_. The thesis surface is "the LLM plans music; the synth renders the plan."
 - The route-specific plan receipt is recorded in `audioPlan`: motif text/hash,
-  rhythm/key/duration, event-grid step count, chord frequencies, and ambient layer.
+  rhythm/key/duration, event-grid step count, chord frequencies, and ambient
+  layer.
 
 ## Decoder Choices and Why
 
