@@ -66,6 +66,10 @@ Current maintainer pointers:
 - [`research/briefs/J_audio_engineering_and_routes.md`](research/briefs/J_audio_engineering_and_routes.md) — M2 route shape, manifest rows, fixture strategy, and deprecation contract
 - [`research/briefs/K_orchestration_prior_art.md`](research/briefs/K_orchestration_prior_art.md) — 2026 orchestration prior art survey (Symphony / Trellis / Anthropic); recommends adopting `WORKFLOW.md` spec, defers other primitives to v0.4
 
+## Recent research closeout notes
+
+- [`research/2026-05-31-horizontal-engineering-matrix.md`](research/2026-05-31-horizontal-engineering-matrix.md) — horizontal prior-art matrix for decoder, receipt, renderer, doctor/install, and validation surfaces (#477)
+
 ## Long-form research notes (predate the briefs)
 
 - [`research/compression-view-of-llms.md`](research/compression-view-of-llms.md)
