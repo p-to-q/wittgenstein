@@ -6,15 +6,15 @@ weights, ONNX files, logs, or large artifacts.
 
 ## Expected files after a lab run
 
-| File | Producer | Purpose | Commit? |
-|---|---|---|---|
-| `gate-c-roundtrip.json` | `python3 -m research.validation.m1b_gate_c_roundtrip` | Gate C metric JSON: deterministic encode/decode/re-encode evidence | No |
-| `gate-d-onnx-export.json` | `python3 -m research.validation.m1b_export_llamagen_decoder_onnx` | ONNX export receipt, including checkpoint and ONNX SHA-256 | No |
-| `decoder.onnx` | `python3 -m research.validation.m1b_export_llamagen_decoder_onnx` | Exported decoder input for Gate D CPU run | No |
-| `gate-d-onnx-cpu.json` | `python3 -m research.validation.m1b_gate_d_onnx_cpu` | Gate D metric JSON: ONNX Runtime CPU feasibility evidence | No |
-| `vqgan-gates.json` | `python3 -m research.validation.vqgan_gate_audit` | Final Gate C/D receipt consumed by decoder-family manifest validation | No |
-| `hashes.txt` | operator-written | Optional list of weights, ONNX, codebook, and source checkout hashes | No |
-| `commands.log` | shell transcript | Optional exact command transcript for the run | No |
+| File                      | Producer                                                          | Purpose                                                               | Commit? |
+| ------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- | ------- |
+| `gate-c-roundtrip.json`   | `python3 -m research.validation.m1b_gate_c_roundtrip`             | Gate C metric JSON: deterministic encode/decode/re-encode evidence    | No      |
+| `gate-d-onnx-export.json` | `python3 -m research.validation.m1b_export_llamagen_decoder_onnx` | ONNX export receipt, including checkpoint and ONNX SHA-256            | No      |
+| `decoder.onnx`            | `python3 -m research.validation.m1b_export_llamagen_decoder_onnx` | Exported decoder input for Gate D CPU run                             | No      |
+| `gate-d-onnx-cpu.json`    | `python3 -m research.validation.m1b_gate_d_onnx_cpu`              | Gate D metric JSON: ONNX Runtime CPU feasibility evidence             | No      |
+| `vqgan-gates.json`        | `python3 -m research.validation.vqgan_gate_audit`                 | Final Gate C/D receipt consumed by decoder-family manifest validation | No      |
+| `hashes.txt`              | operator-written                                                  | Optional list of weights, ONNX, codebook, and source checkout hashes  | No      |
+| `commands.log`            | shell transcript                                                  | Optional exact command transcript for the run                         | No      |
 
 ## Minimal local contract check
 
@@ -29,8 +29,7 @@ The script expands to:
 ```bash
 python3 -m unittest \
   research.validation.test_vqgan_gate_audit \
-  research.validation.test_m1b_metric_producers \
-  research.training._shared.test_manifest
+  research.validation.test_m1b_metric_producers
 
 python3 -m research.validation.m1b_export_llamagen_decoder_onnx --help
 python3 -m research.validation.m1b_gate_c_roundtrip --help
