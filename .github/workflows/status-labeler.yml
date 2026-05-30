@@ -141,7 +141,7 @@ jobs:
 
             function shouldEscalateNeedsMlSpecialistFromText(pr) {
               const text = `${pr.title || ""}\n${pr.body || ""}`;
-              return /Visual Seed Code|\\bVSC\\b|SeedExpander|decoder bridge/i.test(text);
+              return /Visual Seed Code|\bVSC\b|SeedExpander|decoder bridge/i.test(text);
             }
 
             async function addNeedsMlSpecialistIfApplicable(pr) {

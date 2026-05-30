@@ -6,7 +6,8 @@
  * Per the delivery doctrine
  * (`docs/research/2026-05-13-delivery-and-componentization.md`), a user
  * running `npm install @wittgenstein/cli` must never pull in `research/`,
- * `bench/`, `examples/`, or large binary artifacts. This guard runs
+ * `benchmarks/`, `examples/`, `python/`, `polyglot-mini/`, or large binary
+ * artifacts. This guard runs
  * `npm pack --dry-run --json` per publishable package and verifies the
  * file list contains none of those.
  *
