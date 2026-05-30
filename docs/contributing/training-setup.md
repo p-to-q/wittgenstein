@@ -43,22 +43,37 @@ For planned operational training runs, the Docker path is preferred for
 any receipt you intend to publish. Once implemented, the image SHA will go
 into the training manifest alongside the git SHA of the harness.
 
-## Manifest spine + experiment tracking
+## Training-run manifest + experiment tracking
 
-This section describes the intended Phase-1 behavior; manifest emission is
-not implemented in this skeleton yet. Each future training run will write
-a Wittgenstein manifest receipt under
-`research/training/_shared/manifests/<run-id>/`. The receipt will record:
+Each future publishable training run writes a
+`witt.training.run-manifest/v0.1` receipt validated by
+`TrainingRunManifestSchema` from `@wittgenstein/schemas`. The receipt lives
+next to the checkpoint in the run artifact directory, for example
+`research/training/_shared/runs/<run-id>/manifest.json`, or in the run's lab
+artifact bundle. It records:
 
 - Dataset hash (DVC-pinned)
 - Git SHA of the harness at training time
-- Docker image SHA (when applicable)
-- Seed, lockfile hash
+- Git SHA of the training code at training time
+- Docker image SHA and lockfile SHA (when applicable)
+- Seed, step count, wall-clock duration, and hardware
 - Per-eval-step metric snapshots
+- Checkpoint path, SHA-256, byte size, and weights license
 
-The same receipt will be mirrored to Aim (local) and W&B (when a project
-key is set via `WANDB_PROJECT`). Aim is the default because the manifest
-spine is the canonical record and Aim stays local + offline-friendly.
+Do not put a freeform hyperparameter blob inside the receipt. Training
+configuration stays in the training program's own config file; the receipt
+may point at that file with a path and SHA-256. The same receipt can be
+mirrored to Aim (local) and W&B (when a project key is set via
+`WANDB_PROJECT`). Aim is the default because the manifest spine is the
+canonical record and Aim stays local + offline-friendly.
+
+The three manifest surfaces are intentionally separate:
+
+- `TrainingRunManifest` is upstream evidence for a checkpoint-producing run.
+- `DecoderFamilyManifest` blesses a specific checkpoint as a decoder asset;
+  its `assets.trainingProvenance` reference points back to the training-run
+  receipt and must match the checkpoint SHA-256.
+- `RunManifest` records an inference call that may load that decoder asset.
 
 ## Data versioning
 

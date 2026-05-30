@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
-import { CLOSED_TRACKERS, TRACKERS } from "@wittgenstein/schemas";
+import {
+  CLOSED_TRACKERS,
+  TRACKERS,
+  TrainingRunManifestReferenceSchema,
+} from "@wittgenstein/schemas";
 import type { LoadDecoderBridgeOptions } from "./types.js";
 
 export const DecoderWeightsManifestSchema = z
@@ -21,6 +25,7 @@ export const DecoderWeightsManifestSchema = z
       code: z.string().min(1),
       weights: z.enum(["permissive", "research-only"]),
     }),
+    trainingProvenance: TrainingRunManifestReferenceSchema.optional(),
   })
   .refine((manifest) => Boolean(manifest.codebookFilename) === Boolean(manifest.codebookSha256), {
     message: "codebookFilename and codebookSha256 must be provided together",

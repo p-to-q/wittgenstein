@@ -89,6 +89,17 @@ export const DecoderFamilyManifestSchema = z
       });
     }
 
+    if (
+      manifest.assets.trainingProvenance &&
+      manifest.assets.trainingProvenance.checkpointSha256 !== manifest.assets.weightsSha256
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["assets", "trainingProvenance", "checkpointSha256"],
+        message: "trainingProvenance.checkpointSha256 must match assets.weightsSha256.",
+      });
+    }
+
     if (manifest.status === "blessed") {
       for (const gate of ["gateA", "gateB", "gateC", "gateD"] as const) {
         if (manifest.audits[gate].status !== "passed") {
