@@ -6,8 +6,8 @@ trained on ImageNet + CC12M, per
 
 ## Status
 
-Scaffold and DDP training loop **shipped and smoke-validated on
-qiyuan node1048 (A800-SXM4-80GB ×2, NCCL 2.18.5, CUDA 12.8, torch
+Scaffold and DDP training loop **shipped and smoke-validated on a
+2× A800-SXM4-80GB node (NCCL 2.18.5, CUDA 12.8, torch
 2.9.1)**. Real-data launch is gated on dataset prep
 ([#400](https://github.com/p-to-q/wittgenstein/issues/400) DVC remote)
 and the training-stack re-audit close
@@ -92,16 +92,16 @@ must be true:
 
 ## Phase 1.1 launch (real)
 
-Once dataset prep lands, launch on qiyuan as:
+Once dataset prep lands, launch on an 8×-GPU node as:
 
 ```bash
-cd /nfsdata/wxu/wittgenstein/witt-repo
+cd "$WITT_REPO"
 
 # 8× A800-80GB single-node DDP — effective batch 1024 at bs=128/GPU
 torchrun --nproc-per-node 8 --master-port 29500 \
     -m research.training.tokenizer.train \
-    --train-data-root /nfsdata/wxu/datasets/imagenet/train \
-    --out-root /nfsdata/wxu/wittgenstein/runs \
+    --train-data-root "$DATA_ROOT/imagenet/train" \
+    --out-root "$OUT_ROOT/runs" \
     --max-steps 200000 \
     --batch-size-per-gpu 128 \
     --codebook-embed-dim 32 \

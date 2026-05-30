@@ -33,8 +33,8 @@ empirical determinism (Gate C) and Node/ONNX/CPU feasibility (Gate D).
 
 This note delivers the empirical verdicts. Both audits use the same
 pinned weights file and the same upstream commit of the LlamaGen source
-for reproducibility, and both run on the same machine (qiyuan
-`node1048`, 8× A800-SXM4-80GB) for cross-device (CPU vs CUDA) parity
+for reproducibility, and both run on the same machine (a single
+8× A800-SXM4-80GB node) for cross-device (CPU vs CUDA) parity
 characterization.
 
 ## Pinned artifacts
@@ -93,8 +93,8 @@ Three sub-tests, repeated 3× per machine (n_runs=3):
 
 | Machine | Device | T1 (encode parity) | T2 (decode parity) | T3 (round-trip exact) | T3 drift | Per-decode latency (median, warm) |
 |---|---|---|---|---|---|---|
-| node1048 | cuda (A800-80G, cudnn 8500) | ✅ all 3 runs equal | ✅ all 3 runs equal | ❌ drift | 30 / 256 tokens (11.72%) | encode 9.6 ms · decode 13.0 ms |
-| node1048 | cpu (x86_64, glibc 2.35) | ✅ all 3 runs equal | ✅ all 3 runs equal | ❌ drift | 31 / 256 tokens (12.11%) | encode 4.04 s · decode 5.19 s |
+| A800 node | cuda (A800-80G, cudnn 8500) | ✅ all 3 runs equal | ✅ all 3 runs equal | ❌ drift | 30 / 256 tokens (11.72%) | encode 9.6 ms · decode 13.0 ms |
+| A800 node | cpu (x86_64, glibc 2.35) | ✅ all 3 runs equal | ✅ all 3 runs equal | ❌ drift | 31 / 256 tokens (12.11%) | encode 4.04 s · decode 5.19 s |
 
 **Within-device determinism**: byte-identical across all 3 runs on both
 devices, for both encode (token grid) and decode (PNG SHA-256).
@@ -247,10 +247,10 @@ that own-trained weights will plug into.
   ADR-0015 / #374 precedent and not a Gate C failure.
 - Does NOT upgrade `taming-transformers` upstream weights from PARTIAL
   — that work, if ever needed, is a separate wiring-slice follow-up.
-- Does NOT measure a second machine. node1048 was the only host audited
-  in this pass; a sibling node audit (172.16.1.35-40 on the same
-  cluster) would cross-confirm the `structural-parity` declaration but
-  is not a release blocker.
+- Does NOT measure a second machine. A single A800 node was the only
+  host audited in this pass; a sibling-node audit on the same cluster
+  would cross-confirm the `structural-parity` declaration but is not a
+  release blocker.
 - Does NOT touch the GPU ONNX runtime tier — Gate D measures
   `CPUExecutionProvider` only, which is the canonical M-phase
   `node-onnx-cpu` target. A `node-onnx-gpu` audit is its own follow-up
@@ -267,8 +267,8 @@ that own-trained weights will plug into.
 | Gate C script | `m1b-work/scripts/gate_c_roundtrip.py` SHA-256 `a333000f11b9ebcc6a692112f7f46197075ba82a276f21bdf06b4cde5c8abd98` |
 | Gate D script | `m1b-work/scripts/gate_d_onnx_export.py` SHA-256 `393ddb8728808e528f77765c0003e8c911e746efea15788d9aa9b17272e1cae6` |
 | Run driver | `m1b-work/scripts/run_audits.sh` SHA-256 `d3570957d476d9bdbd5773b2afb8589634bdb1591a3a6376c9d3dcffe620ce2b` |
-| Receipts | `m1b-work/receipts/gate_c_cuda_node1048_20260527T092649Z.json`, `gate_c_cpu_*.json`, `gate_d_*.json` |
-| Hardware (primary) | qiyuan node1048, 8× A800-SXM4-80GB, NVIDIA CUDA 11.7 cudnn 8500 |
+| Receipts | `m1b-work/receipts/gate_c_cuda_20260527T092649Z.json`, `gate_c_cpu_*.json`, `gate_d_*.json` |
+| Hardware (primary) | 8× A800-SXM4-80GB node, NVIDIA CUDA 11.7 cudnn 8500 |
 | Software | linear conda env: torch 2.0.1+cu117, onnx 1.21.0 (opset_max 26), onnxruntime 1.23.2, PIL 11.3.0, numpy 1.23.5, Python 3.10.18 |
 | OS | Linux 5.15.0-60-generic x86_64 glibc 2.35 |
 

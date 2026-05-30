@@ -9,11 +9,11 @@ Design choices per #441 (training-stack re-audit):
     training manifest via _shared/manifest.py.
   - FSDP2 deferred — a 72M-param VQGAN fits comfortably on a single A800.
 
-Launch (single-node multi-GPU on qiyuan):
-    cd /nfsdata/wxu/wittgenstein/witt-repo
+Launch (single-node multi-GPU):
+    cd "$WITT_REPO"
     torchrun --nproc-per-node 8 -m research.training.tokenizer.train \\
-        --train-data-root /nfsdata/wxu/datasets/imagenet/train \\
-        --out-root /nfsdata/wxu/wittgenstein/runs
+        --train-data-root "$DATA_ROOT/imagenet/train" \\
+        --out-root "$OUT_ROOT/runs"
 
 Smoke (1 GPU, synthetic data, no actual deps installed beyond torch):
     python -m research.training.tokenizer.smoke_test
