@@ -30,10 +30,10 @@ describe("doctor tier readiness", () => {
       videoRender: {
         enabled: boolean;
         backend: string;
-        hyperframesNode: { status: string };
-        hyperframesCli: { status: string };
-        ffmpeg: { status: string };
-        chrome: { status: string };
+        hyperframesNode: { status: string; runtime: string; tier: string };
+        hyperframesCli: { status: string; runtime: string; tier: string };
+        ffmpeg: { status: string; runtime: string; tier: string };
+        chrome: { status: string; runtime: string; tier: string };
       };
       imageDecoder: {
         status: string;
@@ -47,7 +47,14 @@ describe("doctor tier readiness", () => {
         decoderManifest: { status: string; message: string };
         reason: string | null;
         installHint: string | null;
-        onnxRuntime: { status: string; message?: string; path?: string };
+        onnxRuntime: {
+          status: string;
+          runtime: string;
+          tier: string;
+          installHint?: string;
+          message?: string;
+          path?: string;
+        };
         blockers: {
           decoderDelivery: string;
           gateCDeterminism: string;
@@ -64,6 +71,22 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.hyperframesCli.status).toBe("skipped");
     expect(payload.videoRender.ffmpeg.status).toBe("skipped");
     expect(payload.videoRender.chrome.status).toBe("skipped");
+    expect(payload.videoRender.hyperframesNode).toMatchObject({
+      runtime: "node",
+      tier: "video",
+    });
+    expect(payload.videoRender.hyperframesCli).toMatchObject({
+      runtime: "hyperframes",
+      tier: "video",
+    });
+    expect(payload.videoRender.ffmpeg).toMatchObject({
+      runtime: "ffmpeg",
+      tier: "video",
+    });
+    expect(payload.videoRender.chrome).toMatchObject({
+      runtime: "chrome",
+      tier: "video",
+    });
     expect(payload.imageDecoder.status).toBe("not-selected");
     expect(payload.imageDecoder.manifestPath).toBeNull();
     expect(payload.imageDecoder.family).toBeNull();
@@ -76,6 +99,9 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.reason).toBe("manifest-missing");
     expect(payload.imageDecoder.installHint).toBe("wittgenstein install image");
     expect(["ok", "missing"]).toContain(payload.imageDecoder.onnxRuntime.status);
+    expect(payload.imageDecoder.onnxRuntime.runtime).toBe("onnxruntime-node");
+    expect(payload.imageDecoder.onnxRuntime.tier).toBe("image");
+    expect(payload.imageDecoder.onnxRuntime.installHint).toBe("wittgenstein install image");
     expect(payload.imageDecoder.blockers.decoderDelivery).toMatch(/issues\/402$/);
     expect(payload.imageDecoder.blockers.gateCDeterminism).toMatch(/issues\/334$/);
     expect(payload.imageDecoder.blockers.gateDOnnxCpu).toMatch(/issues\/335$/);
@@ -89,10 +115,10 @@ describe("doctor tier readiness", () => {
       videoRender: {
         enabled: boolean;
         backend: string;
-        hyperframesNode: { status: string };
-        hyperframesCli: { status: string };
-        ffmpeg: { status: string };
-        chrome: { status: string };
+        hyperframesNode: { status: string; runtime: string; tier: string };
+        hyperframesCli: { status: string; runtime: string; tier: string };
+        ffmpeg: { status: string; runtime: string; tier: string };
+        chrome: { status: string; runtime: string; tier: string };
       };
     };
 
@@ -102,6 +128,10 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.hyperframesCli.status).toBe("skipped");
     expect(["ok", "missing"]).toContain(payload.videoRender.ffmpeg.status);
     expect(["ok", "missing"]).toContain(payload.videoRender.chrome.status);
+    expect(payload.videoRender.ffmpeg.runtime).toBe("ffmpeg");
+    expect(payload.videoRender.ffmpeg.tier).toBe("video");
+    expect(payload.videoRender.chrome.runtime).toBe("chrome");
+    expect(payload.videoRender.chrome.tier).toBe("video");
   });
 
   it("checks HyperFrames CLI when the npx backend is selected", () => {
@@ -115,8 +145,8 @@ describe("doctor tier readiness", () => {
       videoRender: {
         enabled: boolean;
         backend: string;
-        hyperframesNode: { status: string };
-        hyperframesCli: { status: string };
+        hyperframesNode: { status: string; runtime: string; tier: string };
+        hyperframesCli: { status: string; runtime: string; tier: string };
       };
     };
 
@@ -124,6 +154,10 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.backend).toBe("npx-cli");
     expect(["ok", "missing"]).toContain(payload.videoRender.hyperframesNode.status);
     expect(["ok", "missing"]).toContain(payload.videoRender.hyperframesCli.status);
+    expect(payload.videoRender.hyperframesNode.runtime).toBe("node");
+    expect(payload.videoRender.hyperframesNode.tier).toBe("video");
+    expect(payload.videoRender.hyperframesCli.runtime).toBe("hyperframes");
+    expect(payload.videoRender.hyperframesCli.tier).toBe("video");
   });
 
   it("reports a ready image decoder when the selected blessed manifest has cached weights", () => {
@@ -145,7 +179,7 @@ describe("doctor tier readiness", () => {
         audits: Record<string, string>;
         weightsCached: boolean;
         decoderManifest: { status: string; path: string };
-        onnxRuntime: { status: string };
+        onnxRuntime: { status: string; runtime: string; tier: string; installHint?: string };
         reason: string | null;
         details: { weights: { source: string; weightsSha256: string; codebookSha256: string } };
       };
@@ -166,6 +200,9 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.weightsCached).toBe(true);
     expect(payload.imageDecoder.decoderManifest.status).toBe("ok");
     expect(["ok", "missing"]).toContain(payload.imageDecoder.onnxRuntime.status);
+    expect(payload.imageDecoder.onnxRuntime.runtime).toBe("onnxruntime-node");
+    expect(payload.imageDecoder.onnxRuntime.tier).toBe("image");
+    expect(payload.imageDecoder.onnxRuntime.installHint).toBe("wittgenstein install image");
     expect(payload.imageDecoder.reason).toBeNull();
     expect(payload.imageDecoder.details.weights.source).toBe("cache-hit");
     expect(payload.imageDecoder.details.weights.weightsSha256).toBe(fixture.weightsSha);
