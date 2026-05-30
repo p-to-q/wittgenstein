@@ -6,6 +6,10 @@
  *     and external consumers register / invoke.
  *   - Request / artifact / scene types needed to type call sites.
  *
+ * Decoder delivery inspection:
+ *   - decoder-family manifest parsing and preflight receipts are exported for
+ *     read-only CLI surfaces such as `wittgenstein doctor`.
+ *
  * What does NOT ship:
  *   - `./pipeline/*` — internal renderer pipeline that changes as the M1B
  *     decoder bridge lands. Pipeline internals are reachable from within
@@ -17,11 +21,7 @@
  *     discriminator RFC ([RFC-0007](../../../docs/rfcs/0007-image-seedcode-shape-discriminator.md)).
  */
 export { imageCodec, imageV2Codec, ImageCodec } from "./codec.js";
-export {
-  ImageSceneSpecSchema,
-  imageSchemaPreamble,
-  parseImageSceneSpec,
-} from "./schema.js";
+export { ImageSceneSpecSchema, imageSchemaPreamble, parseImageSceneSpec } from "./schema.js";
 export type { ImageSceneSpec } from "./schema.js";
 // `ImageRequest` + its schema live in `@wittgenstein/schemas` (the
 // modality-locked surface). Re-export from codec-image so consumers can
@@ -35,3 +35,18 @@ export type {
   ImageAdapterOutcome,
   ImageSemanticSource,
 } from "./types.js";
+export {
+  DecoderFamilyManifestSchema,
+  validateDecoderManifestAuditReceipts,
+} from "./decoders/manifest.js";
+export type {
+  DecoderFamilyManifest,
+  DecoderManifestAuditReceiptValidation,
+} from "./decoders/manifest.js";
+export { preflightImageDecoder } from "./decoders/preflight.js";
+export type {
+  DecoderPreflightOptions,
+  DecoderPreflightReason,
+  DecoderPreflightReceipt,
+  DecoderPreflightStatus,
+} from "./decoders/preflight.js";

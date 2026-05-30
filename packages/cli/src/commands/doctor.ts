@@ -1,12 +1,20 @@
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
+import {
+  DecoderFamilyManifestSchema,
+  preflightImageDecoder,
+  type DecoderFamilyManifest,
+  type DecoderPreflightReceipt,
+} from "@wittgenstein/codec-image";
 import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
 
-type DoctorCheckStatus = "ok" | "missing" | "skipped";
+type DoctorCheckStatus = "ok" | "missing" | "invalid" | "skipped";
 
 interface DoctorCheck {
   status: DoctorCheckStatus;
@@ -25,9 +33,25 @@ interface VideoRenderDoctor {
 }
 
 interface ImageDecoderDoctor {
-  status: "blocked";
+  status: "ready" | "blocked" | "not-selected";
+  manifestPath: string | null;
+  family: string | null;
+  decoderId: string | null;
+  manifestStatus: "blessed" | "candidate" | "rejected" | null;
+  weightsRestriction: "permissive" | "research-only" | null;
+  audits: {
+    gateA: string;
+    gateB: string;
+    gateC: string;
+    gateD: string;
+  } | null;
+  weightsCached: boolean | null;
   decoderManifest: DoctorCheck;
   onnxRuntime: DoctorCheck;
+  reason: DecoderPreflightReceipt["reason"] | null;
+  installHint: string | null;
+  tracker: string | null;
+  details: Record<string, unknown>;
   blockers: {
     decoderDelivery: string;
     gateCDeterminism: string;
@@ -60,7 +84,7 @@ export function registerDoctorCommand(program: Command): void {
             artifactsDir: config.runtime.artifactsDir,
             tiers: runtimeTierReadiness(),
             videoRender: checkVideoRenderDependencies(),
-            imageDecoder: checkImageDecoderReadiness(),
+            imageDecoder: await checkImageDecoderReadiness(workspaceRoot),
           },
           null,
           2,
@@ -219,21 +243,182 @@ function checkChromeCandidate(candidate: string): DoctorCheck {
   return { status: "missing" };
 }
 
-function checkImageDecoderReadiness(): ImageDecoderDoctor {
+async function checkImageDecoderReadiness(workspaceRoot: string): Promise<ImageDecoderDoctor> {
+  const selectedManifest = process.env.WITTGENSTEIN_DECODER_MANIFEST;
+  const onnxRuntime = checkOptionalNodePeer("onnxruntime-node", "wittgenstein install image");
+  const blockers = imageDecoderBlockers();
+
+  if (!selectedManifest) {
+    return {
+      status: "not-selected",
+      manifestPath: null,
+      family: null,
+      decoderId: null,
+      manifestStatus: null,
+      weightsRestriction: null,
+      audits: null,
+      weightsCached: null,
+      decoderManifest: {
+        status: "skipped",
+        message: "Set WITTGENSTEIN_DECODER_MANIFEST=<path> to inspect a decoder-family manifest.",
+      },
+      onnxRuntime,
+      reason: "manifest-missing",
+      installHint: "wittgenstein install image",
+      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      details: {
+        message: "No decoder-family manifest has been selected for the image tier.",
+      },
+      blockers,
+    };
+  }
+
+  const manifestPath = isAbsolute(selectedManifest)
+    ? selectedManifest
+    : resolve(workspaceRoot, selectedManifest);
+
+  let manifestInput: unknown;
+  try {
+    manifestInput = JSON.parse(await readFile(manifestPath, "utf8"));
+  } catch (error) {
+    return {
+      status: "blocked",
+      manifestPath,
+      family: null,
+      decoderId: null,
+      manifestStatus: null,
+      weightsRestriction: null,
+      audits: null,
+      weightsCached: null,
+      decoderManifest: {
+        status: "missing",
+        path: manifestPath,
+        message: `Could not read decoder-family manifest: ${errorMessage(error)}`,
+      },
+      onnxRuntime,
+      reason: "manifest-invalid",
+      installHint: "wittgenstein install image",
+      tracker: "https://github.com/p-to-q/wittgenstein/issues/402",
+      details: {
+        issues: [{ path: "", message: errorMessage(error) }],
+      },
+      blockers,
+    };
+  }
+
+  const parsedManifest = DecoderFamilyManifestSchema.safeParse(manifestInput);
+  const auditReceipts = parsedManifest.success
+    ? await readAuditReceipts(parsedManifest.data, workspaceRoot, dirname(manifestPath))
+    : new Map<string, unknown>();
+  const preflight = await preflightImageDecoder({
+    manifest: manifestInput,
+    auditReceipts,
+    // Doctor is an audit surface: surface research-only posture and peer
+    // availability without opting users into a decode runtime.
+    allowResearchWeights: true,
+    checkRuntime: false,
+  });
+  const parsed = parsedManifest.success ? parsedManifest.data : null;
+
   return {
-    status: "blocked",
+    status: preflight.status,
+    manifestPath,
+    family: parsed?.family ?? preflight.family,
+    decoderId: parsed?.decoderId ?? preflight.decoderId,
+    manifestStatus: parsed?.status ?? null,
+    weightsRestriction: parsed?.assets.license.weights ?? null,
+    audits: parsed ? auditStatuses(parsed) : null,
+    weightsCached: weightsCachedFromPreflight(preflight),
     decoderManifest: {
-      status: "missing",
-      message:
-        "No decoder-family manifest has been blessed for the image install tier yet; #402 owns the decision.",
+      status: parsedManifest.success ? "ok" : "invalid",
+      path: manifestPath,
+      message: parsedManifest.success
+        ? "Decoder-family manifest loaded from WITTGENSTEIN_DECODER_MANIFEST."
+        : "Decoder-family manifest did not match the expected schema.",
     },
-    onnxRuntime: checkOptionalNodePeer("onnxruntime-node", "wittgenstein install image"),
-    blockers: {
-      decoderDelivery: "https://github.com/p-to-q/wittgenstein/issues/402",
-      gateCDeterminism: "https://github.com/p-to-q/wittgenstein/issues/334",
-      gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
-    },
+    onnxRuntime,
+    reason: preflight.reason,
+    installHint: preflight.installHint,
+    tracker: preflight.tracker,
+    details: preflight.details,
+    blockers,
   };
+}
+
+function imageDecoderBlockers(): ImageDecoderDoctor["blockers"] {
+  return {
+    decoderDelivery: "https://github.com/p-to-q/wittgenstein/issues/402",
+    gateCDeterminism: "https://github.com/p-to-q/wittgenstein/issues/334",
+    gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
+  };
+}
+
+async function readAuditReceipts(
+  manifest: DecoderFamilyManifest,
+  workspaceRoot: string,
+  manifestDir: string,
+): Promise<Map<string, unknown>> {
+  const receipts = new Map<string, unknown>();
+
+  for (const gate of ["gateC", "gateD"] as const) {
+    const receiptPath = manifest.audits[gate].receipt;
+    if (!receiptPath) continue;
+
+    const input = await readJsonFromCandidates(
+      resolveReceiptCandidates(receiptPath, workspaceRoot, manifestDir),
+    );
+    if (input !== undefined) {
+      receipts.set(receiptPath, input);
+    }
+  }
+
+  return receipts;
+}
+
+function resolveReceiptCandidates(
+  receiptPath: string,
+  workspaceRoot: string,
+  manifestDir: string,
+): string[] {
+  if (isAbsolute(receiptPath)) {
+    return [receiptPath];
+  }
+
+  return [resolve(workspaceRoot, receiptPath), resolve(manifestDir, receiptPath)];
+}
+
+async function readJsonFromCandidates(paths: readonly string[]): Promise<unknown | undefined> {
+  for (const path of paths) {
+    try {
+      return JSON.parse(await readFile(path, "utf8"));
+    } catch {
+      // Try the next resolution root. If every candidate fails, preflight will
+      // report the receipt as missing for the manifest's declared path.
+    }
+  }
+
+  return undefined;
+}
+
+function auditStatuses(manifest: DecoderFamilyManifest): NonNullable<ImageDecoderDoctor["audits"]> {
+  return {
+    gateA: manifest.audits.gateA.status,
+    gateB: manifest.audits.gateB.status,
+    gateC: manifest.audits.gateC.status,
+    gateD: manifest.audits.gateD.status,
+  };
+}
+
+function weightsCachedFromPreflight(receipt: DecoderPreflightReceipt): boolean | null {
+  if (receipt.status === "ready") return true;
+  if (receipt.reason === "weights-not-installed" || receipt.reason === "weights-invalid") {
+    return false;
+  }
+  return null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function checkOptionalNodePeer(packageName: string, installHint: string): DoctorCheck {

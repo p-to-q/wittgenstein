@@ -52,6 +52,7 @@
     "smoke": "node ./bin/wittgenstein.js doctor"
   },
   "dependencies": {
+    "@wittgenstein/codec-image": "workspace:*",
     "@wittgenstein/codec-video": "workspace:*",
     "@wittgenstein/core": "workspace:*",
     "@wittgenstein/process-runner": "workspace:*",
