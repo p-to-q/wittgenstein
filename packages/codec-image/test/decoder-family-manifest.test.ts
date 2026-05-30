@@ -76,6 +76,47 @@ describe("decoder family manifest contract", () => {
     expect(DecoderFamilyManifestSchema.parse(manifest).status).toBe("blessed");
   });
 
+  it("allows decoder assets to reference the training-run receipt that produced their checkpoint", () => {
+    const manifest = candidateManifest({
+      assets: {
+        ...candidateManifest().assets,
+        trainingProvenance: {
+          runId: "tokenizer-20260530T210000Z-a1b2c3d4",
+          manifestPath:
+            "research/training/_shared/runs/tokenizer-20260530T210000Z-a1b2c3d4/manifest.json",
+          manifestSha256: "2".repeat(64),
+          checkpointSha256: SHA_ZERO,
+        },
+      },
+    });
+
+    const parsed = DecoderFamilyManifestSchema.parse(manifest);
+
+    expect(parsed.assets.trainingProvenance?.runId).toBe("tokenizer-20260530T210000Z-a1b2c3d4");
+  });
+
+  it("rejects decoder training provenance that points at a different checkpoint", () => {
+    const manifest = candidateManifest({
+      assets: {
+        ...candidateManifest().assets,
+        trainingProvenance: {
+          runId: "tokenizer-20260530T210000Z-a1b2c3d4",
+          manifestPath:
+            "research/training/_shared/runs/tokenizer-20260530T210000Z-a1b2c3d4/manifest.json",
+          manifestSha256: "2".repeat(64),
+          checkpointSha256: SHA_ONE,
+        },
+      },
+    });
+
+    const result = DecoderFamilyManifestSchema.safeParse(manifest);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+      "assets.trainingProvenance.checkpointSha256",
+    );
+  });
+
   it("accepts lab environment metadata on Gate C/D receipts", () => {
     const parsed = validateDecoderManifestAuditReceipts(
       blessedManifest(),

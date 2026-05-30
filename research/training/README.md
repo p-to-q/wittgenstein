@@ -42,18 +42,22 @@ Subprograms share dataset loading, eval, and manifest-emission helpers from
 
 ## What a training run produces
 
-Every training run emits, alongside the model checkpoint, a Wittgenstein
-manifest receipt (the same spine the harness uses for generation):
+Every publishable training run emits, alongside the model checkpoint, a
+Wittgenstein `TrainingRunManifest` receipt validated by
+`TrainingRunManifestSchema` from `@wittgenstein/schemas`:
 
 - Dataset hash (DVC-pinned)
 - Training step count + wall-clock + GPU type
 - Eval-metric snapshot (FID / CLIP / rFID per modality)
 - Git SHA of the harness at training time
-- Seed + lockfile hash
+- Git SHA of the training code at training time
+- Seed, lockfile SHA, checkpoint SHA-256, and weights-license posture
 
 A frozen checkpoint released to HuggingFace Hub ships with this manifest
-beside it. The CLI's `wittgenstein replay <manifest>` works equally for a
-generation receipt and a training receipt — same spine.
+beside it. A downstream `DecoderFamilyManifest` can then bless that exact
+checkpoint by pointing `assets.trainingProvenance` at the training receipt.
+The inference-time `RunManifest` remains a separate receipt for a concrete
+artifact-producing CLI call that may load the blessed decoder.
 
 ## Receipt smoke
 

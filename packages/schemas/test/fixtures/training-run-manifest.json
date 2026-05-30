@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "witt.training.run-manifest/v0.1",
+  "runId": "tokenizer-20260530T210000Z-a1b2c3d4",
+  "subprogram": "tokenizer",
+  "startedAt": "2026-05-30T21:00:00Z",
+  "finishedAt": "2026-05-30T22:25:30Z",
+  "harnessGitSha": "1111111111111111111111111111111111111111",
+  "trainingCodeGitSha": "2222222222222222222222222222222222222222",
+  "dockerImageSha": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "lockfileSha256": "9999999999999999999999999999999999999999999999999999999999999999",
+  "dataset": {
+    "dvcRev": "imagenet-cc12m-v0.1",
+    "name": "imagenet-train-smoke",
+    "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "seed": 1234,
+  "stepCount": 4096,
+  "wallClockSec": 5130.25,
+  "hardware": {
+    "gpuModel": "A100-SXM4-80GB",
+    "gpuCount": 8,
+    "nodeCount": 1
+  },
+  "evalSnapshots": [
+    {
+      "modality": "image",
+      "dataset": {
+        "name": "imagenet-val",
+        "split": "val-50k",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "step": 4096,
+      "generatedAt": "2026-05-30T22:24:00Z",
+      "metrics": [
+        {
+          "name": "rfid",
+          "value": 1.93,
+          "unit": "score",
+          "higherIsBetter": false
+        },
+        {
+          "name": "clip_score",
+          "value": 0.284,
+          "higherIsBetter": true
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "path": "research/training/_shared/runs/tokenizer-20260530T210000Z-a1b2c3d4/ckpts/final.safetensors",
+    "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "bytes": 73400320,
+    "weightsLicense": "research-only"
+  },
+  "trainingConfig": {
+    "path": "research/training/tokenizer/configs/phase1-tokenizer.json",
+    "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+  }
+}
