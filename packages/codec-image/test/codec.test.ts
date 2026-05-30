@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { RenderCtx } from "@wittgenstein/schemas";
 import { describe, expect, it } from "vitest";
-import { imageCodec } from "../src/index.js";
+import { imageCodec, imageSchemaPreamble } from "../src/index.js";
 import { imageCodeReceipt } from "../src/image-code-receipt.js";
 import { adaptSceneToLatents } from "../src/pipeline/adapter.js";
 import { renderImagePipeline } from "../src/pipeline/index.js";
@@ -95,6 +95,46 @@ describe("@wittgenstein/codec-image", () => {
     expect(parsed.value.subject).toBe("misty pine forest");
     expect(parsed.value.seedCode?.length).toBe(4);
     expect(parsed.value.mode).toBe("one-shot-vsc");
+  });
+
+  it("preserves structured visual reasoning in the semantic layer", () => {
+    const parsed = imageCodec.parse(
+      JSON.stringify({
+        mode: "one-shot-vsc",
+        semantic: {
+          intent: "coastal cliffs at sunset",
+          subject: "cliffs and ocean",
+          reasoning: {
+            spatialPlan: "Horizon on upper third, cliffs left, ocean right.",
+            colorPlan: "Warm orange sky with blue-green water.",
+            depthPlan: "Foreground cliff edge, midground ocean, background sky.",
+            tokenStrategy: "First tokens encode horizon and cliff silhouette.",
+          },
+        },
+        seedCode: {
+          family: "vqvae",
+          mode: "prefix",
+          tokens: [3, 17, 9, 220],
+        },
+      }),
+    );
+
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.semantic?.reasoning?.spatialPlan).toContain("Horizon");
+      expect(parsed.value.semantic?.reasoning?.tokenStrategy).toContain("First tokens");
+    }
+  });
+
+  it("asks the LLM to emit semantic.reasoning before seedCode tokens", () => {
+    const preamble = imageSchemaPreamble({
+      modality: "image",
+      prompt: "coastal cliffs at sunset",
+    });
+
+    expect(preamble).toContain("populate semantic.reasoning");
+    expect(preamble).toContain("tokenStrategy");
+    expect(preamble).toContain("Before emitting seedCode.tokens");
   });
 
   it("distinguishes emitted semantic from legacy/effective semantic receipts", () => {

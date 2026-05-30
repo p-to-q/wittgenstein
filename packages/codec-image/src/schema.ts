@@ -36,9 +36,28 @@ export const ImageLatentCodesSchema = z
   });
 export type ImageLatentCodes = z.infer<typeof ImageLatentCodesSchema>;
 
+/**
+ * Optional structured visual reasoning block (CoT-inspired).
+ * When present, the LLM articulates spatial, color, depth, and token-allocation
+ * plans before committing to seedCode tokens. The adapter may use these fields
+ * as additional conditioning via text embeddings.
+ *
+ * @see docs/research/2026-05-22-cot-inspired-improvements.md
+ * @see https://github.com/p-to-q/wittgenstein/issues/454
+ */
+const ImageVisualReasoningSchema = z
+  .object({
+    spatialPlan: z.string().optional(),
+    colorPlan: z.string().optional(),
+    depthPlan: z.string().optional(),
+    tokenStrategy: z.string().optional(),
+  })
+  .optional();
+
 const ImageSemanticLayerSchema = z.object({
   intent: z.string().default("placeholder scene"),
   subject: z.string().default("placeholder subject"),
+  reasoning: ImageVisualReasoningSchema,
   composition: z
     .object({
       framing: z.string().default("medium shot"),
@@ -149,6 +168,12 @@ export function imageSchemaPreamble(req: ImageRequest): string {
     "Emit a JSON Visual Seed Code contract for the sole neural image pipeline.",
     "Prefer seedCode as the primary decoder-facing output.",
     "Use Semantic IR to organize concepts, expose the user-facing plan, and optionally condition seed expansion.",
+    "Before emitting seedCode.tokens, populate semantic.reasoning with your visual plan:",
+    "  - spatialPlan: describe the spatial layout (horizon, subject placement, regions).",
+    "  - colorPlan: describe the dominant color scheme and transitions.",
+    "  - depthPlan: describe foreground / midground / background allocation.",
+    "  - tokenStrategy: describe which seed tokens encode which visual regions.",
+    "This reasoning step helps produce more stable and coherent seed tokens.",
     "Optional coarseVq hints may be included when you can provide stable partial VQ structure.",
     "Use providerLatents only when you can emit decoder-native latent tokens directly.",
     "Do not emit SVG, HTML, Canvas commands, or pixel arrays.",

@@ -4,7 +4,7 @@ import {
   type ImageSceneSpec,
   type ImageVisualSeedCode,
 } from "../schema.js";
-import type { SeedExpander } from "./seed-expander.js";
+import { validateCleanRepaintInputs, type SeedExpander } from "./seed-expander.js";
 
 const PLACEHOLDER_CODEBOOK_SIZE = 8192;
 
@@ -47,13 +47,22 @@ function pickCoarseLayout(tokenCount: number): { coarseW: number; coarseH: numbe
  * `(seedCode, decoder, seed)` triple → byte-identical `ImageLatentCodes`.
  */
 export const tileMosaicSeedExpander: SeedExpander = {
-  expand({ seedCode, decoder, seed }: {
+  expand({
+    seedCode,
+    decoder,
+    seed,
+    knownPositions,
+    knownTokens,
+  }: {
     seedCode: ImageVisualSeedCode;
     decoder: ImageSceneSpec["decoder"];
     seed: number;
+    knownPositions?: readonly boolean[];
+    knownTokens?: readonly number[];
   }): ImageLatentCodes {
     const [width, height] = decoder.latentResolution;
     const totalTokens = width * height;
+    validateCleanRepaintInputs(knownPositions, knownTokens, totalTokens);
     const tokens = new Array<number>(totalTokens);
     const { coarseW, coarseH } = pickCoarseLayout(seedCode.tokens.length);
 
@@ -61,13 +70,19 @@ export const tileMosaicSeedExpander: SeedExpander = {
       // Map target row to coarse-grid row.
       const yc = Math.min(coarseH - 1, Math.floor((y * coarseH) / Math.max(1, height)));
       for (let x = 0; x < width; x += 1) {
+        const targetIndex = y * width + x;
+        // Clean-repaint: if this position is pinned, preserve the known token.
+        const knownToken = knownTokens?.[targetIndex];
+        if (knownPositions?.[targetIndex] && knownToken !== undefined) {
+          tokens[targetIndex] = knownToken;
+          continue;
+        }
         const xc = Math.min(coarseW - 1, Math.floor((x * coarseW) / Math.max(1, width)));
         // Wrap modulo tokens.length so non-square layouts (e.g. 6×6 over 32
         // tokens) still resolve to a valid base.
         const tileIndex = (yc * coarseW + xc) % seedCode.tokens.length;
         const base = seedCode.tokens[tileIndex] ?? 0;
         const localSalt = x * 17 + y * 31 + seed * 1009;
-        const targetIndex = y * width + x;
         tokens[targetIndex] = (base + localSalt) % PLACEHOLDER_CODEBOOK_SIZE;
       }
     }
