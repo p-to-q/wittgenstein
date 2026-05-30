@@ -1,4 +1,9 @@
-import type { AudioRenderManifest, CostUsdReason, codecV2 } from "@wittgenstein/schemas";
+import type {
+  AudioPlanManifest,
+  AudioRenderManifest,
+  CostUsdReason,
+  codecV2,
+} from "@wittgenstein/schemas";
 import type { AudioPlan } from "./schema.js";
 
 export type AudioRoute = "speech" | "soundscape" | "music";
@@ -26,6 +31,7 @@ export interface AudioArtifactMetadata extends codecV2.BaseArtifactMetadata {
     };
   };
   readonly audioRender: AudioRenderManifest;
+  readonly audioPlan: AudioPlanManifest;
   readonly decoderHash: {
     readonly value: string;
     readonly frozen: true;

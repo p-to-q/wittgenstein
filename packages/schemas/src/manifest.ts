@@ -1,5 +1,81 @@
 import { z } from "zod";
 
+const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
+const AudioAmbientCategorySchema = z.enum([
+  "auto",
+  "silence",
+  "rain",
+  "wind",
+  "city",
+  "forest",
+  "electronic",
+]);
+
+export const AudioPlanManifestSchema = z.discriminatedUnion("route", [
+  z.object({
+    route: z.literal("speech"),
+    script: z.string(),
+    scriptSha256: z.string(),
+    scriptChars: z.number().int().nonnegative(),
+    voice: z.object({
+      speaker: z.string(),
+      tone: z.string(),
+      language: z.string(),
+    }),
+    prosody: z.object({
+      tone: z.string(),
+      language: z.string(),
+    }),
+    timing: z.object({
+      durationSec: z.number().positive(),
+      timelineEvents: z.number().int().nonnegative(),
+    }),
+    ambient: z.object({
+      category: AudioAmbientCategorySchema,
+      level: z.number().min(0).max(1),
+    }),
+    backend: z.enum(["procedural-audio-runtime", "Kokoro-82M-family-decoder"]),
+  }),
+  z.object({
+    route: z.literal("soundscape"),
+    operatorGraph: z.object({
+      source: z.literal("procedural-ambient"),
+      category: AudioAmbientCategorySchema,
+      seed: z.number().int().nullable(),
+      nodes: z.array(z.string()).min(1),
+    }),
+    envelope: z.object({
+      durationSec: z.number().positive(),
+      level: z.number().min(0).max(1),
+    }),
+    filter: z.object({
+      type: z.enum(["none", "low-pass"]),
+      alpha: z.number().positive().max(1).optional(),
+    }),
+  }),
+  z.object({
+    route: z.literal("music"),
+    motif: z.string(),
+    motifSha256: z.string(),
+    rhythm: z.object({
+      bpm: z.number().positive(),
+      key: z.string(),
+      durationSec: z.number().positive(),
+    }),
+    eventGrid: z.object({
+      stepSec: z.number().positive(),
+      steps: z.number().int().positive(),
+    }),
+    chord: z.object({
+      frequenciesHz: z.array(z.number().positive()).min(1),
+    }),
+    ambient: z.object({
+      category: AudioAmbientCategorySchema,
+      level: z.number().min(0).max(1),
+    }),
+  }),
+]);
+
 export const AudioRenderManifestSchema = z.object({
   sampleRateHz: z.number().int().positive(),
   channels: z.number().int().positive(),
@@ -39,7 +115,6 @@ export const VideoRenderManifestSchema = z
     }
   });
 
-const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
 const ImageRouteSchema = z.enum(["raster"]);
 const SensorRouteSchema = z.enum(["ecg", "temperature", "gyro"]);
 const VideoRouteSchema = z.enum(["hyperframes-mp4", "hyperframes-html"]);
@@ -113,6 +188,7 @@ export const RunManifestSchema = z
     artifactSha256: z.string().nullable(),
     artifactSidecars: z.array(ArtifactSidecarSchema).optional(),
     audioRender: AudioRenderManifestSchema.optional(),
+    audioPlan: AudioPlanManifestSchema.optional(),
     videoRender: VideoRenderManifestSchema.optional(),
 
     /**
@@ -174,6 +250,35 @@ export const RunManifestSchema = z
           message: `Audio manifests must use one of: ${AudioRouteSchema.options.join(", ")}.`,
         });
       }
+    }
+
+    if (manifest.codec === "audio" && manifest.ok && manifest.audioRender === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audioRender"],
+        message: "Successful audio manifests must record audioRender receipts.",
+      });
+    }
+
+    if (manifest.codec === "audio" && manifest.ok && manifest.audioPlan === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audioPlan"],
+        message: "Successful audio manifests must record route-specific audioPlan receipts.",
+      });
+    }
+
+    if (
+      manifest.codec === "audio" &&
+      manifest.route !== undefined &&
+      manifest.audioPlan !== undefined &&
+      manifest.route !== manifest.audioPlan.route
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audioPlan", "route"],
+        message: "Audio manifests must keep route and audioPlan.route in sync.",
+      });
     }
 
     if (manifest.codec === "image" && manifest.route !== undefined) {
@@ -256,6 +361,7 @@ export const RunManifestSchema = z
   });
 
 export type AudioRenderManifest = z.infer<typeof AudioRenderManifestSchema>;
+export type AudioPlanManifest = z.infer<typeof AudioPlanManifestSchema>;
 export type VideoRenderManifest = z.infer<typeof VideoRenderManifestSchema>;
 export type ArtifactSidecar = z.infer<typeof ArtifactSidecarSchema>;
 export type LicenseManifest = z.infer<typeof LicenseManifestSchema>;

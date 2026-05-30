@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { AudioRequest, CostUsdReason, RenderCtx } from "@wittgenstein/schemas";
 import { Modality, codecV2 } from "@wittgenstein/schemas";
+import type { AudioPlanManifest, AudioRenderManifest } from "@wittgenstein/schemas";
 import {
   AudioPlanSchema,
   AudioRequestSchema,
@@ -13,7 +14,9 @@ import {
 import { renderSpeechRoute } from "./routes/speech/index.js";
 import { renderSoundscapeRoute } from "./routes/soundscape/index.js";
 import { renderMusicRoute } from "./routes/music/index.js";
+import { resolveAmbientCategory } from "./routes/shared.js";
 import type { AudioArtifact, AudioRoute } from "./types.js";
+import type { AmbientCategory } from "./ambient-adapter.js";
 import { getKokoroDecoder } from "./decoders/kokoro/index.js";
 
 interface AudioCodecLlmService {
@@ -107,6 +110,9 @@ function hashString(value: string): string {
 function hashBytes(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
+
+const MUSIC_CHORD_FREQUENCIES_HZ = [220, 261.63, 329.63, 392, 440] as const;
+const MUSIC_GRID_STEP_FRAMES = 5_512;
 
 interface WavMeta {
   readonly sampleRateHz: number;
@@ -202,7 +208,9 @@ const ROUTE_KEYWORDS: Record<Exclude<AudioRoute, "speech">, RegExp> = {
 // `ROUTE_KEYWORDS`. If a future PR adds a route to `AudioRouteSchema`
 // without a keyword entry, this type assertion fails the build.
 const _routeKeywordKeysCheck: ReadonlySet<Exclude<AudioRoute, "speech">> = new Set(
-  AudioRouteSchema.options.filter((route): route is Exclude<AudioRoute, "speech"> => route !== "speech"),
+  AudioRouteSchema.options.filter(
+    (route): route is Exclude<AudioRoute, "speech"> => route !== "speech",
+  ),
 );
 void (_routeKeywordKeysCheck satisfies ReadonlySet<keyof typeof ROUTE_KEYWORDS>);
 
@@ -266,6 +274,95 @@ function isAmbientCategory(value: unknown): value is AudioPlan["ambient"]["categ
     value === "forest" ||
     value === "electronic"
   );
+}
+
+function buildAudioPlanReceipt(options: {
+  readonly plan: AudioPlan;
+  readonly route: AudioRoute;
+  readonly audioRender: AudioRenderManifest;
+  readonly seed: number | null;
+  readonly backend: "procedural-audio-runtime" | "Kokoro-82M-family-decoder";
+}): AudioPlanManifest {
+  const { plan, route, audioRender, seed, backend } = options;
+  if (route === "speech") {
+    return {
+      route,
+      script: plan.script,
+      scriptSha256: hashString(plan.script),
+      scriptChars: Array.from(plan.script).length,
+      voice: plan.voice,
+      prosody: {
+        tone: plan.voice.tone,
+        language: plan.voice.language,
+      },
+      timing: {
+        durationSec: audioRender.durationSec,
+        timelineEvents: plan.timeline.length,
+      },
+      ambient: {
+        category: resolveAmbientCategory(plan, plan.script),
+        level: plan.ambient.level,
+      },
+      backend,
+    };
+  }
+
+  if (route === "soundscape") {
+    const resolvedCategory = resolveAmbientCategory(plan, `${plan.script} ${plan.music.motif}`);
+    const effectiveCategory = resolvedCategory === "silence" ? "forest" : resolvedCategory;
+    const filter = ambientFilterForCategory(effectiveCategory);
+    return {
+      route,
+      operatorGraph: {
+        source: "procedural-ambient",
+        category: effectiveCategory,
+        seed,
+        nodes:
+          filter.type === "low-pass"
+            ? [`ambient:${effectiveCategory}`, `filter:${filter.type}`]
+            : [`ambient:${effectiveCategory}`],
+      },
+      envelope: {
+        durationSec: audioRender.durationSec,
+        level: plan.ambient.level,
+      },
+      filter,
+    };
+  }
+
+  const resolvedCategory = resolveAmbientCategory(plan, `${plan.script} ${plan.music.motif}`);
+  const stepSec = MUSIC_GRID_STEP_FRAMES / audioRender.sampleRateHz;
+  return {
+    route,
+    motif: plan.music.motif,
+    motifSha256: hashString(plan.music.motif),
+    rhythm: {
+      bpm: plan.music.bpm,
+      key: plan.music.key,
+      durationSec: audioRender.durationSec,
+    },
+    eventGrid: {
+      stepSec,
+      steps: Math.max(1, Math.ceil(audioRender.durationSec / stepSec)),
+    },
+    chord: {
+      frequenciesHz: [...MUSIC_CHORD_FREQUENCIES_HZ],
+    },
+    ambient: {
+      category: resolvedCategory,
+      level: plan.ambient.level * 0.8,
+    },
+  };
+}
+
+function ambientFilterForCategory(
+  category: AmbientCategory,
+): { type: "none" } | { type: "low-pass"; alpha: number } {
+  if (category === "rain") return { type: "low-pass", alpha: 0.24 };
+  if (category === "wind") return { type: "low-pass", alpha: 0.12 };
+  if (category === "city") return { type: "low-pass", alpha: 0.3 };
+  if (category === "forest") return { type: "low-pass", alpha: 0.35 };
+  return { type: "none" };
 }
 
 export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
@@ -409,6 +506,13 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
       decoderId,
       decoderHash,
     };
+    const audioPlan = buildAudioPlanReceipt({
+      plan: payload.plan,
+      route,
+      audioRender,
+      seed: ctx.seed,
+      backend: slot,
+    });
 
     return {
       outPath: artifactPath,
@@ -437,6 +541,7 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
           },
         },
         audioRender,
+        audioPlan,
         decoderHash: {
           value: decoderHash,
           frozen: true,
@@ -458,6 +563,7 @@ export class AudioCodec extends codecV2.BaseCodec<AudioRequest, AudioArtifact> {
     return [
       { key: "route", value: art.metadata.route },
       { key: "audioRender", value: art.metadata.audioRender },
+      { key: "audioPlan", value: art.metadata.audioPlan },
       { key: "quality.structural", value: art.metadata.quality.structural },
       { key: "quality.partial", value: art.metadata.quality.partial },
       { key: "metadata.warnings", value: art.metadata.warnings.length },

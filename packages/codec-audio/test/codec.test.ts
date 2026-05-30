@@ -68,6 +68,31 @@ describe("@wittgenstein/codec-audio", () => {
       determinismClass: "byte-parity",
       decoderId: "procedural-audio-runtime",
     });
+    expect(art.metadata.audioPlan).toMatchObject({
+      route: "speech",
+      script: "Wittgenstein ships a hackathon-ready audio demo.",
+      scriptChars: 48,
+      voice: {
+        speaker: "neutral",
+        tone: "clear",
+        language: "en",
+      },
+      prosody: {
+        tone: "clear",
+        language: "en",
+      },
+      timing: {
+        timelineEvents: 0,
+      },
+      ambient: {
+        category: "rain",
+        level: 0.22,
+      },
+      backend: "procedural-audio-runtime",
+    });
+    expect(art.metadata.audioPlan.route).toBe(art.metadata.route);
+    expect(art.metadata.audioPlan.scriptSha256).toHaveLength(64);
+    expect(art.metadata.audioPlan.timing.durationSec).toBeGreaterThan(0);
     expect(art.metadata.warnings).toEqual([
       expect.objectContaining({
         code: "audio/route-deprecated",
@@ -118,6 +143,26 @@ describe("@wittgenstein/codec-audio", () => {
     );
 
     expect(art.metadata.route).toBe("music");
+    expect(art.metadata.audioPlan).toMatchObject({
+      route: "music",
+      motif: "A small procedural melody.",
+      rhythm: {
+        bpm: 120,
+        key: "C",
+      },
+      eventGrid: {
+        stepSec: 5_512 / 22_050,
+      },
+      chord: {
+        frequenciesHz: [220, 261.63, 329.63, 392, 440],
+      },
+      ambient: {
+        level: 0.17600000000000002,
+      },
+    });
+    expect(art.metadata.audioPlan.route).toBe(art.metadata.route);
+    expect(art.metadata.audioPlan.motifSha256).toHaveLength(64);
+    expect(art.metadata.audioPlan.eventGrid.steps).toBeGreaterThan(0);
     expect(art.metadata.warnings).toEqual([
       expect.objectContaining({
         code: "audio/route-deprecated",
@@ -207,6 +252,24 @@ describe("@wittgenstein/codec-audio", () => {
     );
 
     expect(art.metadata.route).toBe("soundscape");
+    expect(art.metadata.audioPlan).toMatchObject({
+      route: "soundscape",
+      operatorGraph: {
+        source: "procedural-ambient",
+        category: "rain",
+        seed: 7,
+        nodes: ["ambient:rain", "filter:low-pass"],
+      },
+      envelope: {
+        level: 0.22,
+      },
+      filter: {
+        type: "low-pass",
+        alpha: 0.24,
+      },
+    });
+    expect(art.metadata.audioPlan.route).toBe(art.metadata.route);
+    expect(art.metadata.audioPlan.envelope.durationSec).toBeGreaterThan(0);
     expect(art.metadata.warnings).toEqual([]);
     expect(warnings).toEqual([]);
   });
