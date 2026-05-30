@@ -7,7 +7,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_VERSION_CHECK_TIMEOUT_MS,
+  createRuntimeProbeReceipt,
   firstOutputLine,
+  probeRuntimeCommandVersion,
   runProcess,
   spawnVersionCheck,
 } from "../src/index.js";
@@ -177,5 +179,61 @@ describe("spawnVersionCheck (#487 item 3)", () => {
     );
     expect(result.ok).toBe(true);
     expect(result.stdout.trim()).toBe("present");
+  });
+});
+
+describe("runtime probe receipts (#543)", () => {
+  it("builds compact skipped receipts without undefined optional fields", () => {
+    const receipt = createRuntimeProbeReceipt({
+      status: "skipped",
+      runtime: "ffmpeg",
+      tier: "video",
+      message: "set WITTGENSTEIN_HYPERFRAMES_RENDER=1",
+    });
+
+    expect(receipt).toEqual({
+      status: "skipped",
+      runtime: "ffmpeg",
+      tier: "video",
+      message: "set WITTGENSTEIN_HYPERFRAMES_RENDER=1",
+    });
+    expect("version" in receipt).toBe(false);
+    expect("path" in receipt).toBe(false);
+  });
+
+  it("converts a successful command version probe into a ready runtime receipt", () => {
+    const receipt = probeRuntimeCommandVersion({
+      runtime: "node",
+      tier: "video",
+      command: "node",
+      args: ["--version"],
+      missingMessage: "node missing",
+    });
+
+    expect(receipt.status).toBe("ok");
+    expect(receipt.runtime).toBe("node");
+    expect(receipt.tier).toBe("video");
+    expect(receipt.version).toMatch(/^v\d+\./);
+  });
+
+  it("converts a missing command version probe into a missing runtime receipt", () => {
+    const receipt = probeRuntimeCommandVersion({
+      runtime: "definitely-missing-runtime",
+      tier: "image",
+      command: "definitely-not-a-real-binary-xyz",
+      args: ["--version"],
+      installHint: "wittgenstein install image",
+      tracker: "https://github.com/p-to-q/wittgenstein/issues/543",
+      missingMessage: "install the runtime",
+    });
+
+    expect(receipt).toEqual({
+      status: "missing",
+      runtime: "definitely-missing-runtime",
+      tier: "image",
+      installHint: "wittgenstein install image",
+      tracker: "https://github.com/p-to-q/wittgenstein/issues/543",
+      message: "install the runtime",
+    });
   });
 });

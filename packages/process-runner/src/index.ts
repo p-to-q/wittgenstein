@@ -157,6 +157,102 @@ export interface SpawnVersionCheckResult {
   readonly timedOut: boolean;
 }
 
+export type RuntimeProbeStatus = "ok" | "missing" | "invalid" | "skipped";
+export type RuntimeProbeTier = "image" | "audio" | "video" | "sensor";
+
+export interface RuntimeProbeReceipt {
+  readonly status: RuntimeProbeStatus;
+  readonly runtime: string;
+  readonly tier?: RuntimeProbeTier;
+  readonly version?: string;
+  readonly path?: string;
+  readonly installHint?: string;
+  readonly tracker?: string;
+  readonly message?: string;
+}
+
+export type RuntimeProbeReceiptInput = RuntimeProbeReceipt;
+
+/**
+ * Build a stable optional-runtime probe receipt for doctor-style surfaces.
+ * This intentionally does not load optional peers or decide codec readiness; it
+ * only normalizes the receipt shape shared by CLI probes. Codec-local runtime
+ * loaders keep their domain-specific error classes and install hints.
+ *
+ * Undefined optional fields are omitted so JSON output remains compact and
+ * backwards-compatible with older doctor assertions that only inspected
+ * `status`, `version`, `path`, or `message`.
+ */
+export function createRuntimeProbeReceipt(input: RuntimeProbeReceiptInput): RuntimeProbeReceipt {
+  return {
+    status: input.status,
+    runtime: input.runtime,
+    ...(input.tier !== undefined ? { tier: input.tier } : {}),
+    ...(input.version !== undefined ? { version: input.version } : {}),
+    ...(input.path !== undefined ? { path: input.path } : {}),
+    ...(input.installHint !== undefined ? { installHint: input.installHint } : {}),
+    ...(input.tracker !== undefined ? { tracker: input.tracker } : {}),
+    ...(input.message !== undefined ? { message: input.message } : {}),
+  };
+}
+
+export interface RuntimeCommandVersionProbeOptions extends SpawnVersionCheckOptions {
+  readonly runtime: string;
+  readonly tier?: RuntimeProbeTier;
+  readonly command: string;
+  readonly args: ReadonlyArray<string>;
+  readonly path?: string;
+  readonly installHint?: string;
+  readonly tracker?: string;
+  readonly missingMessage: string;
+}
+
+/**
+ * Probe a command-shaped optional runtime (`ffmpeg --version`, Chrome
+ * `--version`, `npx --no-install hyperframes --version`) and return the shared
+ * doctor receipt. Failed probes deliberately map to `missing`, matching the
+ * existing doctor contract where a non-zero version probe means the runtime is
+ * not usable for this surface.
+ */
+export function probeRuntimeCommandVersion(
+  options: RuntimeCommandVersionProbeOptions,
+): RuntimeProbeReceipt {
+  const {
+    runtime,
+    tier,
+    command,
+    args,
+    path,
+    installHint,
+    tracker,
+    missingMessage,
+    ...probeOptions
+  } = options;
+  const result = spawnVersionCheck(command, args, probeOptions);
+
+  if (result.ok) {
+    return createRuntimeProbeReceipt({
+      status: "ok",
+      runtime,
+      ...(tier ? { tier } : {}),
+      version: firstOutputLine(result.stdout, result.stderr),
+      ...(path ? { path } : {}),
+      ...(installHint ? { installHint } : {}),
+      ...(tracker ? { tracker } : {}),
+    });
+  }
+
+  return createRuntimeProbeReceipt({
+    status: "missing",
+    runtime,
+    ...(tier ? { tier } : {}),
+    ...(path ? { path } : {}),
+    ...(installHint ? { installHint } : {}),
+    ...(tracker ? { tracker } : {}),
+    message: missingMessage,
+  });
+}
+
 /**
  * Synchronous `<cmd> [args...]` probe with a standardized timeout policy.
  * Designed for the `<binary> --version` shape used by doctor and runtime

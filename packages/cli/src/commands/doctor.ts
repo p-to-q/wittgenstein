@@ -2,7 +2,11 @@ import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
 import type { DecoderPreflightReceipt } from "@wittgenstein/codec-image";
-import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
+import {
+  createRuntimeProbeReceipt,
+  probeRuntimeCommandVersion,
+  type RuntimeProbeReceipt,
+} from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import {
   auditStatuses,
@@ -13,11 +17,10 @@ import {
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
 
-type DoctorCheckStatus = "ok" | "missing" | "invalid" | "skipped";
+type DoctorCheck = RuntimeProbeReceipt;
 
-interface DoctorCheck {
-  status: DoctorCheckStatus;
-  version?: string;
+interface DoctorFileCheck {
+  status: "ok" | "missing" | "invalid" | "skipped";
   path?: string;
   message?: string;
 }
@@ -45,7 +48,7 @@ interface ImageDecoderDoctor {
     gateD: string;
   } | null;
   weightsCached: boolean | null;
-  decoderManifest: DoctorCheck;
+  decoderManifest: DoctorFileCheck;
   onnxRuntime: DoctorCheck;
   reason: DecoderPreflightReceipt["reason"] | null;
   installHint: string | null;
@@ -95,17 +98,15 @@ export function registerDoctorCommand(program: Command): void {
 function checkVideoRenderDependencies(): VideoRenderDoctor {
   const enabled = process.env.WITTGENSTEIN_HYPERFRAMES_RENDER === "1";
   if (!enabled) {
-    const skipped: DoctorCheck = {
-      status: "skipped",
-      message: "Set WITTGENSTEIN_HYPERFRAMES_RENDER=1 to enable MP4 render dependency checks.",
-    };
+    const skippedMessage =
+      "Set WITTGENSTEIN_HYPERFRAMES_RENDER=1 to enable MP4 render dependency checks.";
     return {
       enabled,
       backend: readVideoBackend(),
-      hyperframesNode: skipped,
-      hyperframesCli: skipped,
-      ffmpeg: skipped,
-      chrome: skipped,
+      hyperframesNode: skippedVideoProbe("node", skippedMessage),
+      hyperframesCli: skippedVideoProbe("hyperframes", skippedMessage),
+      ffmpeg: skippedVideoProbe("ffmpeg", skippedMessage),
+      chrome: skippedVideoProbe("chrome", skippedMessage),
     };
   }
 
@@ -116,17 +117,21 @@ function checkVideoRenderDependencies(): VideoRenderDoctor {
     hyperframesNode:
       backend === "npx-cli"
         ? checkNodeForHyperframesCli()
-        : {
+        : createRuntimeProbeReceipt({
             status: "skipped",
+            runtime: "node",
+            tier: "video",
             message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
-          },
+          }),
     hyperframesCli:
       backend === "npx-cli"
         ? checkHyperframesCli()
-        : {
+        : createRuntimeProbeReceipt({
             status: "skipped",
+            runtime: "hyperframes",
+            tier: "video",
             message: "Only checked when WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli.",
-          },
+          }),
     ffmpeg: checkCommandVersion("ffmpeg", ["-version"], "Install FFmpeg for video MP4 rendering."),
     chrome: checkChrome(),
   };
@@ -135,17 +140,21 @@ function checkVideoRenderDependencies(): VideoRenderDoctor {
 function checkNodeForHyperframesCli(): DoctorCheck {
   const major = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
   if (major >= 22) {
-    return {
+    return createRuntimeProbeReceipt({
       status: "ok",
+      runtime: "node",
+      tier: "video",
       version: process.version,
-    };
+    });
   }
-  return {
+  return createRuntimeProbeReceipt({
     status: "missing",
+    runtime: "node",
+    tier: "video",
     version: process.version,
     message:
       "HyperFrames CLI currently requires Node.js >=22. Use the distilled internal backend on Node 20, or run the npx backend under Node 22+.",
-  };
+  });
 }
 
 function readVideoBackend(): "distilled-internal" | "npx-cli" {
@@ -155,52 +164,41 @@ function readVideoBackend(): "distilled-internal" | "npx-cli" {
 }
 
 function checkHyperframesCli(): DoctorCheck {
-  const result = spawnVersionCheck("npx", ["--no-install", "hyperframes", "--version"], {
+  return probeRuntimeCommandVersion({
+    runtime: "hyperframes",
+    tier: "video",
+    command: "npx",
+    args: ["--no-install", "hyperframes", "--version"],
     env: {
       HYPERFRAMES_NO_TELEMETRY: process.env.HYPERFRAMES_NO_TELEMETRY ?? "1",
       HYPERFRAMES_NO_UPDATE_CHECK: process.env.HYPERFRAMES_NO_UPDATE_CHECK ?? "1",
     },
-  });
-
-  if (result.ok) {
-    return {
-      status: "ok",
-      version: firstOutputLine(result.stdout, result.stderr),
-    };
-  }
-
-  return {
-    status: "missing",
-    message:
+    missingMessage:
       "Install HyperFrames locally, or unset WITTGENSTEIN_HYPERFRAMES_BACKEND to use the distilled internal renderer.",
-  };
+  });
 }
 
 function checkCommandVersion(command: string, args: string[], missingMessage: string): DoctorCheck {
-  const result = spawnVersionCheck(command, args);
-
-  if (result.ok) {
-    return {
-      status: "ok",
-      version: firstOutputLine(result.stdout, result.stderr),
-    };
-  }
-
-  return {
-    status: "missing",
-    message: missingMessage,
-  };
+  return probeRuntimeCommandVersion({
+    runtime: command,
+    tier: "video",
+    command,
+    args,
+    missingMessage,
+  });
 }
 
 function checkChrome(): DoctorCheck {
   const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
   if (envPath) {
     if (!existsSync(envPath)) {
-      return {
+      return createRuntimeProbeReceipt({
         status: "missing",
+        runtime: "chrome",
+        tier: "video",
         path: envPath,
         message: "PUPPETEER_EXECUTABLE_PATH is set but does not point to an existing file.",
-      };
+      });
     }
 
     return checkChromeCandidate(envPath);
@@ -222,24 +220,23 @@ function checkChrome(): DoctorCheck {
     }
   }
 
-  return {
+  return createRuntimeProbeReceipt({
+    runtime: "chrome",
+    tier: "video",
     status: "missing",
     message: "Install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH for video MP4 rendering.",
-  };
+  });
 }
 
 function checkChromeCandidate(candidate: string): DoctorCheck {
-  const result = spawnVersionCheck(candidate, ["--version"]);
-
-  if (result.ok) {
-    return {
-      status: "ok",
-      path: candidate,
-      version: firstOutputLine(result.stdout, result.stderr),
-    };
-  }
-
-  return { status: "missing" };
+  return probeRuntimeCommandVersion({
+    runtime: "chrome",
+    tier: "video",
+    command: candidate,
+    args: ["--version"],
+    path: candidate,
+    missingMessage: "Chrome/Chromium candidate did not respond to --version.",
+  });
 }
 
 async function checkImageDecoderReadiness(workspaceRoot: string): Promise<ImageDecoderDoctor> {
@@ -343,14 +340,29 @@ function checkOptionalNodePeer(packageName: string, installHint: string): Doctor
   const requireFromDoctor = createRequire(import.meta.url);
   try {
     const resolvedPath = requireFromDoctor.resolve(packageName);
-    return {
+    return createRuntimeProbeReceipt({
       status: "ok",
+      runtime: packageName,
+      tier: "image",
       path: resolvedPath,
-    };
+      installHint,
+    });
   } catch {
-    return {
+    return createRuntimeProbeReceipt({
       status: "missing",
+      runtime: packageName,
+      tier: "image",
+      installHint,
       message: `${packageName} is optional and not installed. Run \`${installHint}\` after a decoder manifest is selected.`,
-    };
+    });
   }
+}
+
+function skippedVideoProbe(runtime: string, message: string): DoctorCheck {
+  return createRuntimeProbeReceipt({
+    status: "skipped",
+    runtime,
+    tier: "video",
+    message,
+  });
 }
