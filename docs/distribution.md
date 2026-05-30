@@ -56,10 +56,22 @@ bridges remain explicit opt-in install surfaces tracked in #403. Decoder-weight
 loaders must verify SHA-256 before use and refuse research-only weights unless
 the caller opts in with `--allow-research-weights`.
 
-`wittgenstein install image --dry-run` is the current no-download planning
-surface for the Tier 1 bridge. A non-dry-run install intentionally fails with a
-structured `TIER_INSTALL_BLOCKED_BY_DECODER_MANIFEST` error until the concrete
-decoder-family manifest and fetch recipe land.
+`wittgenstein install image --dry-run` is the no-download planning surface for
+the Tier 1 bridge. A non-dry-run install reads
+`WITTGENSTEIN_DECODER_MANIFEST`, validates the decoder-family manifest and Gate
+C/D audit receipts, verifies cached asset SHA-256 values from
+`WITTGENSTEIN_DECODER_CACHE_DIR` (or the default decoder cache), and checks that
+the required runtime peer resolves. It exits 0 with `status: "ready"` only after
+that preflight passes:
+
+```bash
+WITTGENSTEIN_DECODER_MANIFEST=/path/to/decoder-manifest.json \
+WITTGENSTEIN_DECODER_CACHE_DIR=/path/to/decoder-cache \
+wittgenstein install image --json
+```
+
+Until a blessed manifest and matching cached assets exist, the command exits
+non-zero with a structured decoder-preflight receipt.
 
 ## Skill-Ready Expectations
 

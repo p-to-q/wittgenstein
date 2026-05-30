@@ -203,6 +203,7 @@ describe("doctor tier readiness", () => {
 function runDoctor(envOverrides: NodeJS.ProcessEnv = {}) {
   const env = { ...process.env };
   delete env.WITTGENSTEIN_DECODER_MANIFEST;
+  delete env.WITTGENSTEIN_DECODER_CACHE_DIR;
   delete env.WITTGENSTEIN_HYPERFRAMES_RENDER;
   delete env.WITTGENSTEIN_HYPERFRAMES_BACKEND;
 
