@@ -98,7 +98,7 @@ split out into a separate governance/docs hygiene PR, or left out of the M1B PR:
 - `docs/v02-alignment-review.md`
 - `docs/v02-final-audit.md`
 
-Observed pattern: these changes replace `max` / `max.zhuang.yan@gmail.com` with
+Observed pattern: these changes replace a contributor's personal name / email with
 `@Jah-yee @Moapacha`. That is governance / attribution hygiene, not decoder
 delivery. Mixing it into M1B would expand review scope and trigger
 doctrine-surface review obligations unrelated to #334/#335/#402.

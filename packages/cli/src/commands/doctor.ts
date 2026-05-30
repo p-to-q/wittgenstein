@@ -1,13 +1,10 @@
 import { createRequire } from "node:module";
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { loadWittgensteinConfig } from "@wittgenstein/core";
 import { firstOutputLine, spawnVersionCheck } from "@wittgenstein/process-runner";
 import type { Command } from "commander";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
-
-const OPTIONAL_DEPENDENCY_CHECK_TIMEOUT_MS = 10_000;
 
 type DoctorCheckStatus = "ok" | "missing" | "skipped";
 

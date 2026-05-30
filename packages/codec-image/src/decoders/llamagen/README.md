@@ -16,7 +16,7 @@ shared [`../weights.ts`](../weights.ts) cache + sha256 resolver and the
 ## Provenance
 
 - **Upstream source repo** — `FoundationVision/LlamaGen` ([github](https://github.com/FoundationVision/LlamaGen),
-  Apache-2.0). The `repoId` + `revision` in the manifest point at the
+  MIT). The `repoId` + `revision` in the manifest point at the
   audited snapshot (`81e41139…`) of the VQ tokenizer source code.
 - **Upstream weights** — `vq_ds16_c2i.pt` (~287 MB FP32, ~72M
   parameters, K=16384, embed dim D=8, downsample factor p=16).
