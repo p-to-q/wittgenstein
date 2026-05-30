@@ -177,9 +177,7 @@ describe("@wittgenstein/schemas", () => {
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
       expect(parsed.error.issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ path: ["videoRender", "renderPath"] }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ path: ["videoRender", "renderPath"] })]),
       );
     }
   });
@@ -252,6 +250,41 @@ describe("@wittgenstein/schemas", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("requires route-specific audioPlan receipts on successful audio manifests (Issue #261)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...audioManifestFields("speech"),
+      audioPlan: undefined,
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: ["audioPlan"] })]),
+      );
+    }
+  });
+
+  it("rejects mismatched audio route and audioPlan route (Issue #261)", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...audioManifestFields("speech"),
+      audioPlan: audioPlanReceipt("music"),
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: ["audioPlan", "route"] })]),
+      );
+    }
+  });
+
+  it("accepts canonical route-specific audioPlan receipts (Issue #261)", () => {
+    for (const route of ["speech", "soundscape", "music"] as const) {
+      const parsed = RunManifestSchema.safeParse(audioManifestFields(route));
+      expect(parsed.success).toBe(true);
+    }
   });
 
   it("rejects invalid image routes (Issue #190)", () => {
@@ -623,6 +656,116 @@ describe("@wittgenstein/schemas", () => {
     error: null,
   });
 
+  const audioManifestFields = (route: "speech" | "soundscape" | "music") => ({
+    runId: `run-audio-route-${route}`,
+    gitSha: "abc123",
+    lockfileHash: "def456",
+    nodeVersion: process.version,
+    wittgensteinVersion: "0.0.0",
+    command: "wittgenstein audio",
+    args: ["hello"],
+    seed: 7,
+    codec: "audio",
+    route,
+    license: { weightsRestriction: "permissive" },
+    llmProvider: "anthropic",
+    llmModel: "claude-opus-4-7",
+    llmTokens: { input: 10, output: 20 },
+    costUsd: 0,
+    promptRaw: "hello",
+    promptExpanded: "hello",
+    llmOutputRaw: "{}",
+    llmOutputParsed: {},
+    artifactPath: "/tmp/out.wav",
+    artifactSha256: "sha256",
+    audioRender: {
+      sampleRateHz: 22_050,
+      channels: 1,
+      durationSec: 3,
+      container: "wav",
+      bitDepth: 16,
+      determinismClass: "byte-parity",
+      decoderId: "procedural-audio-runtime",
+      decoderHash: "sha256-placeholder",
+    },
+    audioPlan: audioPlanReceipt(route),
+    startedAt: new Date().toISOString(),
+    durationMs: 10,
+    ok: true,
+    error: null,
+  });
+
+  const audioPlanReceipt = (route: "speech" | "soundscape" | "music") => {
+    if (route === "speech") {
+      return {
+        route,
+        script: "hello",
+        scriptSha256: "sha256-placeholder",
+        scriptChars: 5,
+        voice: {
+          speaker: "neutral",
+          tone: "clear",
+          language: "en",
+        },
+        prosody: {
+          tone: "clear",
+          language: "en",
+        },
+        timing: {
+          durationSec: 3,
+          timelineEvents: 0,
+        },
+        ambient: {
+          category: "rain",
+          level: 0.22,
+        },
+        backend: "procedural-audio-runtime",
+      };
+    }
+
+    if (route === "soundscape") {
+      return {
+        route,
+        operatorGraph: {
+          source: "procedural-ambient",
+          category: "forest",
+          seed: 7,
+          nodes: ["ambient:forest", "filter:low-pass"],
+        },
+        envelope: {
+          durationSec: 3,
+          level: 0.22,
+        },
+        filter: {
+          type: "low-pass",
+          alpha: 0.35,
+        },
+      };
+    }
+
+    return {
+      route,
+      motif: "minimal",
+      motifSha256: "sha256-placeholder",
+      rhythm: {
+        bpm: 120,
+        key: "C",
+        durationSec: 3,
+      },
+      eventGrid: {
+        stepSec: 5_512 / 22_050,
+        steps: 13,
+      },
+      chord: {
+        frequenciesHz: [220, 261.63, 329.63, 392, 440],
+      },
+      ambient: {
+        category: "electronic",
+        level: 0.176,
+      },
+    };
+  };
+
   const videoManifestFields = (route: string) => ({
     runId: `run-video-route-${route}`,
     gitSha: "abc123",
@@ -650,7 +793,9 @@ describe("@wittgenstein/schemas", () => {
       backend: "distilled-internal",
       backendVersion: "internal",
       determinismClass:
-        route === "hyperframes-html" ? "byte-parity-on-platform" : "structural-parity-cross-platform",
+        route === "hyperframes-html"
+          ? "byte-parity-on-platform"
+          : "structural-parity-cross-platform",
       fps: 24,
       quality: "standard",
       frameCount: route === "hyperframes-html" ? 0 : 72,

@@ -127,6 +127,7 @@ function expectStableAudioRender(
       decoderId: "procedural-audio-runtime",
     });
     expect(run.art.metadata.audioRender.durationSec).toBeGreaterThan(0);
+    expect(run.art.metadata.audioPlan.route).toBe(route);
     expect(run.art.metadata.quality.structural).toEqual({
       schemaValidated: true,
       route,
@@ -137,6 +138,7 @@ function expectStableAudioRender(
     });
     expect(manifestRows.route).toBe(route);
     expect(manifestRows.audioRender).toEqual(run.art.metadata.audioRender);
+    expect(manifestRows.audioPlan).toEqual(run.art.metadata.audioPlan);
     expect(manifestRows["artifact.sha256"]).toBe(run.sha256);
   }
 }

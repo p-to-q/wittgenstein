@@ -57,6 +57,8 @@ The LLM does not emit raw audio, MIDI bytes, or sample arrays. It emits a _plan_
 - Output is backend-specific and recorded in `audioRender`. Procedural speech emits
   16-bit WAV; Kokoro emits 24 kHz float WAV with `determinismClass:
 "structural-parity"`.
+- The route-specific plan receipt is recorded in `audioPlan`: script text/hash,
+  voice/prosody, ambient choice, timing, and backend.
 
 Any future fallback to Piper must leave manifest evidence of the concrete decoder
 actually used (`decoderId`, `determinismClass`). The v0.3 decision is simpler:
@@ -67,13 +69,17 @@ tested macOS and Linux targets.
 
 - Deterministic ambient texture render from a small operator library (filtered noise, granular layers, periodic events).
 - No LLM-driven sample generation at render time; the LLM's job is fully captured by the AudioPlan.
-- Output: 16-bit stereo WAV.
+- Output: 16-bit mono WAV.
+- The route-specific plan receipt is recorded in `audioPlan`: operator graph,
+  effective ambient category, seed, envelope level/duration, and filter.
 
 ### Music route
 
 - Tiny symbolic synth: chord progression → instrument-tagged note events → additive synthesis.
 - Optional ambient layer.
 - Not a music-generation model. Quality is _structurally correct_, not _aesthetically frontier_. The thesis surface is "the LLM plans music; the synth renders the plan."
+- The route-specific plan receipt is recorded in `audioPlan`: motif text/hash,
+  rhythm/key/duration, event-grid step count, chord frequencies, and ambient layer.
 
 ## Decoder Choices and Why
 
@@ -104,7 +110,9 @@ waveform-direct.
 - `expand` — LLM call(s) producing the AudioPlan; one round by default, two with `--expand`.
 - `adapt` — pass-through at v0.3.
 - `decode` — route-internal render: `speech.ts` / `soundscape.ts` / `music.ts`.
-- `package` — codec authors its own manifest rows: `route`, `seed`, `model_id`, `quality.structural`, optional `quality.partial`.
+- `package` — codec authors its own manifest rows: `route`, `audioRender`,
+  `audioPlan`, `quality.structural`, optional `quality.partial`, decoder hash,
+  and artifact SHA-256.
 
 ## Failure Modes
 
@@ -151,14 +159,14 @@ remains a v0.3 concern via M5b benchmarks and a future frozen-vocoder integratio
 
 For agents reading this doc cold, the lineage from M2 closure to today's main HEAD:
 
-| Step | Surface | Note |
-|---|---|---|
-| Codec-audio M2 port | `docs/exec-plans/active/codec-v2-port.md` §M2 | Three internal routes (speech / soundscape / music); `Codec<AudioRequest, AudioArtifact>` shape; ADR-0008 codec protocol |
-| Speech backend ratification | ADR-0015 | Kokoro-82M-family default target; Piper fallback ratified-but-not-wired |
-| Slice E receipt | `docs/research/2026-05-06-m2-slice-e-kokoro-sweep-verdict.md` | Kokoro is same-platform deterministic, **not** byte-identical across macOS arm64 vs Linux x64 → procedural-audio-runtime stays default at v0.3, Kokoro opt-in via `WITTGENSTEIN_AUDIO_BACKEND=kokoro` |
-| Route enum tightening | PR #245 | `RunManifest.route` enforces `speech` / `soundscape` / `music` per #190 partial closeout |
-| Audio code-layer research | PR #274 | Per-route distinct shapes recommended (SSML enrichment for speech, MIDI event-grid for music, sensor-style operator-graph for soundscape); RFC-routed only, NOT yet ratified |
-| Sub-RFC ordering (proposed) | per #274 §"Suggested follow-ups" | Soundscape operator-graph first, MIDI event-grid second, SSML enrichment last |
-| Implementation slices | #261 | Gated on at least one sub-RFC ratification |
+| Step                        | Surface                                                       | Note                                                                                                                                                                                                  |
+| --------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codec-audio M2 port         | `docs/exec-plans/active/codec-v2-port.md` §M2                 | Three internal routes (speech / soundscape / music); `Codec<AudioRequest, AudioArtifact>` shape; ADR-0008 codec protocol                                                                              |
+| Speech backend ratification | ADR-0015                                                      | Kokoro-82M-family default target; Piper fallback ratified-but-not-wired                                                                                                                               |
+| Slice E receipt             | `docs/research/2026-05-06-m2-slice-e-kokoro-sweep-verdict.md` | Kokoro is same-platform deterministic, **not** byte-identical across macOS arm64 vs Linux x64 → procedural-audio-runtime stays default at v0.3, Kokoro opt-in via `WITTGENSTEIN_AUDIO_BACKEND=kokoro` |
+| Route enum tightening       | PR #245                                                       | `RunManifest.route` enforces `speech` / `soundscape` / `music` per #190 partial closeout                                                                                                              |
+| Audio code-layer research   | PR #274                                                       | Per-route distinct shapes recommended (SSML enrichment for speech, MIDI event-grid for music, sensor-style operator-graph for soundscape); RFC-routed only, NOT yet ratified                          |
+| Sub-RFC ordering (proposed) | per #274 §"Suggested follow-ups"                              | Soundscape operator-graph first, MIDI event-grid second, SSML enrichment last                                                                                                                         |
+| Implementation slices       | #261                                                          | Gated on at least one sub-RFC ratification                                                                                                                                                            |
 
 > **Audio routes do NOT share a single token shape.** This is the central claim of #274 and the inverse of image's Visual Seed Code framing: speech is text-shaped (script + optional prosody enrichment), music is event-grid-shaped (chords / note timings), soundscape is operator-graph-shaped (deterministic operators over time). Forcing them under one VQ-tokenizer story would re-introduce the category error the image-route correction (RFC-0006 / ADR-0018) just fixed for image. Future work should respect this asymmetry.
