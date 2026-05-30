@@ -1,27 +1,13 @@
 import type { Command } from "commander";
+import { preflightSelectedImageDecoder, readDecoderCacheDir } from "./decoder-manifest.js";
+import { resolveExecutionRoot } from "./shared.js";
 import { buildInstallTierPlan, resolveInstallTier } from "../tiers.js";
 
 interface InstallCommandOptions {
   dryRun?: boolean;
   gpu?: boolean;
   allowResearchWeights?: boolean;
-}
-
-interface ImageDecoderPreflightReceipt {
-  schemaVersion: "witt.image.decoder-preflight/v0.1";
-  status: "blocked";
-  reason: "manifest-missing";
-  decoderId: null;
-  family: null;
-  runtimeTier: "node-onnx-cpu" | "node-onnx-gpu";
-  installHint: string;
-  tracker: string;
-  details: {
-    message: string;
-    decisionTracker: string;
-    gateCDeterminism: string;
-    gateDOnnxCpu: string;
-  };
+  json?: boolean;
 }
 
 export function registerInstallCommand(program: Command): void {
@@ -35,7 +21,9 @@ export function registerInstallCommand(program: Command): void {
       "--allow-research-weights",
       "allow research-only decoder weights for benchmarking per ADR-0020",
     )
-    .action((tier: string, options: InstallCommandOptions) => {
+    .option("--json", "print structured JSON output (default)")
+    .action(async (tier: string, options: InstallCommandOptions) => {
+      const workspaceRoot = resolveExecutionRoot();
       const resolvedTier = resolveInstallTier(tier, { gpu: options.gpu ?? false });
 
       if (!resolvedTier) {
@@ -51,15 +39,47 @@ export function registerInstallCommand(program: Command): void {
       const plan = buildInstallTierPlan(resolvedTier, {
         allowResearchWeights: options.allowResearchWeights ?? false,
       });
+      const cacheDir = readDecoderCacheDir(workspaceRoot);
 
       if (options.dryRun) {
+        const decoderPreflight = imageDecoderPreflightForPlan(plan);
         console.log(
           JSON.stringify(
             {
               ok: true,
               action: "plan-only",
+              status: decoderPreflight.status,
               plan,
-              decoderPreflight: imageDecoderPreflightForPlan(plan),
+              decoderPreflight,
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+
+      const { selection, preflight } = await preflightSelectedImageDecoder({
+        workspaceRoot,
+        ...(cacheDir ? { cacheDir } : {}),
+        allowResearchWeights: options.allowResearchWeights ?? false,
+        checkRuntime: true,
+      });
+
+      if (preflight.status === "ready") {
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              action: "install-ready",
+              status: "ready",
+              manifestPath: selection.manifestPath,
+              decoderId: preflight.decoderId,
+              family: preflight.family,
+              runtimeTier: preflight.runtimeTier,
+              weightsRestriction: weightsRestrictionFromPreflight(preflight),
+              plan,
+              decoderPreflight: preflight,
             },
             null,
             2,
@@ -69,18 +89,40 @@ export function registerInstallCommand(program: Command): void {
       }
 
       printInstallError({
-        code: "TIER_INSTALL_BLOCKED_BY_DECODER_MANIFEST",
-        message:
-          "Image tier installation requires a concrete decoder-family manifest before weights can be fetched.",
+        code:
+          preflight.reason === "manifest-missing"
+            ? "TIER_INSTALL_BLOCKED_BY_DECODER_MANIFEST"
+            : "TIER_INSTALL_BLOCKED_BY_DECODER_PREFLIGHT",
+        message: installBlockedMessage(preflight.reason),
+        status: "blocked",
+        manifestPath: selection.manifestPath,
+        decoderId: preflight.decoderId,
+        family: preflight.family,
+        runtimeTier: preflight.runtimeTier,
+        weightsRestriction: weightsRestrictionFromPreflight(preflight),
         plan,
+        decoderPreflight: preflight,
       });
       process.exitCode = 1;
     });
 }
 
-function imageDecoderPreflightForPlan(
-  plan: ReturnType<typeof buildInstallTierPlan>,
-): ImageDecoderPreflightReceipt {
+function imageDecoderPreflightForPlan(plan: ReturnType<typeof buildInstallTierPlan>): {
+  schemaVersion: "witt.image.decoder-preflight/v0.1";
+  status: "blocked";
+  reason: "manifest-missing";
+  decoderId: null;
+  family: null;
+  runtimeTier: "node-onnx-cpu" | "node-onnx-gpu";
+  installHint: string;
+  tracker: string;
+  details: {
+    message: string;
+    decisionTracker: string;
+    gateCDeterminism: string;
+    gateDOnnxCpu: string;
+  };
+} {
   return {
     schemaVersion: "witt.image.decoder-preflight/v0.1",
     status: "blocked",
@@ -98,6 +140,30 @@ function imageDecoderPreflightForPlan(
       gateDOnnxCpu: "https://github.com/p-to-q/wittgenstein/issues/335",
     },
   };
+}
+
+function installBlockedMessage(reason: string | null): string {
+  if (reason === "manifest-missing") {
+    return "Image tier installation requires a concrete decoder-family manifest before weights can be fetched.";
+  }
+
+  return "Image tier installation is blocked by decoder preflight checks.";
+}
+
+function weightsRestrictionFromPreflight(preflight: {
+  details: Record<string, unknown>;
+}): "permissive" | "research-only" | null {
+  const weights = preflight.details["weights"];
+  if (!isRecord(weights)) {
+    return null;
+  }
+
+  const restriction = weights["weightsRestriction"];
+  return restriction === "permissive" || restriction === "research-only" ? restriction : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function printInstallError(error: Record<string, unknown>): void {

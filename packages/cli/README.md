@@ -45,3 +45,12 @@ pnpm --filter @wittgenstein/cli run smoke
 - `tts` is a convenience alias for the `audio` codec's `speech` route.
 - `--route` remains available for one minor version as a deprecated compatibility hint.
 - `install image --dry-run` plans the optional image decoder tier without downloading weights.
+- Once a decoder-family manifest is blessed and its declared assets are cached, specialists can smoke the Tier 1 install path with:
+
+```bash
+WITTGENSTEIN_DECODER_MANIFEST=/path/to/decoder-manifest.json \
+WITTGENSTEIN_DECODER_CACHE_DIR=/path/to/decoder-cache \
+wittgenstein install image --json
+```
+
+The command exits 0 only when the manifest, Gate C/D audit receipts, cached SHA-256 values, and `onnxruntime-node` peer check pass.
