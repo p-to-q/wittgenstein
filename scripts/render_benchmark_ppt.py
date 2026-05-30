@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 
-ROOT = Path("/Users/dujiayi/Desktop/Wittgenstein")
+ROOT = Path(__file__).resolve().parents[1]
 BENCHMARK_JSON = ROOT / "artifacts/benchmarks/latest.json"
 OUT_DIR = ROOT / "artifacts/benchmarks/ppt-kit"
 
@@ -440,10 +440,10 @@ Suggested wording:
 
 These local documents define how the benchmark should be interpreted:
 
-- `/Users/dujiayi/Desktop/Wittgenstein/benchmarks/README.md`
-- `/Users/dujiayi/Desktop/Wittgenstein/docs/benchmark-standards.md`
-- `/Users/dujiayi/Desktop/Wittgenstein/docs/modality-launch-surface.md`
-- `/Users/dujiayi/Desktop/Wittgenstein/artifacts/benchmarks/latest.json`
+- `/path/to/wittgenstein/benchmarks/README.md`
+- `/path/to/wittgenstein/docs/benchmark-standards.md`
+- `/path/to/wittgenstein/docs/modality-launch-surface.md`
+- `/path/to/wittgenstein/artifacts/benchmarks/latest.json`
 
 Recommended supporting claim for slides:
 

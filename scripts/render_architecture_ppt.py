@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
-ROOT = Path("/Users/dujiayi/Desktop/Wittgenstein")
+ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "artifacts/benchmarks/ppt-kit"
 
 BG = "#121212"
