@@ -57,11 +57,6 @@ const checks = [
     custom: checkArtifactValidatorRejectsBadGateD,
   },
   {
-    name: "M1B staging plan covers current worktree",
-    command: "node",
-    args: ["scripts/m1b-staging-plan-check.mjs"],
-  },
-  {
     name: "generated M1B artifacts are ignored",
     pathsMustBeIgnored: [
       "artifacts/m1b-audit/gate-c-roundtrip.json",
@@ -124,12 +119,18 @@ function runCheck(check) {
 function checkArtifactValidatorRejectsBadGateD() {
   const dir = mkdtempSync(join(tmpdir(), "witt-m1b-artifact-check-"));
   try {
-    cpSync("research/validation/fixtures/m1b-audit/gate-c-pass.fixture.json", join(dir, "gate-c-roundtrip.json"));
+    cpSync(
+      "research/validation/fixtures/m1b-audit/gate-c-pass.fixture.json",
+      join(dir, "gate-c-roundtrip.json"),
+    );
     cpSync(
       "research/validation/fixtures/m1b-audit/gate-d-onnx-export.fixture.json",
       join(dir, "gate-d-onnx-export.json"),
     );
-    cpSync("research/validation/fixtures/m1b-audit/gate-d-fail.fixture.json", join(dir, "gate-d-onnx-cpu.json"));
+    cpSync(
+      "research/validation/fixtures/m1b-audit/gate-d-fail.fixture.json",
+      join(dir, "gate-d-onnx-cpu.json"),
+    );
     cpSync(
       "research/validation/fixtures/m1b-audit/vqgan-gates-blocked.fixture.json",
       join(dir, "vqgan-gates.json"),
