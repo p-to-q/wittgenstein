@@ -19,6 +19,7 @@
     "lint:publish-surface": "pnpm lint:no-research-imports && pnpm lint:npm-publish-tarball",
     "test": "pnpm -r test",
     "test:golden": "pnpm -r --filter \"./packages/codec-*\" --if-present run test:golden",
+    "test:image-adapter": "python3 python/image_adapter/test_train_numpy_smoke.py",
     "sweep:audio-kokoro": "tsx scripts/audio-kokoro-sweep.ts",
     "launch:check": "pnpm typecheck && pnpm --filter @wittgenstein/codec-audio test && pnpm --filter @wittgenstein/codec-sensor test",
     "benchmark": "node --import tsx benchmarks/harness.ts",

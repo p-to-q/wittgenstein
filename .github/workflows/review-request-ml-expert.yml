@@ -45,6 +45,15 @@ jobs:
               return;
             }
 
+            const author = context.payload.pull_request.user?.login;
+            if (author === reviewer) {
+              core.info(
+                `PR #${pull_number} is authored by "${reviewer}"; ` +
+                  "skipping self-review request.",
+              );
+              return;
+            }
+
             const { data: requested } = await github.rest.pulls.listRequestedReviewers({
               owner,
               repo,

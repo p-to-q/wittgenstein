@@ -168,14 +168,16 @@ python -m pip install -r requirements.txt    # the heavy stack
 wittgenstein train-sweep configs/phase1-ablation.yaml
 ```
 
-Tier 3 is the elite infra. It does NOT live under `packages/*` — it
-lives under `research/training/`, with its own `requirements.txt`,
-its own Dockerfile, its own dataset pipeline. **`research/` is
-explicitly excluded from npm publish** (via package.json `files`).
+Tier 3 is the elite infra. It does NOT live under `packages/*` — its canonical
+GPU home is `research/training/`, with its own `requirements.txt`, its own
+Dockerfile, its own dataset pipeline. `python/image_adapter/` is the narrow
+M1B scene-spec-to-VQ-latent MLP bridge surface, kept separate while it remains
+a small adapter/parity lane. **`research/` and `python/` are explicitly
+excluded from npm publish**.
 
-A user pip-installs `@wittgenstein/cli` and gets ZERO PyTorch in their
-dep tree. A contributor explicitly enters `research/training/` to
-pick up the heavy stack.
+A user pip-installs `@wittgenstein/cli` and gets ZERO PyTorch in their dep
+tree. A contributor explicitly enters `research/training/` for the heavy
+stack, or `python/image_adapter/` for the narrow scene-latent MLP bridge.
 
 ### Audience 5 — maintainer
 
@@ -273,16 +275,17 @@ Output: a markdown report (one page) with pass/fail per modality, a
 table of receipts, and citations into the research / ADR docs. Time
 budget: ≤ 5 minutes on a 2024-era laptop, no GPU required.
 
-### 6. `research/training/` strictly outside npm publish
+### 6. Training/research Python strictly outside npm publish
 
-`packages/*/package.json` already declares a `files` whitelist that
-excludes `research/`. This needs to remain the explicit invariant:
+`packages/*/package.json` already declares a `files` whitelist that excludes
+training/research Python surfaces. This needs to remain the explicit
+invariant:
 
-- No package ever imports from `research/training/`.
+- No package ever imports from `research/training/` or `python/image_adapter/`.
 - Training scripts may import from `packages/*` (one-way dep, contributor
   uses the harness inside training jobs).
-- npm publish never includes `research/`, `bench/`, `examples/`, or any
-  GB-class artifact.
+- npm publish never includes `research/`, `python/`, `benchmarks/`,
+  `examples/`, or any GB-class artifact.
 
 A small CI check can guard this — a script that diffs the npm `tarball`
 contents against an expected-files manifest and fails on drift.
@@ -327,7 +330,7 @@ spine/replay/cold-checkout):
 | **Optional/peer deps for heavy runtimes** | Tier discipline at the npm layer | new tracker |
 | **`wittgenstein install <tier>` CLI + doctor tier readiness** | User-visible tier surface | new tracker |
 | **`examples/reviewer-bench/`** | Reviewer one-command verification | new tracker |
-| **`research/training/` isolation from npm publish** | Doctrine: contributor stack ≠ user stack | new tracker |
+| **Training Python isolation** | Contributor stack stays out of user stack | new tracker |
 | **Per-tier `wittgenstein doctor` info** | Compass for what's possible | rolled into install-CLI tracker |
 | **Public benchmark page** | Tier 4, auto-generated | Phase 2 |
 | **Latency budgets in CI** | Catch performance regressions | future |
@@ -358,7 +361,7 @@ spine/replay/cold-checkout):
 | 2 | **`wittgenstein install <tier>` CLI + doctor tier readiness** | The user-visible install surface |
 | 3 | **Optional/peer-dep declarations for heavy runtimes** | Tier discipline at the npm dep layer |
 | 4 | **`examples/reviewer-bench/` reviewer one-command verification** | The reviewer surface |
-| 5 | **`research/training/` isolation + npm-publish guard** | Doctrine: contributor stack stays out of user stack |
+| 5 | **Training Python isolation + npm guard** | Contributor stack stays out of user stack |
 
 Each is sized small/medium. None require GPU compute to implement; all
 are pure engineering. They unblock the user/reviewer surfaces in
@@ -369,7 +372,7 @@ parallel with the Phase 1 training work, not after it.
 | Question | Answer |
 |---|---|
 | Does the elite infra ship to every user? | **No.** Tier 0 stays tiny. |
-| Does the elite infra exist in the project? | **Yes.** Under `research/training/`, with its own dep stack. |
+| Does the elite infra exist in the project? | **Yes.** See the placement decision above. |
 | Where do the **published benchmark numbers** come from? | **The elite tier.** GPU canonical, full ablation matrix, own-trained models. No compromises on the headline number. |
 | Does the user pay for the elite infra they don't use? | **No.** Lazy fetch + peer deps + tiered installer. |
 | Does the reviewer need GPU to verify? | **No.** `examples/reviewer-bench/` runs on a laptop in 5 minutes — verifies engineering claims (manifests, replay, receipts). For the **quality** claim, the reviewer reads the published benchmark page (Tier 4 artifact) — they don't have to re-run it. |

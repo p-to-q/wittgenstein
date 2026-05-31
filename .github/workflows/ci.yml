@@ -39,6 +39,8 @@ jobs:
               - "fixtures/**"
               - "benchmarks/**"
               - "examples/**"
+              - "python/**"
+              - "data/image_adapter/**"
               - "research/**"
               - "package.json"
               - "pnpm-lock.yaml"
@@ -123,6 +125,15 @@ jobs:
 
       - name: Python unit tests (polyglot-mini/train)
         run: python -m unittest discover -s polyglot-mini/train -p 'test_*.py' -v
+
+      - name: Install Python deps (image adapter NumPy smoke)
+        run: python -m pip install "numpy>=1.26.0"
+
+      - name: Python compile (image adapter)
+        run: python -m compileall python/image_adapter
+
+      - name: Python unit tests (image adapter NumPy smoke)
+        run: python -m unittest discover -s python/image_adapter -p 'test_*.py' -v
 
       - name: Python smoke (sensor + image + platform-aware tts)
         env:
