@@ -212,6 +212,19 @@ MOONSHOT_API_KEY=sk-... pnpm benchmark --live
 Results write to `artifacts/benchmarks/latest.json`. Each result embeds the run ID so
 the full `RunManifest` in `artifacts/runs/<id>/manifest.json` can be inspected.
 
+When score receipts exist for a release tag, render the aggregate chart with:
+
+```bash
+python benchmarks/tools/chart.py \
+  --receipts-dir artifacts/benchmarks/<tag> \
+  --tag <tag> \
+  --out artifacts/benchmarks/<tag>.png
+```
+
+Benchmark score receipts are validated by `benchmarks/tools/score_receipt.py` before the
+chart runner consumes them. This keeps the receipt contract in code while the model-backed
+metric runners are still landing one at a time.
+
 ---
 
 ## Benchmark Cadence

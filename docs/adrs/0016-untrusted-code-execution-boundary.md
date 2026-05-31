@@ -24,7 +24,7 @@ Wittgenstein executes code that a language model emits in two places today:
 
 The 2026-05-03 staff audit (#103, §3.4) flagged that the line between "research-grade subprocess sandbox" and "production-grade code-execution boundary" needed an ADR so future contributors and downstream operators have a clear rule, not an implicit one.
 
-`packages/sandbox/` exists as a TypeScript package whose `execProgram` currently throws on call (a generic `Error` carrying an explicit `"not implemented"` message; a typed `NotImplementedError` class is an open follow-up nicety, but the load-bearing contract is the throw, not the class) — it is the **reserved boundary** for the production path. ADR-0016 ratifies that reservation rather than implementing the production sandbox itself; production implementation is a separate engineering line whose entry condition is named below.
+`packages/sandbox/` exists as a TypeScript package whose `execProgram` currently throws on call with a typed `NotImplementedError` carrying `code = "SANDBOX_NOT_IMPLEMENTED"` and `details.kind = "production_sandbox_not_implemented"` — it is the **reserved boundary** for the production path. ADR-0016 ratifies that reservation rather than implementing the production sandbox itself; production implementation is a separate engineering line whose entry condition is named below.
 
 ## Decision
 
@@ -63,7 +63,7 @@ The 2026-05-03 staff audit (#103, §3.4) flagged that the line between "research
 
 - `SECURITY.md` cites this ADR as the load-bearing doctrine for the research / production boundary; the existing prose is preserved as the inline summary.
 - `docs/engineering-discipline.md` carries a short inline paragraph in §"Robustness: Never Hide Errors" naming this boundary as a non-silent-fallback case, citing ADR-0016.
-- `packages/sandbox/README.md` already exists; a focused follow-up will tighten its `execProgram` contract description and add an ADR-0016 cite (it currently uses `NotImplementedError`-style wording that predates this ADR).
+- `packages/sandbox/README.md` describes the typed `execProgram` hard-failure contract and cites ADR-0016.
 - Painter-path callers in `polyglot-mini` continue to work as today; nothing in the research-grade path changes.
 - Future engineering work on the production sandbox lands inside `packages/sandbox/` against one of the named mechanisms in §Decision 2; the choice of mechanism + its threat-model coverage is its own engineering-lane PR (Brief / RFC / ADR amendment / exec plan / code).
 - **Kill criterion:** if a production deployment is attempted before `@wittgenstein/sandbox` is implemented, this ADR's hard-error contract (§Decision 4) trips. That failure is the signal to land the production sandbox, not to weaken the boundary. Reopening this ADR to allow the research-grade subprocess sandbox in production requires explicit doctrine reversal, not a quiet workaround.

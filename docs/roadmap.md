@@ -101,7 +101,7 @@ Move benchmarks from "structural smoke proxy" to "standard metrics alongside the
 - [ ] Whisper WER runner for TTS (`benchmarks/tools/wer.py`)
 - [ ] Discriminative-score classifier for sensor
 - [ ] 10 prompts per modality; results committed per release tag
-- [ ] Chart generator producing `artifacts/benchmarks/<tag>.png`
+- [x] Chart generator producing `artifacts/benchmarks/<tag>.png`
 
 ## Phase 5 — Distribution
 

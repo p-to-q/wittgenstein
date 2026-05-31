@@ -1,10 +1,13 @@
 # benchmarks/tools/
 
-Phase-4 quality-metric runners (per `docs/roadmap.md` Phase 4). Today every entrypoint here is a typed Python skeleton that raises `NotImplementedError` — landing the contract first so that wiring CLIP / Whisper / discriminative classifiers can happen one PR at a time without rediscovering the file layout.
+Phase-4 quality-metric runners (per `docs/roadmap.md` Phase 4). Model-backed metric
+runners still land one PR at a time; implemented runners write score receipts or
+charts, while unimplemented runners raise `NotImplementedError` instead of silently
+passing.
 
 ## Contract
 
-Every runner is invoked as:
+Per-artifact metric runners are invoked as:
 
 ```bash
 python benchmarks/tools/<runner>.py \
@@ -17,9 +20,19 @@ python benchmarks/tools/<runner>.py \
 - `--manifest` — path to the run manifest at `artifacts/runs/<run-id>/manifest.json` (the runner inspects modality / route / seed for context).
 - `--out` — path to write a structured **score receipt** JSON. If the runner is not yet implemented it raises `NotImplementedError` and writes nothing; the caller can detect this from the missing file and fall back to the structural smoke proxy.
 
+The aggregate chart runner is invoked as:
+
+```bash
+python benchmarks/tools/chart.py \
+  --receipts-dir artifacts/benchmarks/<tag> \
+  --tag <tag> \
+  --out artifacts/benchmarks/<tag>.png
+```
+
 ## Score receipt shape
 
-When a runner is implemented, the receipt JSON has this shape (tighter typing TBD when the first real runner lands):
+Implemented runners write receipt JSON in the shared shape enforced by
+`score_receipt.py`:
 
 ```json
 {
@@ -43,7 +56,10 @@ When a runner is implemented, the receipt JSON has this shape (tighter typing TB
 }
 ```
 
-The shape is **not yet a zod-validated boundary** — it solidifies when the first runner lands and the actual data shape is known.
+This is now a code boundary for benchmark tools: `score_receipt.py` validates the common
+fields (`tool`, `version`, `metric`, `model`, `inputs`, `generatedAt`) before downstream
+tools consume a receipt. A future TypeScript / Zod mirror can land when score receipts
+become part of the public schema package.
 
 ## Runners
 
@@ -52,18 +68,22 @@ The shape is **not yet a zod-validated boundary** — it solidifies when the fir
 | `clipscore.py`  | image          | CLIPScore (image-text cosine)                                  | 🔴 Stub |
 | `wer.py`        | audio (speech) | Whisper WER                                                    | 🔴 Stub |
 | `disc_score.py` | sensor         | discriminative-score classifier                                | 🔴 Stub |
-| `chart.py`      | all            | aggregate score chart from `artifacts/benchmarks/<tag>/*.json` | 🔴 Stub |
+| `chart.py`      | all            | aggregate score chart from `artifacts/benchmarks/<tag>/*.json` | ✅ PNG chart |
 
 ## Why scaffolding-only first
 
 Per docs/roadmap.md Phase 4 plan: the metric runners land at v0.4. Without scaffolding, the first contributor to wire CLIP has to discover the file layout, dependency choice, manifest contract, and CI integration from scratch. With scaffolding, that contributor only has to fill in the model call.
 
-Each stub:
+Each unimplemented runner:
 
 - Validates argparse inputs.
 - Reads the run manifest and asserts the modality matches what the runner expects.
 - Raises `NotImplementedError` with a one-line "wire X here" message.
 - A test under `benchmarks/tools/test_*` asserts the `NotImplementedError` fires (so that "still a stub" is itself a checked invariant — silent success here would be the worst failure mode).
+
+`chart.py` is implemented now: it reads score receipts, validates the common
+receipt shape through `score_receipt.py`, and writes a matplotlib PNG with one panel per
+raw metric unit. Values are intentionally not normalized across metrics.
 
 ## Out of scope
 
