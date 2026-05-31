@@ -23,11 +23,7 @@ export class SandboxError extends Error {
   public readonly code: string;
   public readonly details: Record<string, unknown> | undefined;
 
-  public constructor(
-    code: string,
-    message: string,
-    options: SandboxErrorOptions = {},
-  ) {
+  public constructor(code: string, message: string, options: SandboxErrorOptions = {}) {
     super(message, { cause: options.cause });
     this.name = "SandboxError";
     this.code = code;
@@ -55,10 +51,7 @@ export class NotImplementedError extends SandboxError {
  * LLM-emitted drawing programs). Not implemented in scaffold — callers must
  * handle NotImplementedError.
  */
-export async function execProgram(
-  _code: string,
-  _options: ExecOptions,
-): Promise<ExecResult> {
+export async function execProgram(_code: string, _options: ExecOptions): Promise<ExecResult> {
   throw new NotImplementedError("execProgram", {
     details: {
       package: "@wittgenstein/sandbox",

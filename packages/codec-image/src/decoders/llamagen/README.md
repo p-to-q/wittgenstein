@@ -26,7 +26,7 @@ shared [`../weights.ts`](../weights.ts) cache + sha256 resolver and the
   via `torch.onnx.export` per the audit script
   `m1b-work/scripts/gate_d_onnx_export.py`. Encoder is intentionally
   not in the shipped file — the bridge contract is `decode(codes) →
-  raster`; encoders are offline tooling for adapter training only.
+raster`; encoders are offline tooling for adapter training only.
 - **Audit provenance** — Gates A+B in
   [`docs/research/2026-05-13-audit-vqgan-class.md`](../../../../../docs/research/2026-05-13-audit-vqgan-class.md);
   Gates C+D in
@@ -34,17 +34,17 @@ shared [`../weights.ts`](../weights.ts) cache + sha256 resolver and the
 
 ## Capabilities the bridge advertises
 
-| Field | Value | Source |
-|---|---|---|
-| `family` | `"llamagen"` | manifest |
-| `decoderId` | `"llamagen-frozen-vq-v0"` | locked constant in `../llamagen.ts` |
-| `supportedShapes` | `[{ shape: "2D", tokenGrid: [16, 16], outputPixels: [256, 256] }]` | Gate D `latent_grid` + `image_size` |
-| `codebook` | `"vq_ds16_c2i"` | upstream tokenizer artifact name |
-| `codebookVersion` | `"FoundationVision/LlamaGen@81e41139"` | manifest `repoId@revision` shortening |
-| `determinismClass` | `"structural-parity"` | Gate C verdict (ADR-0015 cross-platform precedent) |
-| `runtimeTier` | `"node-onnx-cpu"` | canonical M-phase tier per `docs/hard-constraints.md` |
-| `codeLicense` | `"MIT"` | manifest |
-| `weightsLicense` | `"permissive"` | manifest |
+| Field              | Value                                                              | Source                                                |
+| ------------------ | ------------------------------------------------------------------ | ----------------------------------------------------- |
+| `family`           | `"llamagen"`                                                       | manifest                                              |
+| `decoderId`        | `"llamagen-frozen-vq-v0"`                                          | locked constant in `../llamagen.ts`                   |
+| `supportedShapes`  | `[{ shape: "2D", tokenGrid: [16, 16], outputPixels: [256, 256] }]` | Gate D `latent_grid` + `image_size`                   |
+| `codebook`         | `"vq_ds16_c2i"`                                                    | upstream tokenizer artifact name                      |
+| `codebookVersion`  | `"FoundationVision/LlamaGen@81e41139"`                             | manifest `repoId@revision` shortening                 |
+| `determinismClass` | `"structural-parity"`                                              | Gate C verdict (ADR-0015 cross-platform precedent)    |
+| `runtimeTier`      | `"node-onnx-cpu"`                                                  | canonical M-phase tier per `docs/hard-constraints.md` |
+| `codeLicense`      | `"MIT"`                                                            | manifest                                              |
+| `weightsLicense`   | `"permissive"`                                                     | manifest                                              |
 
 ## ONNX hosting — pending
 

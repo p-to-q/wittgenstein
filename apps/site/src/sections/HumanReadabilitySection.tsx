@@ -50,7 +50,8 @@ export default function HumanReadabilitySection() {
           >
             <span className="text-[hsl(var(--coral))]">User prompt</span>
             {"\n    →  schema preamble + "}
-            <span className="text-[hsl(var(--coral))]">Visual Seed Code (VSC)</span>-bearing image contract
+            <span className="text-[hsl(var(--coral))]">Visual Seed Code (VSC)</span>-bearing image
+            contract
             {"\n          →  "}
             <span className="text-[hsl(var(--coral))]">LLM</span>
             {" (planner)"}
