@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-13
 **Author:** Maintainer collective (opened via #352)
-**Status:** 🟡 Draft v0.1 — pre-emptive; not active until a 1D candidate clears the radar.
+**Status:** 🟡 Draft v0.1 — pre-emptive; not active until a permissive 1D candidate clears the radar.
 **Feeds from:** [2026-05-08 image tokenizer radar](../research/2026-05-08-image-tokenizer-decoder-radar.md), [2026-05-13 per-candidate audits](../research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md), Issue [#332](https://github.com/p-to-q/wittgenstein/issues/332) (TiTok)
 **Ratified by:** ADR-00YY (pending)
 
@@ -14,7 +14,7 @@
 
 The image codec schema today assumes a 2D token grid: `ImageLatentCodesSchema.tokenGrid: [width, height]` with `tokens.length === width * height` enforced in `superRefine` ([packages/codec-image/src/schema.ts](../../packages/codec-image/src/schema.ts)). Every adapter, every decoder bridge, every receipt assumes 2D.
 
-The radar's Priority 4 candidate ([TiTok](https://arxiv.org/abs/2406.07550)) emits a **1D token sequence** rather than a 2D grid. The per-candidate audit ([#332](https://github.com/p-to-q/wittgenstein/issues/332)) confirms this. Even though TiTok is not the active M1B target (VQGAN-class is Priority 1, [#329](https://github.com/p-to-q/wittgenstein/issues/329)), the radar names eleven candidates and at least one — possibly more as the audit deepens — emits 1D codes.
+The radar's Priority 4 candidate ([TiTok](https://arxiv.org/abs/2406.07550)) emits a **1D token sequence** rather than a 2D grid. The per-candidate audit ([#332](https://github.com/p-to-q/wittgenstein/issues/332)) confirms this. The 2026-05-31 TiTok closeout also found that the current upstream pretrained models are research-only, so TiTok itself does **not** activate this RFC for canonical M1B wiring. Even though TiTok is not the active M1B target (VQGAN-class is Priority 1, [#329](https://github.com/p-to-q/wittgenstein/issues/329)), the radar names eleven candidates and at least one — possibly more as the audit deepens — emits 1D codes.
 
 The discriminator is **load-bearing**: without it, any 1D candidate that clears all four gates would force an emergency schema change under M1B time pressure. Drafting the RFC now is cheaper than discovering the question late.
 
@@ -26,7 +26,7 @@ Extend `ImageLatentCodes` with a `shape` discriminator. The 2D form carries `tok
 
 The discriminator sits **below** Visual Seed Code (ADR-0018). VSC is the LLM-facing surface; `shape` is an implementation detail of the latent-codes layer. ADR-0018 does not need to change.
 
-The change is additive and gated: 2D remains the default with no schema migration for current users. A 1D candidate only matters once one clears all four gates per the [radar audit plan](../research/2026-05-08-radar-audit-plan.md). Until then this RFC stays at `Draft v0.1`.
+The change is additive and gated: 2D remains the default with no schema migration for current users. A 1D candidate only matters once one clears all four gates per the [radar audit plan](../research/2026-05-08-radar-audit-plan.md), including permissive weight terms for the canonical M-phase path under ADR-0020. Until then this RFC stays at `Draft v0.1`.
 
 The decoder family enum stays as-is; instead, each decoder family declares its `tokenShape` capability tag inline at registration, so the same family name can support both shapes if its decoder evolves (rare but possible).
 
@@ -91,7 +91,7 @@ function expandSeedToLatents(seed: VisualSeedCode, family: DecoderFamily): Image
   const capability = decoderRegistry.get(family).tokenShape; // "1D" | "2D"
   return capability === "1D"
     ? expandToSequence(seed, family) // new path
-    : expandToGrid(seed, family);    // existing path
+    : expandToGrid(seed, family); // existing path
 }
 ```
 
@@ -136,6 +136,7 @@ There is no deprecation window for 2D — the discriminator is additive. The v0.
 
 - Radar: [2026-05-08 image tokenizer radar](../research/2026-05-08-image-tokenizer-decoder-radar.md)
 - Per-candidate audits: [2026-05-13](../research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md)
+- TiTok closeout: [2026-05-31](../research/2026-05-31-titok-gate-b-license-closeout.md)
 - TiTok audit thread: [#332](https://github.com/p-to-q/wittgenstein/issues/332)
 - M1B umbrella: [#70](https://github.com/p-to-q/wittgenstein/issues/70), audit slate: [#283](https://github.com/p-to-q/wittgenstein/issues/283)
 - Schema home: [packages/codec-image/src/schema.ts](../../packages/codec-image/src/schema.ts)

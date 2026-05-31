@@ -12,20 +12,26 @@ tracks: [#330, #331, #332, #333, #283, #70]
 
 ## Summary table
 
-| Priority | Candidate                | Gate A (License)                                                      | Gate B (Weights)                                               | Gate C / D                                                                       | Verdict                                                                              |
-| -------- | ------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 2        | FSQ                      | ✅ Apache-2.0 (community impl)                                        | ⚠️ N/A — algorithm, not a packaged tokenizer                   | quantization primitive likely-expressible; full tokenizer pipeline not validated | **different shape; see §FSQ**                                                        |
-| 3        | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0                                                         | ✅ PASS — HF repo + checkpoint filenames surfaced              | requires local compute                                                           | **candidate; blocked only on empirical Gate C/D**                                    |
-| 4        | TiTok / 1d-tokenizer     | ✅ Apache-2.0                                                         | ⚠️ PARTIAL — "HuggingFace support" claimed, URLs not in README | requires local compute                                                           | **provisional / unresolved pending Gate B URL verification + Gate C/D + schema RFC** |
-| 5        | MaskBit                  | ⚠️ **NUANCED**: code Apache-2.0, weights **"research purposes only"** | ✅ Multiple HF repos                                           | local compute                                                                    | **gated by weights-license carve-out**                                               |
+| Priority | Candidate                | Gate A (License)                                                      | Gate B (Weights)                                  | Gate C / D                                                                       | Verdict                                                      |
+| -------- | ------------------------ | --------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 2        | FSQ                      | ✅ Apache-2.0 (community impl)                                        | ⚠️ N/A — algorithm, not a packaged tokenizer      | quantization primitive likely-expressible; full tokenizer pipeline not validated | **different shape; see §FSQ**                                |
+| 3        | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0                                                         | ✅ PASS — HF repo + checkpoint filenames surfaced | requires local compute                                                           | **candidate; blocked only on empirical Gate C/D**            |
+| 4        | TiTok / 1d-tokenizer     | ⚠️ Code Apache-2.0; upstream models marked research-only              | ✅ PASS — HF tokenizer repos and files surfaced   | not worth canonical compute while weights are restricted                         | **research/benchmark only; RFC-0007 not triggered by TiTok** |
+| 5        | MaskBit                  | ⚠️ **NUANCED**: code Apache-2.0, weights **"research purposes only"** | ✅ Multiple HF repos                              | local compute                                                                    | **gated by weights-license carve-out**                       |
 
-**The most important finding** is on MaskBit (#333): its README explicitly carves weights out from code, marking the trained checkpoints as "research purposes only." That's a real legal restriction for Wittgenstein's open-source / redistribution posture — Gate A doesn't cleanly PASS for MaskBit even though the code is Apache-2.0. This is the first candidate we've audited with an explicit weights/code license divergence.
+**The first important finding** was on MaskBit (#333): its README explicitly carves weights out from code, marking the trained checkpoints as "research purposes only." That's a real legal restriction for Wittgenstein's open-source / redistribution posture — Gate A doesn't cleanly PASS for MaskBit even though the code is Apache-2.0. The 2026-05-31 TiTok refresh found the same class of code/weights divergence for the released TiTok model zoo.
 
 ## Cross-cutting notes
 
 - All four candidates' code repos are Apache-2.0 (matching the audit's Gate A criterion at the code level). The license blob SHA at the API level is identical across them (`261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64`), which simply means they all carry the OSI-template Apache-2.0 text — expected.
+- Code license is not enough for canonical M-phase adoption. MaskBit and TiTok
+  both have permissive code plus research-only model wording, which keeps them
+  in ADR-0020's research/benchmark lane unless upstream or project-owned
+  weights become permissive.
 - None of the four candidates mention **ONNX export, transformers.js, or CPU inference benchmarks** in their README. Gate D (Node / ONNX / CPU feasibility) cannot be assessed without local empirical work for any of them. This is consistent with the VQGAN-class audit's same conclusion.
-- The general pattern: licensing risk is mostly retired by external inspection; **operational risk (determinism + CPU/ONNX) requires local compute**. Same shape as VQGAN-class.
+- The general pattern: file availability can usually be retired by external
+  inspection, while **operational risk (determinism + CPU/ONNX) requires local
+  compute**. License posture must be checked separately for code and weights.
 
 ## Priority 2 — FSQ (delivers [#330](https://github.com/p-to-q/wittgenstein/issues/330))
 
@@ -110,27 +116,57 @@ Standard pattern: requires local compute. Defer to implementation-slice follow-u
 
 The radar's `TiTok` candidate is hosted at [`bytedance/1d-tokenizer`](https://github.com/bytedance/1d-tokenizer) (the older `bytedance-research/TiTok` name appears to have moved).
 
-### Gate A — **PASS**
+2026-05-31 update: Gate B is no longer partial, but the same inspection
+surfaced a code/weights license divergence. See
+[`2026-05-31-titok-gate-b-license-closeout.md`](2026-05-31-titok-gate-b-license-closeout.md).
+
+### Gate A — ⚠️ CODE PASS; WEIGHTS RESEARCH-ONLY
 
 - Code: Apache-2.0 (blob SHA `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64`).
-- Weights: README does not carve out a separate license. Same fetch-time re-verification caveat.
+- Weights: `README_TiTok.md` links the released model zoo and says the models
+  are for research purposes. HF model cards report Apache-2.0, but ADR-0020
+  requires the canonical M-phase path to have permissive code **and** weights.
+  The stricter upstream README wording wins for default shipping.
 
-### Gate B — **PARTIAL**
+### Gate B — **PASS**
 
-- README says "Better support on loading pretrained weights from huggingface models" (08/09/2024 changelog entry) — implies HF availability.
-- Model variants named (TiTok-L-32, TiTok-B64, TiTok-S128) but **no specific HF URLs in the README excerpt** surfaced.
-- The HF repo is likely `bytedance-research/TiTok-*` per the radar plan; one more inspection step would confirm.
+- `README_TiTok.md` links concrete HF tokenizer repos:
+  `yucornetto/tokenizer_titok_l32_imagenet`,
+  `yucornetto/tokenizer_titok_b64_imagenet`, and
+  `yucornetto/tokenizer_titok_s128_imagenet`.
+- HF API reports public, ungated repos with `model.safetensors` files at
+  revisions `1c9a2084c59112fd415b7ed97d4c200e864a95de`,
+  `603747b9431d1d903ce6f1c55207f3c3bea4c785`, and
+  `aa8740991cc9e5965e6dea04caad8905193fc24b`.
+- The consolidated `fun-research/TiTok` HF repo also exposes
+  `tokenizer_titok_l32.bin`, `tokenizer_titok_b64.bin`, and
+  `tokenizer_titok_s128.bin` at revision
+  `ab646ed225080a3acb7c78440a574d7f67f16fa7`.
+- HEAD probes returned HTTP 200 for the three `model.safetensors` files and
+  the three consolidated tokenizer `.bin` files on 2026-05-31.
+- Net: weights availability and SHA-pinning surfaces are real. The remaining
+  blocker is license posture, not file discovery.
 
-### Gates C / D — UNKNOWN
+### Gates C / D — NOT RUN FOR CANONICAL SELECTION
 
-- 1D token sequence may be **more sensitive to numerical issues** than 2D grid (per the audit plan's note); Gate C should be tested empirically before this candidate is considered for M1B.
-- No ONNX / transformers.js mention. Gate D requires local empirical work.
+- 1D token sequence may be **more sensitive to numerical issues** than 2D grid
+  (per the audit plan's note); Gate C would still require empirical testing if
+  TiTok were reopened.
+- No ONNX / transformers.js mention. Gate D would still require local empirical
+  work.
+- Because Gate A does not cleanly clear for canonical M1B weights, spending
+  canonical-selection compute on Gates C/D is not justified now.
 
-### Schema discriminator RFC trigger — STILL APPLIES
+### Schema discriminator RFC trigger — NOT TRIGGERED BY TiTok
 
-Even though Gate A and Gate B clear, **TiTok integration triggers a schema discriminator RFC** (per the audit-plan and per [#332](https://github.com/p-to-q/wittgenstein/issues/332)). The codec's `seedCode` schema today assumes a 2D grid; TiTok's 1D token sequence needs a `shape: "1D" | "2D"` discriminator before any wiring slice begins.
+TiTok would require the `shape: "1D" | "2D"` discriminator from
+[RFC-0007](../rfcs/0007-image-seedcode-shape-discriminator.md), but that RFC
+only activates after a 1D candidate clears all four gates. TiTok did not clear
+Gate A for canonical weights, so it does **not** trigger schema wiring.
 
-**If TiTok eventually becomes the M1B target, the RFC must land first.** This isn't an audit-blocking concern, just sequencing — flagged for the maintainer.
+**If TiTok is reopened with permissive weights, the RFC must land before any
+decoder-family registration or bridge wiring.** Until then, TiTok stays out of
+`DecoderFamilySchema`.
 
 ## Priority 5 — MaskBit (delivers [#333](https://github.com/p-to-q/wittgenstein/issues/333))
 
@@ -171,22 +207,25 @@ This finding is **load-bearing**. The audit-plan's Gate A criterion is "Apache /
 
 After this audit pass plus the VQGAN-class audit:
 
-| #   | Candidate              | License (code)                 | License (weights)                            | Weights availability        | Operational gates                      |
-| --- | ---------------------- | ------------------------------ | -------------------------------------------- | --------------------------- | -------------------------------------- |
-| 1   | VQGAN-class (LlamaGen) | ✅ MIT                         | ✅ MIT (project-level; fetch-time re-verify) | ✅ HF, 70-72M               | ❓ #334 / #335                         |
-| 2   | FSQ                    | ✅ Apache-2.0 (community impl) | N/A (algorithm)                              | N/A                         | trivially-pass                         |
-| 3   | OpenMAGVIT2            | ✅ Apache-2.0                  | ✅ Apache-2.0 on HF card                     | ✅ HF repo + ckpt filenames | ❓ requires local compute              |
-| 4   | TiTok                  | ✅ Apache-2.0                  | ⚠️ no carve-out surfaced; verify             | ⚠️ partial (HF claim)       | ❓ requires local compute + schema RFC |
-| 5   | MaskBit                | ✅ Apache-2.0                  | ❌ **"research purposes only"**              | ✅ multiple HF repos        | de-prioritized due to weights license  |
+| #   | Candidate              | License (code)                 | License (weights)                             | Weights availability        | Operational gates                     |
+| --- | ---------------------- | ------------------------------ | --------------------------------------------- | --------------------------- | ------------------------------------- |
+| 1   | VQGAN-class (LlamaGen) | ✅ MIT                         | ✅ MIT (project-level; fetch-time re-verify)  | ✅ HF, 70-72M               | ❓ #334 / #335                        |
+| 2   | FSQ                    | ✅ Apache-2.0 (community impl) | N/A (algorithm)                               | N/A                         | trivially-pass                        |
+| 3   | OpenMAGVIT2            | ✅ Apache-2.0                  | ✅ Apache-2.0 on HF card                      | ✅ HF repo + ckpt filenames | ❓ requires local compute             |
+| 4   | TiTok                  | ✅ Apache-2.0                  | ❌ upstream README marks models research-only | ✅ HF tokenizer repos/files | research/benchmark only; RFC dormant  |
+| 5   | MaskBit                | ✅ Apache-2.0                  | ❌ **"research purposes only"**               | ✅ multiple HF repos        | de-prioritized due to weights license |
 
-**The candidate set has narrowed.** VQGAN-class remains the natural Priority 1 unless its operational gates ([#334](https://github.com/p-to-q/wittgenstein/issues/334) / [#335](https://github.com/p-to-q/wittgenstein/issues/335)) fail; OpenMAGVIT2 is the strongest backup based on rFID; TiTok needs schema work; MaskBit is gated by weights license; FSQ is a different-shape option requiring our own training infra.
+**The candidate set has narrowed.** VQGAN-class remains the natural Priority 1 unless its operational gates ([#334](https://github.com/p-to-q/wittgenstein/issues/334) / [#335](https://github.com/p-to-q/wittgenstein/issues/335)) fail; OpenMAGVIT2 is the strongest backup based on rFID; TiTok and MaskBit are gated by weights-license restrictions; FSQ is a different-shape option requiring our own training infra.
 
 ## Next-action recommendations
 
 1. **For VQGAN-class:** run [#334](https://github.com/p-to-q/wittgenstein/issues/334) and [#335](https://github.com/p-to-q/wittgenstein/issues/335) (Gates C and D), as already planned.
 2. **For OpenMAGVIT2:** Gate B is closed; run empirical Gate C/D only if
    OpenMAGVIT2 becomes the active fallback after VQGAN-class.
-3. **For TiTok:** parallel inspection of the HF repo presence; flag the schema-discriminator RFC as the gating step for any TiTok wiring.
+3. **For TiTok:** do not spend another static Gate B pass. Treat the current
+   upstream weights as research/benchmark only under ADR-0020. RFC-0007 stays
+   dormant unless TiTok is reopened with permissive weights or a future 1D
+   candidate clears all four gates.
 4. **For MaskBit:** add a license-redistribution note to [#333](https://github.com/p-to-q/wittgenstein/issues/333) and de-prioritize behind the others.
 5. **For FSQ:** open a **separate training-prep research note** (sibling to this audit) covering encoder-decoder architecture, training data, infra requirements. FSQ doesn't fit the standard four-gate shape; it fits a "we train it ourselves" shape that the campaign hasn't explicitly named yet.
 
@@ -217,7 +256,16 @@ OpenMAGVIT2 Gate B refresh, checked 2026-05-31:
 - `https://huggingface.co/TencentARC/Open-MAGVIT2/raw/main/README.md`
 - `https://github.com/TencentARC/SEED-Voken`
 
-**The wiring slice must re-verify README claims at fetch time** — specifically the MaskBit "research purposes only" weights wording and any HuggingFace URLs surfaced in linked sub-docs. Per the per-candidate audit-plan template, weights SHA-pinning and license terms are recorded in the manifest at the time of download, not at audit time.
+TiTok Gate B / license refresh, checked 2026-05-31:
+
+- `https://github.com/bytedance/1d-tokenizer`
+- `https://raw.githubusercontent.com/bytedance/1d-tokenizer/main/README_TiTok.md`
+- `https://huggingface.co/yucornetto/tokenizer_titok_l32_imagenet`
+- `https://huggingface.co/yucornetto/tokenizer_titok_b64_imagenet`
+- `https://huggingface.co/yucornetto/tokenizer_titok_s128_imagenet`
+- `https://huggingface.co/fun-research/TiTok`
+
+**The wiring slice must re-verify README claims at fetch time** — specifically the MaskBit and TiTok "research purposes only" weights wording and any HuggingFace URLs surfaced in linked sub-docs. Per the per-candidate audit-plan template, weights SHA-pinning and license terms are recorded in the manifest at the time of download, not at audit time.
 
 ## Cross-references
 
