@@ -41,7 +41,7 @@ export const TRACKERS = {
   m1bGateCDeterminism: issueUrl(334),
   /** VQGAN-class Gate D (ONNX export + CPU decode feasibility). */
   m1bGateDOnnxCpu: issueUrl(335),
-  /** OpenMAGVIT2 per-candidate four-gate audit. */
+  /** OpenMAGVIT2 per-candidate four-gate audit; Gate A/B cleared, empirical C/D remain. */
   m1bOpenMagvit2Audit: issueUrl(331),
   /** Decoder-delivery decision: lazy weight fetch + sha256 verify. */
   decoderDeliveryDecision: issueUrl(402),
