@@ -481,13 +481,19 @@ def train(cfg: TrainConfig) -> dict:
     return summary
 
 
-# Metric direction for manifest snapshots: True = higher is better.
-_EVAL_METRIC_HIGHER_BETTER = {
-    "psnr": True,
-    "ssim": True,
-    "lpips": False,
-    "rfid": False,
-    "codebook_used_pct": True,
+# Eval metric metadata for manifest snapshots: name -> (unit, higherIsBetter).
+# The manifest validator requires unit to be a NONEMPTY string and
+# higherIsBetter to be a bool whenever the keys are present (asdict always
+# emits them), so every metric we surface must carry both. Metrics not in this
+# table are bookkeeping (e.g. n_images_evaluated) and are intentionally not
+# emitted as quality metrics.
+_EVAL_METRIC_META = {
+    "psnr": ("dB", True),
+    "ssim": ("ratio", True),
+    "lpips": ("distance", False),
+    "rfid": ("fid", False),
+    "codebook_used_pct": ("fraction", True),
+    "codebook_used_count": ("count", True),
 }
 
 
@@ -553,15 +559,26 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
         if was_training:
             core.train()
 
-        metric_objs = [
-            TrainingRunEvalMetric(
-                name=k,
-                value=float(v),
-                higherIsBetter=_EVAL_METRIC_HIGHER_BETTER.get(k),
+        metric_objs = []
+        for k, v in metrics.items():
+            meta = _EVAL_METRIC_META.get(k)
+            if meta is None:
+                continue  # bookkeeping field, not a quality metric
+            if not isinstance(v, (int, float)) or isinstance(v, bool):
+                continue
+            if not math.isfinite(float(v)):
+                continue
+            unit, higher_is_better = meta
+            metric_objs.append(
+                TrainingRunEvalMetric(
+                    name=k,
+                    value=float(v),
+                    unit=unit,
+                    higherIsBetter=higher_is_better,
+                )
             )
-            for k, v in metrics.items()
-            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(float(v))
-        ]
+        if not metric_objs:
+            return []  # nothing measurable → no snapshot (keeps manifest valid)
         snapshot = TrainingRunEvalSnapshot(
             modality="image",
             dataset=TrainingRunEvalDataset(
