@@ -102,12 +102,18 @@ def init_distributed() -> tuple[int, int, int, torch.device]:
     Falls back to single-process if torchrun env vars are absent (smoke).
     """
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
-        dist.init_process_group(backend="nccl")
+        # nccl is GPU-only; fall back to gloo when CUDA is absent so the
+        # multi-process DDP path is runnable (and testable) on CPU too.
+        use_cuda = torch.cuda.is_available()
+        dist.init_process_group(backend="nccl" if use_cuda else "gloo")
         rank = dist.get_rank()
         world = dist.get_world_size()
-        local = int(os.environ["LOCAL_RANK"])
-        torch.cuda.set_device(local)
-        device = torch.device("cuda", local)
+        local = int(os.environ.get("LOCAL_RANK", 0))
+        if use_cuda:
+            torch.cuda.set_device(local)
+            device = torch.device("cuda", local)
+        else:
+            device = torch.device("cpu")
         return rank, world, local, device
     if torch.cuda.is_available():
         return 0, 1, 0, torch.device("cuda", 0)
@@ -116,6 +122,18 @@ def init_distributed() -> tuple[int, int, int, torch.device]:
 
 def is_main(rank: int) -> bool:
     return rank == 0
+
+
+def _ddp_wrap(module, device, local_rank, **kwargs):
+    """DDP-wrap a module with device-correct kwargs.
+
+    On CUDA, DDP pins to a device via device_ids/output_device; on CPU
+    (gloo backend) those MUST be omitted/None or DDP raises. Centralizes the
+    branch so the generator and discriminator wrap identically.
+    """
+    if device.type == "cuda":
+        return DDP(module, device_ids=[local_rank], output_device=local_rank, **kwargs)
+    return DDP(module, **kwargs)
 
 
 def cleanup_distributed():
@@ -199,7 +217,7 @@ def train(cfg: TrainConfig) -> dict:
         )
 
     if world > 1:
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        model = _ddp_wrap(model, device, local_rank, find_unused_parameters=False)
 
     # ---- Loss ----
     lpips_mod = None
@@ -230,7 +248,7 @@ def train(cfg: TrainConfig) -> dict:
             betas=(cfg.optim.beta1, cfg.optim.beta2),
         )
         discriminator = (
-            DDP(disc_core, device_ids=[local_rank], output_device=local_rank)
+            _ddp_wrap(disc_core, device, local_rank)
             if world > 1
             else disc_core
         )
