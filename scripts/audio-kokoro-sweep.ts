@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { arch, platform, release } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { audioCodec } from "../packages/codec-audio/src/index.js";
-import { codecV2 } from "@wittgenstein/schemas";
+import type { AudioCodec } from "../packages/codec-audio/src/codec.js";
+import type { codecV2 as CodecV2Namespace } from "@wittgenstein/schemas";
 
 interface SweepRun {
   readonly index: number;
@@ -72,6 +72,12 @@ async function main(): Promise<void> {
 void main();
 
 async function produceRuns(count: number): Promise<SweepRun[]> {
+  const { audioCodec } = (await import("../packages/codec-audio/src/index.js")) as {
+    readonly audioCodec: AudioCodec;
+  };
+  const { codecV2 } = (await import("@wittgenstein/schemas")) as {
+    readonly codecV2: typeof CodecV2Namespace;
+  };
   const runs: SweepRun[] = [];
   for (let index = 0; index < count; index += 1) {
     const dir = await mkdtemp(join(tmpdir(), `witt-kokoro-sweep-${index}-`));
@@ -185,9 +191,13 @@ function readRunsArg(): number {
   if (index === -1) {
     return 3;
   }
-  const value = Number.parseInt(process.argv[index + 1] ?? "", 10);
-  if (!Number.isFinite(value) || value <= 0) {
+  const raw = process.argv[index + 1] ?? "";
+  if (!/^\d+$/.test(raw)) {
     throw new Error("--runs requires a positive integer");
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error("--runs requires a positive safe integer");
   }
   return value;
 }
