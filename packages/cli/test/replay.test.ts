@@ -1,12 +1,9 @@
 /**
  * End-to-end smoke test for `wittgenstein replay <manifest-path>` (#384).
  *
- * Runs svg --source local via the CLI; the second run is `replay`
- * against the first run's manifest. Asserts byte-parity through the
- * exit code + structured stdout.
- *
- * Why svg-local and not sensor: sensor dashboards still carry an output-path
- * user hint, while svg-local emits pure deterministic SVG.
+ * Runs deterministic local routes via the CLI; the second run is `replay`
+ * against the first run's manifest. Asserts byte-parity through the exit
+ * code + structured stdout.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -37,11 +34,6 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
     // node_modules). The harness's `resolveExecutionRoot` then finds
     // the workspace and writes artifacts under `<repo>/artifacts/runs/`;
     // we pass a temp `--out` path to keep test artifacts isolated.
-    //
-    // Why svg-local and not sensor: sensor's HTML output embeds the
-    // .csv output path as a user hint, so byte-parity across runs to
-    // different paths is structurally impossible until that gets fixed
-    // (filed as follow-up). svg-local emits pure deterministic SVG.
     const baselineOut = join(workDir, "baseline.svg");
     const baseline = spawnSync(
       process.execPath,
@@ -78,6 +70,61 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
     expect(manifestRaw.artifactSha256).toBeTruthy();
 
     // Replay run.
+    const replay = spawnSync(process.execPath, [cliBin, "replay", baselineManifest], {
+      cwd: packageRoot,
+      encoding: "utf8",
+    });
+    expect(replay.status).toBe(0);
+    const replayOutput = JSON.parse(replay.stdout) as {
+      ok: boolean;
+      code: string;
+      baselineArtifactSha256: string;
+      replayArtifactSha256: string;
+    };
+    expect(replayOutput.ok).toBe(true);
+    expect(replayOutput.code).toBe("REPLAY_OK");
+    expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
+  });
+
+  it("sensor dry-run is byte-reproducible via replay", async () => {
+    // Keep the default output basename (`output.*`) for both baseline and replay.
+    // The optional Loupe dashboard path embeds only the basename, so this remains
+    // byte-stable whether the Python dashboard or static fallback renders HTML.
+    const baseline = spawnSync(
+      process.execPath,
+      [
+        cliBin,
+        "sensor",
+        "deterministic ecg replay",
+        "--dry-run",
+        "--signal",
+        "ecg",
+        "--sample-rate-hz",
+        "32",
+        "--duration-sec",
+        "2",
+        "--seed",
+        "42",
+      ],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+    expect(baseline.status).toBe(0);
+    const baselineOutput = JSON.parse(baseline.stdout) as {
+      ok: boolean;
+      runDir: string;
+      artifactPath: string;
+    };
+    expect(baselineOutput.ok).toBe(true);
+    expect(baselineOutput.artifactPath.endsWith(".html")).toBe(true);
+
+    const baselineManifest = join(baselineOutput.runDir, "manifest.json");
+    const manifestRaw = JSON.parse(await readFile(baselineManifest, "utf8")) as {
+      request?: unknown;
+      artifactSha256?: string | null;
+    };
+    expect(manifestRaw.request).toBeDefined();
+    expect(manifestRaw.artifactSha256).toBeTruthy();
+
     const replay = spawnSync(process.execPath, [cliBin, "replay", baselineManifest], {
       cwd: packageRoot,
       encoding: "utf8",
