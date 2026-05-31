@@ -65,7 +65,11 @@ class TrainConfig:
 
     # GAN
     gan_on_step: int = 20_000    # warmup recon-only first, then add GAN
-    gan_enabled: bool = True     # set False for smoke
+    # A PatchGAN discriminator IS wired (discriminator.py + train.py), but it is
+    # OPT-IN: default False keeps runs reconstruction-only (cheaper, and avoids
+    # recording gan_enabled=True for a run that did no adversarial training).
+    # Enable adversarial training with gan_enabled=True or the --gan CLI flag.
+    gan_enabled: bool = False
     gan_weight: float = 0.1      # generator adversarial-term weight
     disc_base_channels: int = 64  # PatchGAN ndf
     disc_n_layers: int = 3        # PatchGAN downsampling blocks

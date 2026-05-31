@@ -138,6 +138,15 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def capture_git_sha(repo_root: Path | None = None) -> str:
+    # Deployments that copy the source WITHOUT a .git dir (e.g. an ephemeral
+    # cluster run that rsyncs only the tree) can't read the revision from git.
+    # Honor WITT_GIT_SHA first so the launcher can inject the source revision;
+    # it must still be a valid 40-hex SHA so the manifest stays trustworthy.
+    env_sha = os.environ.get("WITT_GIT_SHA", "").strip()
+    if env_sha:
+        if not GIT_SHA_RE.match(env_sha):
+            raise RuntimeError(f"WITT_GIT_SHA is not a valid git SHA: {env_sha!r}")
+        return env_sha
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
