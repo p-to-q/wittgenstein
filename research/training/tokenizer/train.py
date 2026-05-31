@@ -491,6 +491,26 @@ _EVAL_METRIC_HIGHER_BETTER = {
 }
 
 
+def _eval_dataset_sha(ds_name: str, split: str, files=None) -> str:
+    """Deterministic 64-hex identity for the eval set.
+
+    The manifest schema requires `evalSnapshots[].dataset.sha256` to be a real
+    sha256. This identifies WHICH eval set produced the metrics (label + sorted
+    file names when a real folder is used); it is NOT a content lock of the
+    training data (that is the separate dataset fingerprint). Stable across runs
+    for the same eval set, and never empty.
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    h.update(f"{ds_name}:{split}".encode("utf-8"))
+    if files:
+        for p in sorted(str(x) for x in files):
+            h.update(b"\0")
+            h.update(p.encode("utf-8"))
+    return h.hexdigest()
+
+
 def _maybe_run_eval(cfg, model, device, step, world) -> list:
     """Run reconstruction eval on a val set; return [] on any failure.
 
@@ -499,12 +519,14 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
     metrics (rFID) are left to the eval harness's own dependency degradation.
     """
     try:
+        eval_files = None
         if cfg.val_data_root:
             val_ds = ImageFolderDataset(
                 Path(cfg.val_data_root), image_size=cfg.image_size, with_labels=False
             )
             split = "val"
             ds_name = Path(cfg.val_data_root).name
+            eval_files = val_ds.file_list_for_manifest()
         elif cfg.smoke or not cfg.train_data_root:
             val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
             split = "synthetic-val"
@@ -538,11 +560,13 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
                 higherIsBetter=_EVAL_METRIC_HIGHER_BETTER.get(k),
             )
             for k, v in metrics.items()
-            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(float(v))
         ]
         snapshot = TrainingRunEvalSnapshot(
             modality="image",
-            dataset=TrainingRunEvalDataset(name=ds_name, split=split, sha256="pending"),
+            dataset=TrainingRunEvalDataset(
+                name=ds_name, split=split, sha256=_eval_dataset_sha(ds_name, split, eval_files)
+            ),
             step=step,
             generatedAt=utc_now_iso(),
             metrics=metric_objs,
