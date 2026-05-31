@@ -1,6 +1,6 @@
 import type { RenderCtx } from "@wittgenstein/schemas";
 import { resolveMlpForScene, predictWithResolved } from "../adapters/adapter-resolve.js";
-import { placeholderSeedExpander } from "../adapters/seed-expander.js";
+import { selectSeedExpander } from "../adapters/seed-expander-resolve.js";
 import {
   ImageCoarseVqSchema,
   ImageLatentCodesSchema,
@@ -21,7 +21,6 @@ export { ImageLatentCodesSchema };
 
 /** v1 stub: tokens[0]=1, tokens[1]=byte length, tokens[2..]=UTF-8 bytes of caption. */
 export const STUB_LATENT_PROTOCOL_V1 = 1;
-export const PLACEHOLDER_SEED_EXPANDER_ID = "placeholder-seed-expander/v0";
 
 /**
  * Result of `adaptSceneToLatents`: the decoder-native latents plus a record
@@ -81,16 +80,19 @@ export async function adaptSceneToLatents(
     attemptedPaths.push("visual-seed-code");
     const validated = ImageVisualSeedCodeSchema.safeParse(parsed.seedCode);
     if (validated.success) {
-      ctx.logger.info("Using Visual Seed Code; expanding to decoder-native latents.");
+      const seedExpander = selectSeedExpander();
+      ctx.logger.info(
+        `Using Visual Seed Code; expanding to decoder-native latents via ${seedExpander.id}.`,
+      );
       return {
-        latents: placeholderSeedExpander.expand({
+        latents: seedExpander.expander.expand({
           seedCode: validated.data,
           decoder: parsed.decoder,
           seed: hashSpecToSeed(parsed),
         }),
         outcome: "visual-seed-code",
         receipt: adapterReceipt("visual-seed-code", attemptedPaths, fallbackReasons, {
-          seedExpanderId: PLACEHOLDER_SEED_EXPANDER_ID,
+          seedExpanderId: seedExpander.id,
         }),
       };
     }
