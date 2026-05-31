@@ -12,12 +12,12 @@ tracks: [#330, #331, #332, #333, #283, #70]
 
 ## Summary table
 
-| Priority | Candidate | Gate A (License) | Gate B (Weights) | Gate C / D | Verdict |
-|---|---|---|---|---|---|
-| 2 | FSQ | ✅ Apache-2.0 (community impl) | ⚠️ N/A — algorithm, not a packaged tokenizer | quantization primitive likely-expressible; full tokenizer pipeline not validated | **different shape; see §FSQ** |
-| 3 | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0 | ⚠️ PARTIAL — claims released, no direct HF URL surfaced | requires local compute | **provisional / unresolved pending Gate B URL verification + Gate C/D** |
-| 4 | TiTok / 1d-tokenizer | ✅ Apache-2.0 | ⚠️ PARTIAL — "HuggingFace support" claimed, URLs not in README | requires local compute | **provisional / unresolved pending Gate B URL verification + Gate C/D + schema RFC** |
-| 5 | MaskBit | ⚠️ **NUANCED**: code Apache-2.0, weights **"research purposes only"** | ✅ Multiple HF repos | local compute | **gated by weights-license carve-out** |
+| Priority | Candidate                | Gate A (License)                                                      | Gate B (Weights)                                               | Gate C / D                                                                       | Verdict                                                                              |
+| -------- | ------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 2        | FSQ                      | ✅ Apache-2.0 (community impl)                                        | ⚠️ N/A — algorithm, not a packaged tokenizer                   | quantization primitive likely-expressible; full tokenizer pipeline not validated | **different shape; see §FSQ**                                                        |
+| 3        | OpenMAGVIT2 / SEED-Voken | ✅ Apache-2.0                                                         | ✅ PASS — HF repo + checkpoint filenames surfaced              | requires local compute                                                           | **candidate; blocked only on empirical Gate C/D**                                    |
+| 4        | TiTok / 1d-tokenizer     | ✅ Apache-2.0                                                         | ⚠️ PARTIAL — "HuggingFace support" claimed, URLs not in README | requires local compute                                                           | **provisional / unresolved pending Gate B URL verification + Gate C/D + schema RFC** |
+| 5        | MaskBit                  | ⚠️ **NUANCED**: code Apache-2.0, weights **"research purposes only"** | ✅ Multiple HF repos                                           | local compute                                                                    | **gated by weights-license carve-out**                                               |
 
 **The most important finding** is on MaskBit (#333): its README explicitly carves weights out from code, marking the trained checkpoints as "research purposes only." That's a real legal restriction for Wittgenstein's open-source / redistribution posture — Gate A doesn't cleanly PASS for MaskBit even though the code is Apache-2.0. This is the first candidate we've audited with an explicit weights/code license divergence.
 
@@ -66,16 +66,29 @@ This is **much higher implementation cost** than VQGAN-class wiring (which is "d
 
 The radar's `OpenMAGVIT2` candidate is now hosted under [`TencentARC/SEED-Voken`](https://github.com/TencentARC/SEED-Voken) (the older `TencentARC/Open-MAGVIT2` URL now redirects there). This is part of a broader Tencent visual-tokenizer family.
 
+2026-05-31 update: Gate B is no longer partial; see
+[`2026-05-31-openmagvit2-gate-b-closeout.md`](2026-05-31-openmagvit2-gate-b-closeout.md).
+
 ### Gate A — **PASS**
 
 - Code: Apache-2.0 (blob SHA `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64`).
 - Weights: README does not carve out a separate license. No explicit research-only restriction surfaced. Re-verify at fetch time per the standard wiring-slice rule (same caveat as the VQGAN-class audit).
 
-### Gate B — **PARTIAL**
+### Gate B — **PASS**
 
-- README states "pretrained version of IBQ visual tokenizers...is released" and "Open-MAGVIT2 tokenizers...are now released" — implying availability, but **no direct HuggingFace URLs surfaced** in the README excerpt.
-- README references linked `Open-MAGVIT2.md` and `IBQ.md` docs which presumably carry the actual download paths; those weren't fetched in this pass.
-- Net: weights exist and are claimed-available, but the specific download path needs one more inspection step before SHA-pinning.
+- The canonical HF repo is
+  [`TencentARC/Open-MAGVIT2`](https://huggingface.co/TencentARC/Open-MAGVIT2).
+- The HF model card declares Apache-2.0, matching the code-side license.
+- The current HF tree exposes concrete checkpoint filenames:
+  `imagenet_128_L.ckpt`, `imagenet_256_L.ckpt`, `AR_256_B.ckpt`,
+  `AR_256_L.ckpt`, and `AR_256_XL.ckpt`.
+- `curl -I` against the HF `resolve/main/` URLs returned HTTP 200 for
+  `imagenet_128_L.ckpt` and `imagenet_256_L.ckpt` on 2026-05-31.
+- The HF README still contains stale `*_B.ckpt` ImageNet links; fetch-time
+  manifest generation must use the HF tree/API filenames, not the stale card
+  prose.
+- Net: Gate B is externally cleared. Wiring still records exact
+  file SHA-256 at fetch time before any bridge can load weights.
 
 ### rFID note
 
@@ -87,8 +100,11 @@ Standard pattern: requires local compute. Defer to implementation-slice follow-u
 
 ### Action items for OpenMAGVIT2
 
-1. **One more external inspection step** — fetch the `Open-MAGVIT2.md` doc inside `TencentARC/SEED-Voken` to get the actual HF download path. Cheap; can be done before the next implementation slice.
-2. **If VQGAN-class Gate D fails** (CPU latency exceeds budget), OpenMAGVIT2 is the natural pivot — its reported rFID is strongest.
+1. **Do not spend another non-compute pass on Gate B** unless the HF repo
+   changes. The remaining blockers are empirical: deterministic round-trip
+   and Node/ONNX/CPU feasibility.
+2. **If VQGAN-class Gate D fails** (CPU latency exceeds budget), OpenMAGVIT2
+   is the natural pivot — its reported rFID is strongest.
 
 ## Priority 4 — TiTok / 1d-tokenizer (delivers [#332](https://github.com/p-to-q/wittgenstein/issues/332))
 
@@ -155,20 +171,21 @@ This finding is **load-bearing**. The audit-plan's Gate A criterion is "Apache /
 
 After this audit pass plus the VQGAN-class audit:
 
-| # | Candidate | License (code) | License (weights) | Weights availability | Operational gates |
-|---|---|---|---|---|---|
-| 1 | VQGAN-class (LlamaGen) | ✅ MIT | ✅ MIT (project-level; fetch-time re-verify) | ✅ HF, 70-72M | ❓ #334 / #335 |
-| 2 | FSQ | ✅ Apache-2.0 (community impl) | N/A (algorithm) | N/A | trivially-pass |
-| 3 | OpenMAGVIT2 | ✅ Apache-2.0 | ⚠️ no carve-out surfaced; verify | ⚠️ partial (claimed released) | ❓ requires local compute |
-| 4 | TiTok | ✅ Apache-2.0 | ⚠️ no carve-out surfaced; verify | ⚠️ partial (HF claim) | ❓ requires local compute + schema RFC |
-| 5 | MaskBit | ✅ Apache-2.0 | ❌ **"research purposes only"** | ✅ multiple HF repos | de-prioritized due to weights license |
+| #   | Candidate              | License (code)                 | License (weights)                            | Weights availability        | Operational gates                      |
+| --- | ---------------------- | ------------------------------ | -------------------------------------------- | --------------------------- | -------------------------------------- |
+| 1   | VQGAN-class (LlamaGen) | ✅ MIT                         | ✅ MIT (project-level; fetch-time re-verify) | ✅ HF, 70-72M               | ❓ #334 / #335                         |
+| 2   | FSQ                    | ✅ Apache-2.0 (community impl) | N/A (algorithm)                              | N/A                         | trivially-pass                         |
+| 3   | OpenMAGVIT2            | ✅ Apache-2.0                  | ✅ Apache-2.0 on HF card                     | ✅ HF repo + ckpt filenames | ❓ requires local compute              |
+| 4   | TiTok                  | ✅ Apache-2.0                  | ⚠️ no carve-out surfaced; verify             | ⚠️ partial (HF claim)       | ❓ requires local compute + schema RFC |
+| 5   | MaskBit                | ✅ Apache-2.0                  | ❌ **"research purposes only"**              | ✅ multiple HF repos        | de-prioritized due to weights license  |
 
 **The candidate set has narrowed.** VQGAN-class remains the natural Priority 1 unless its operational gates ([#334](https://github.com/p-to-q/wittgenstein/issues/334) / [#335](https://github.com/p-to-q/wittgenstein/issues/335)) fail; OpenMAGVIT2 is the strongest backup based on rFID; TiTok needs schema work; MaskBit is gated by weights license; FSQ is a different-shape option requiring our own training infra.
 
 ## Next-action recommendations
 
 1. **For VQGAN-class:** run [#334](https://github.com/p-to-q/wittgenstein/issues/334) and [#335](https://github.com/p-to-q/wittgenstein/issues/335) (Gates C and D), as already planned.
-2. **For OpenMAGVIT2:** one cheap external-inspection follow-up — fetch the `Open-MAGVIT2.md` linked doc inside the SEED-Voken repo to surface the actual HF download URL. If that clears, OpenMAGVIT2 becomes the second candidate ready for Gates C/D.
+2. **For OpenMAGVIT2:** Gate B is closed; run empirical Gate C/D only if
+   OpenMAGVIT2 becomes the active fallback after VQGAN-class.
 3. **For TiTok:** parallel inspection of the HF repo presence; flag the schema-discriminator RFC as the gating step for any TiTok wiring.
 4. **For MaskBit:** add a license-redistribution note to [#333](https://github.com/p-to-q/wittgenstein/issues/333) and de-prioritize behind the others.
 5. **For FSQ:** open a **separate training-prep research note** (sibling to this audit) covering encoder-decoder architecture, training data, infra requirements. FSQ doesn't fit the standard four-gate shape; it fits a "we train it ourselves" shape that the campaign hasn't explicitly named yet.
@@ -177,13 +194,13 @@ After this audit pass plus the VQGAN-class audit:
 
 License-blob evidence (immutable — blob SHAs are git object IDs and don't change):
 
-| Repo | License | Blob SHA |
-|---|---|---|
-| `bytedance/1d-tokenizer` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
-| `markweberdev/maskbit` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
-| `TencentARC/SEED-Voken` (redirect target from `TencentARC/Open-MAGVIT2`) | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
-| `Nikolai10/FSQ` | Apache-2.0 | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
-| `duchenzhuang/FSQ-pytorch` | 404 at audit time (repo no longer exists) | — |
+| Repo                                                                     | License                                   | Blob SHA                                   |
+| ------------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------ |
+| `bytedance/1d-tokenizer`                                                 | Apache-2.0                                | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `markweberdev/maskbit`                                                   | Apache-2.0                                | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `TencentARC/SEED-Voken` (redirect target from `TencentARC/Open-MAGVIT2`) | Apache-2.0                                | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `Nikolai10/FSQ`                                                          | Apache-2.0                                | `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` |
+| `duchenzhuang/FSQ-pytorch`                                               | 404 at audit time (repo no longer exists) | —                                          |
 
 The four blob SHAs are identical because all four use the OSI-template Apache-2.0 text verbatim.
 
@@ -193,6 +210,12 @@ README content evidence (mutable — these were the README contents at HEAD-of-d
 - `https://raw.githubusercontent.com/markweberdev/maskbit/main/README.md`
 - `https://raw.githubusercontent.com/TencentARC/SEED-Voken/main/README.md`
 - `https://raw.githubusercontent.com/Nikolai10/FSQ/master/README.md`
+
+OpenMAGVIT2 Gate B refresh, checked 2026-05-31:
+
+- `https://huggingface.co/TencentARC/Open-MAGVIT2/tree/main`
+- `https://huggingface.co/TencentARC/Open-MAGVIT2/raw/main/README.md`
+- `https://github.com/TencentARC/SEED-Voken`
 
 **The wiring slice must re-verify README claims at fetch time** — specifically the MaskBit "research purposes only" weights wording and any HuggingFace URLs surfaced in linked sub-docs. Per the per-candidate audit-plan template, weights SHA-pinning and license terms are recorded in the manifest at the time of download, not at audit time.
 

@@ -3,9 +3,9 @@
  *
  * Same shape as `./llamagen.ts` — signature locked, impl gated on M1B
  * radar audits. The radar's per-candidate audit for OpenMAGVIT2/SEED-Voken
- * is at #331 (Priority 3; Gate B partial pending HF URL verification);
- * full impl waits for that to clear + Gates C+D for whichever candidate
- * is selected.
+ * is at #331 (Priority 3). Gate A/B are externally cleared against the
+ * Apache-2.0 HF model card and downloadable checkpoint filenames; full impl
+ * waits on empirical Gates C+D for whichever candidate is selected.
  *
  * Refs:
  *   - Audit (P3-5): `docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md`
@@ -24,7 +24,7 @@ export async function loadSeedDecoderBridge(
 
 function createBridgeNotImplementedError(): Error & { code: string; details: object } {
   const error = new Error(
-    "Seed-family decoder bridge is not yet wired. The seed-family candidates (OpenMAGVIT2 / SEED-Voken / similar) are tracked at #331; M1B canonical is VQGAN-class (#329).",
+    "Seed-family decoder bridge is not yet wired. OpenMAGVIT2/SEED-Voken cleared external Gate A/B inspection, but empirical Gates C/D still need local compute before any seed-family decoder can be blessed.",
   );
   Object.assign(error, {
     name: "WittgensteinError",
@@ -32,8 +32,15 @@ function createBridgeNotImplementedError(): Error & { code: string; details: obj
     details: {
       family: "seed",
       decoderId: SEED_DECODER_ID,
+      gateStatus: {
+        gateA: "passed",
+        gateB: "passed",
+        gateC: "blocked",
+        gateD: "blocked",
+      },
       blockers: {
-        audit: TRACKERS.m1bOpenMagvit2Audit,
+        gateC: TRACKERS.m1bOpenMagvit2Audit,
+        gateD: TRACKERS.m1bOpenMagvit2Audit,
         umbrella: TRACKERS.m1bImageDecoderUmbrella,
       },
     },
