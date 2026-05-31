@@ -54,9 +54,10 @@ This is structurally analogous to SVD truncation:
 
 **Key parallel:** Both exploit the fact that natural images have low intrinsic dimensionality. The information is not uniformly distributed across pixels; it concentrates in a small number of structural patterns.
 
-### TiTok as the extreme case
+### TiTok as the extreme compact-sequence case
 
-TiTok (Yu et al., ICLR 2024) demonstrates this concentration empirically:
+TiTok (Yu et al., NeurIPS 2024) demonstrates compact learned 1D visual
+sequences empirically:
 
 | Token count | rFID (TiTok-L)       | Analogy                          |
 | ----------- | -------------------- | -------------------------------- |
@@ -70,25 +71,39 @@ The pattern is identical to SVD: a sharp quality elbow at low token counts, then
 
 ## Where the analogy holds
 
-### 1. Partial seed codes are like truncated SVD
+### 1. Partial seed codes should be tested like truncated SVD
 
-If the LLM emits only 8 out of 32 needed seed tokens, this is analogous to keeping only 8 singular values. The analogy predicts:
+If the LLM emits only 8 out of 32 needed seed tokens, it is tempting to treat
+that as analogous to keeping only 8 singular values. The analogy is useful as
+a test target, not a guarantee. It predicts that a well-ordered compact visual
+code should degrade gracefully:
 
 - **Gross layout should be recoverable.** The first few tokens (like the first few singular values) carry the most structural information.
 - **Fine details will be lost.** Textures, small objects, edges — these live in the "tail" tokens.
 - **Graceful degradation is expected.** Quality should degrade smoothly as tokens are removed, not cliff.
 
-This directly informs the adapter's **partial-input robustness** requirement: the seed expander should produce a reasonable (blurry but structured) image from partial seed codes, not garbage.
+This directly informs the adapter's **partial-input robustness** requirement:
+the seed expander should produce a reasonable (blurry but structured) image
+from partial seed codes, not garbage. But the requirement must be measured per
+tokenizer family; SVD ordering is guaranteed by the decomposition, while VQ
+token ordering is learned and may be opaque.
 
 ### 2. Token ordering matters
 
 In SVD, singular values are ordered by magnitude — the first captures the most variance. In VQ tokenization:
 
 - **VAR (next-scale prediction):** Tokens are explicitly ordered coarse-to-fine. Early tokens = low-resolution layout. Later tokens = high-frequency detail. This is the closest VQ analog to SVD ordering.
-- **TiTok (1D sequence):** Tokens are learned to be ordered by the encoder's attention mechanism. Not explicitly coarse-to-fine, but the transformer learns to allocate early positions to more global features.
+- **TiTok (1D sequence):** Tokens are learned latent slots with positional
+  embeddings. The implementation proves compact 1D reconstruction, but it does
+  not visibly enforce that early positions carry more global features than
+  later positions.
 - **VQGAN (2D grid):** Tokens are spatially ordered, not importance-ordered. This is like shuffling the singular values — no natural truncation point.
 
-**Implication for Wittgenstein:** VAR-style or TiTok-style 1D ordering is strongly preferred over 2D grid ordering, because it enables meaningful partial seed codes (prefix = low-rank approximation).
+**Implication for Wittgenstein:** VAR-style explicit coarse-to-fine ordering
+is strongly preferred when the use case needs meaningful partial seed codes.
+TiTok-style compact 1D ordering is promising, but `prefix = low-rank
+approximation` remains an empirical hypothesis until a prefix/suffix/random
+subset ablation proves it for the candidate.
 
 ### 3. "Seed code as compression prior" is SVD-aligned
 
@@ -129,15 +144,29 @@ The SVD analogy predicts that partial seed codes should produce blurry-but-struc
 
 If the quality curve does NOT follow this graceful pattern, it indicates the tokenizer's ordering is pathological and should trigger a tokenizer-family reassessment.
 
-### 3. DO prefer importance-ordered tokenizers
+### 3. DO prefer tokenizers with proven order semantics
 
-Tokenizers that produce importance-ordered token sequences (VAR, FlexTok, potentially TiTok) are strictly better for the Visual Seed Code use case than spatial-grid tokenizers (VQGAN). The SVD analogy makes this preference theoretically grounded: you want the "first k tokens" to be the "top k singular values," not random spatial patches.
+Tokenizers that produce importance-ordered token sequences (VAR, FlexTok, and
+any future TiTok-style model that passes prefix audits) are strictly better for
+the Visual Seed Code use case than spatial-grid tokenizers (VQGAN) when partial
+seed codes matter. The SVD analogy makes this preference theoretically
+grounded: you want the "first k tokens" to behave like the "top k singular
+values," not random spatial patches.
 
 **FlexTok (ICML 2025, arXiv:2502.13967)** is particularly relevant: it explicitly trains for elastic prefixes where any prefix length produces a valid (lower-fidelity) reconstruction. This is SVD-like ordering by design.
 
-### 4. DO use this framing for the "fast preview" use case
+### 4. DO use this framing for the "fast preview" use case, behind eval
 
-The maintainer's original insight — "use SVD-like mechanism for fast preview even when seed code is partial" — maps directly to: **if the tokenizer is importance-ordered, the first N tokens of any seed code are already a fast preview.** No additional mechanism needed. The frozen decoder applied to the first N tokens (with remaining positions filled by the adapter's best guess) IS the fast preview.
+The maintainer's original insight — "use SVD-like mechanism for fast preview
+even when seed code is partial" — maps directly to: **if the tokenizer is
+importance-ordered, the first N tokens of any seed code are already a fast
+preview.** No additional mechanism is needed. The frozen decoder applied to the
+first N tokens, with remaining positions filled by the adapter's best guess, is
+the fast preview.
+
+For learned 1D tokenizers that are compact but not explicitly elastic, this
+must stay behind eval. The minimum falsification is ordered prefix versus
+same-size suffix, random subset, and shuffled subset under a fixed fill policy.
 
 ## Cross-references
 
@@ -146,6 +175,7 @@ The maintainer's original insight — "use SVD-like mechanism for fast preview e
 - `docs/research/briefs/B_compression_vs_world_models.md` — Compression-as-intelligence (Sutskever/Hutter)
 - `docs/research/briefs/C_unproven_horizon.md` — H9 (patch-grid IR) tracks VAR/FlexTok ordering
 - `docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md` — TiTok audit
+- `docs/research/2026-05-31-titok-lessons-for-compact-1d-seed-codes.md` — TiTok method/code extraction; corrects prefix-order overclaims
 - `docs/research/hybrid-image-code.md` — FlexTok elastic prefix discussion
 
 ## Citations
