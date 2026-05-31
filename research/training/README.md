@@ -23,6 +23,7 @@ See the operating doctrine:
 
 - [docs/research/2026-05-13-wittgenstein-research-program.md](../../docs/research/2026-05-13-wittgenstein-research-program.md) — three-track framing (engineering / research / hacker)
 - [docs/research/2026-05-13-delivery-and-componentization.md](../../docs/research/2026-05-13-delivery-and-componentization.md) — tier doctrine + why training stays outside the publish surface
+- [docs/training/experiment-tracking.md](../../docs/training/experiment-tracking.md) — #399 tracker receipt contract and shared-Aim boundary
 - [docs/research/2026-05-13-m1b-prep-research.md](../../docs/research/2026-05-13-m1b-prep-research.md) — Phase-0 literature floor (LlamaGen, Open-MAGVIT2, TiTok, VAR)
 - [docs/research/2026-05-31-training-stack-re-audit-closeout.md](../../docs/research/2026-05-31-training-stack-re-audit-closeout.md) — #441 closeout: schema-aligned receipt floor + GPU wait lines
 - [docs/research/2026-05-27-pre-training-readiness.md](../../docs/research/2026-05-27-pre-training-readiness.md) — engineering-readiness audit run right before specialist kickoff (Tier-0 self-check, latent bugs found + fixed, open handoff issues)
@@ -85,20 +86,28 @@ checkpoint by pointing `assets.trainingProvenance` at the training receipt.
 The inference-time `RunManifest` remains a separate receipt for a concrete
 artifact-producing CLI call that may load the blessed decoder.
 
+Experiment tracking is also separate from the training manifest. The local JSONL
+tracker writes `experiment-metrics.jsonl` plus a
+`witt.training.experiment/v0.1` sibling receipt, and `config.json` carries only a
+small `experimentTracking` reference. Shared Aim deployment remains #399's
+external lab-work item.
+
 ## Receipt smoke
 
 The shared manifest spine has a CPU-only smoke that writes a synthetic
-checkpoint plus `manifest.json` without importing torch or touching real
-datasets:
+checkpoint plus `manifest.json`, `experiment.json`, and
+`experiment-metrics.jsonl` without importing torch or touching real datasets:
 
 ```bash
 python3 -m research.training._shared.smoke_manifest
-python3 -m unittest research.training._shared.test_manifest
+python3 -m unittest research.training._shared.test_manifest \
+  research.training._shared.test_experiment_tracking
 ```
 
 This is the receipt floor for #435 / #441. It does not claim that tokenizer,
 adapter, or LLM-head training has run; it only proves that future training
-programs can emit the required manifest shape before GPU work starts.
+programs can emit the required manifest and tracker-receipt shape before GPU
+work starts.
 
 ## M1B audit receipts
 

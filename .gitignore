@@ -50,6 +50,10 @@ artifacts/m1b-audit/*
 !artifacts/m1b-audit/.gitkeep
 !artifacts/m1b-audit/README.md
 
+# Local CPU/GPU training smoke outputs; receipts/checkpoints are committed only
+# when deliberately copied into an artifact bundle.
+research/training/_shared/runs/
+
 # Local image-adapter training outputs (keep raw data private / large)
 data/image_adapter/train/*.jsonl
 data/image_adapter/artifacts/

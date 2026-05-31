@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "witt.training.experiment/v0.1",
+  "tracker": "jsonl",
+  "uri": "file:///tmp/wittgenstein/runs/tokenizer-20260531T210000Z-a1b2c3d4/experiment-metrics.jsonl",
+  "runId": "jsonl-tokenizer-20260531T210000Z-a1b2c3d4",
+  "trainingRunId": "tokenizer-20260531T210000Z-a1b2c3d4",
+  "startedAt": "2026-05-31T21:00:00Z",
+  "finishedAt": "2026-05-31T21:03:15Z",
+  "metricsLog": {
+    "path": "research/training/_shared/runs/tokenizer-20260531T210000Z-a1b2c3d4/experiment-metrics.jsonl",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bytes": 8192
+  },
+  "manifest": {
+    "runId": "tokenizer-20260531T210000Z-a1b2c3d4",
+    "manifestPath": "research/training/_shared/runs/tokenizer-20260531T210000Z-a1b2c3d4/ckpts/final.manifest.json",
+    "manifestSha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "checkpointSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+  }
+}
