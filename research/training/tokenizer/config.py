@@ -59,6 +59,10 @@ class TrainConfig:
     # GAN
     gan_on_step: int = 20_000    # warmup recon-only first, then add GAN
     gan_enabled: bool = True     # set False for smoke
+    gan_weight: float = 0.1      # generator adversarial-term weight
+    disc_base_channels: int = 64  # PatchGAN ndf
+    disc_n_layers: int = 3        # PatchGAN downsampling blocks
+    disc_lr: float = 1e-4         # discriminator optimizer lr
 
     # Losses
     lpips_enabled: bool = True

@@ -74,6 +74,10 @@ from research.training.tokenizer.config import (  # noqa: E402
     to_dict as cfg_to_dict,
 )
 from research.training.tokenizer.losses import LossWeights, TokenizerLoss  # noqa: E402
+from research.training.tokenizer.discriminator import (  # noqa: E402
+    PatchGANDiscriminator,
+    discriminator_loss,
+)
 from research.training.tokenizer.model import (  # noqa: E402
     TokenizerConfig,
     build_tokenizer,
@@ -199,11 +203,40 @@ def train(cfg: TrainConfig) -> dict:
         except ImportError:
             if is_main(rank):
                 print("[loss] lpips not installed; continuing with L2-only")
+    # ---- Discriminator (PatchGAN) ----
+    # The reconstruction-only stack (L2+LPIPS+commit) converges soft; the GAN
+    # term sharpens texture. Built only when enabled so a reconstruction-only
+    # run carries no idle params. `gan_on_step` keeps it off during warmup.
+    discriminator = None
+    d_optim = None
+    gan_on_step = cfg.gan_on_step if cfg.gan_enabled else 10**18
+    if cfg.gan_enabled:
+        disc_core = PatchGANDiscriminator(
+            in_channels=3,
+            base_channels=cfg.disc_base_channels,
+            n_layers=cfg.disc_n_layers,
+            use_batchnorm=not cfg.smoke,  # BN stats are unstable at smoke batch sizes
+        ).to(device)
+        d_optim = torch.optim.AdamW(
+            disc_core.parameters(),
+            lr=cfg.disc_lr,
+            betas=(cfg.optim.beta1, cfg.optim.beta2),
+        )
+        discriminator = (
+            DDP(disc_core, device_ids=[local_rank], output_device=local_rank)
+            if world > 1
+            else disc_core
+        )
+        if is_main(rank):
+            dn = sum(p.numel() for p in disc_core.parameters())
+            print(f"[gan] PatchGAN discriminator params={dn:,} gan_on_step={gan_on_step} "
+                  f"gan_weight={cfg.gan_weight}")
+
     loss_fn = TokenizerLoss(
-        weights=LossWeights(),
+        weights=LossWeights(gan=cfg.gan_weight),
         lpips_module=lpips_mod,
-        discriminator=None,  # GAN added in a follow-up after warmup_iters
-        gan_on_step=cfg.gan_on_step if cfg.gan_enabled else 10**18,
+        discriminator=discriminator,
+        gan_on_step=gan_on_step,
     ).to(device)
 
     # ---- Optimizer ----
@@ -319,7 +352,9 @@ def train(cfg: TrainConfig) -> dict:
         total_loss, components = loss_fn(img, recon, vq_total, global_step=step)
         components["codebook_usage"] = float(codebook_usage if codebook_usage is not None else 0.0)
 
-        # Backward
+        # Generator backward. When the GAN term is active, total_loss includes
+        # softplus(-D(recon)); its backward also populates grads on D (via the
+        # shared graph) which we discard by zero_grad'ing d_optim below.
         optim.zero_grad(set_to_none=True)
         total_loss.backward()
         if cfg.optim.grad_clip_norm > 0:
@@ -328,6 +363,17 @@ def train(cfg: TrainConfig) -> dict:
                 cfg.optim.grad_clip_norm,
             )
         optim.step()
+
+        # Discriminator step (after warmup): train D on real vs. detached recon
+        # so D's update doesn't flow back into the generator.
+        if discriminator is not None and step >= gan_on_step:
+            d_optim.zero_grad(set_to_none=True)
+            real_logits = discriminator(img)
+            fake_logits = discriminator(recon.detach())
+            d_loss = discriminator_loss(real_logits, fake_logits)
+            d_loss.backward()
+            d_optim.step()
+            components["d_loss"] = float(d_loss.detach().cpu())
 
         # Log
         if is_main(rank) and (step % cfg.log_every == 0 or step == cfg.max_steps - 1):
@@ -368,6 +414,7 @@ def train(cfg: TrainConfig) -> dict:
                 hardware,
                 dataset_fp,
                 config_ref,
+                discriminator=discriminator,
             )
 
         step += 1
@@ -391,6 +438,7 @@ def train(cfg: TrainConfig) -> dict:
             hardware,
             dataset_fp,
             config_ref,
+            discriminator=discriminator,
             final=True,
         )
         final_ckpt = run_dir / "ckpts" / "final.pt"
@@ -434,11 +482,17 @@ def _write_checkpoint(
     hardware,
     dataset_fp,
     config_ref,
+    discriminator=None,
     final=False,
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
     state = (model.module if hasattr(model, "module") else model).state_dict()
-    torch.save({"model": state, "step": step}, ckpt_path)
+    payload = {"model": state, "step": step}
+    if discriminator is not None:
+        payload["discriminator"] = (
+            discriminator.module if hasattr(discriminator, "module") else discriminator
+        ).state_dict()
+    torch.save(payload, ckpt_path)
     weights_license = "permissive" if cfg.smoke or not cfg.train_data_root else "research-only"
     manifest = TrainingRunManifest(
         schemaVersion=TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
