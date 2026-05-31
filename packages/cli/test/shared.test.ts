@@ -1,35 +1,43 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseOptionalSeed, resolveExecutionRoot } from "../src/commands/shared.js";
+import {
+  parseOptionalSeed,
+  parseSeedOption,
+  resolveExecutionRoot,
+} from "../src/commands/shared.js";
 
 describe("parseOptionalSeed", () => {
   it("returns undefined when no seed is provided (caller should fall through to default)", () => {
     expect(parseOptionalSeed(undefined)).toBeUndefined();
   });
 
+  it("passes through parsed integer seeds", () => {
+    expect(parseOptionalSeed(0)).toBe(0);
+    expect(parseOptionalSeed(42)).toBe(42);
+  });
+});
+
+describe("parseSeedOption", () => {
   it("parses '0' as the integer zero (NOT a missing value)", () => {
-    expect(parseOptionalSeed("0")).toBe(0);
+    expect(parseSeedOption("0")).toBe(0);
   });
 
   it("parses positive integers", () => {
-    expect(parseOptionalSeed("7")).toBe(7);
-    expect(parseOptionalSeed("42")).toBe(42);
+    expect(parseSeedOption("7")).toBe(7);
+    expect(parseSeedOption("42")).toBe(42);
   });
 
-  it("parses leading-numeric strings as the parseInt prefix", () => {
-    // parseInt("123abc", 10) → 123 — not ideal but the documented behavior
-    // of the existing implementation. If the contract changes (e.g. reject
-    // garbage), update this test alongside the change.
-    expect(parseOptionalSeed("123abc")).toBe(123);
+  it("rejects leading-numeric strings instead of truncating to the parseInt prefix", () => {
+    expect(() => parseSeedOption("123abc")).toThrow("Seed must be an integer.");
   });
 
-  it("returns NaN for non-numeric strings (not undefined; the caller can detect)", () => {
-    // The function returns undefined ONLY for undefined input. A bad seed
-    // string surfaces as NaN so the caller can choose to error rather
-    // than silently resolve to the default.
-    const result = parseOptionalSeed("not-a-number");
-    expect(Number.isNaN(result)).toBe(true);
+  it("rejects non-numeric strings before they can serialize to null in manifests", () => {
+    expect(() => parseSeedOption("not-a-number")).toThrow("Seed must be an integer.");
+  });
+
+  it("rejects numbers outside JavaScript's safe integer range", () => {
+    expect(() => parseSeedOption("9007199254740992")).toThrow("Seed must be a safe integer.");
   });
 });
 

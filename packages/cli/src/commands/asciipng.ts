@@ -1,5 +1,10 @@
 import type { Command } from "commander";
-import { runCodecCommand, parseOptionalSeed, type CommandRuntimeOptions } from "./shared.js";
+import {
+  runCodecCommand,
+  parseOptionalSeed,
+  parseSeedOption,
+  type CommandRuntimeOptions,
+} from "./shared.js";
 import { ensureMinimaxApiKeyInteractive } from "./minimax-key.js";
 
 export interface AsciipngCommandOptions extends CommandRuntimeOptions {
@@ -18,7 +23,7 @@ export function registerAsciipngCommand(program: Command): void {
       "PNG from a character grid: local (no API) or Minimax text-only API + deterministic post-process (not raw image bytes).",
     )
     .option("--out <path>", "output path (default under artifacts/runs/…)")
-    .option("--seed <number>", "seed")
+    .option("--seed <number>", "seed", parseSeedOption)
     .option("--columns <n>", "grid width in characters", "60")
     .option("--rows <n>", "grid height in characters", "30")
     .option("--cell <n>", "pixel size per character cell", "4")
@@ -27,7 +32,10 @@ export function registerAsciipngCommand(program: Command): void {
       "local: deterministic pseudo-glyph; minimax: call text chat, normalize lines, rasterize",
       "local",
     )
-    .option("--minimax-model <id>", "Minimax chat model id (default env WITTGENSTEIN_MINIMAX_MODEL or abab6.5s-chat-h)")
+    .option(
+      "--minimax-model <id>",
+      "Minimax chat model id (default env WITTGENSTEIN_MINIMAX_MODEL or abab6.5s-chat-h)",
+    )
     .option(
       "--dry-run",
       "skip Minimax HTTP when source=minimax (use local grid from prompt only); otherwise ignored for local",

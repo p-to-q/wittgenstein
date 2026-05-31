@@ -1,5 +1,10 @@
 import type { Command } from "commander";
-import { runCodecCommand, parseOptionalSeed, type CommandRuntimeOptions } from "./shared.js";
+import {
+  runCodecCommand,
+  parseOptionalSeed,
+  parseSeedOption,
+  type CommandRuntimeOptions,
+} from "./shared.js";
 
 export function registerAudioCommand(program: Command): void {
   program
@@ -10,7 +15,7 @@ export function registerAudioCommand(program: Command): void {
     .option("--ambient <ambient>", "auto | silence | rain | wind | city | forest | electronic")
     .option("--duration-sec <number>", "requested duration in seconds")
     .option("--out <path>", "output path")
-    .option("--seed <number>", "seed")
+    .option("--seed <number>", "seed", parseSeedOption)
     .option("--dry-run", "skip the remote model call and exercise the manifest spine")
     .option("--config <path>", "config path")
     .action(

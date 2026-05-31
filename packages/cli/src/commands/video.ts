@@ -4,6 +4,7 @@ import type { Command } from "commander";
 import {
   runCodecCommand,
   parseOptionalSeed,
+  parseSeedOption,
   resolveExecutionRoot,
   type CommandRuntimeOptions,
 } from "./shared.js";
@@ -26,8 +27,13 @@ export function registerVideoCommand(program: Command): void {
     )
     .option("--duration-sec <number>", "requested duration in seconds")
     .option("--out <path>", "output path")
-    .option("--seed <number>", "seed")
-    .option("--svg <path>", "SVG file as one slide (repeatable); bypasses LLM when set", collectSvgPath, [])
+    .option("--seed <number>", "seed", parseSeedOption)
+    .option(
+      "--svg <path>",
+      "SVG file as one slide (repeatable); bypasses LLM when set",
+      collectSvgPath,
+      [],
+    )
     .option("--dry-run", "skip the remote model call and exercise the manifest spine")
     .option("--config <path>", "config path")
     .action(async (prompt: string, options: VideoCommandOptions) => {

@@ -1,6 +1,11 @@
 import type { Command } from "commander";
 import type { RunManifest } from "@wittgenstein/schemas";
-import { runCodecCommand, parseOptionalSeed, type CommandRuntimeOptions } from "./shared.js";
+import {
+  runCodecCommand,
+  parseOptionalSeed,
+  parseSeedOption,
+  type CommandRuntimeOptions,
+} from "./shared.js";
 
 interface ImageCommandOptions extends CommandRuntimeOptions {
   showImageCode?: boolean;
@@ -15,7 +20,7 @@ export function registerImageCommand(program: Command): void {
     .argument("<prompt>", "user prompt")
     .description("Run the image codec")
     .option("--out <path>", "output path")
-    .option("--seed <number>", "seed")
+    .option("--seed <number>", "seed", parseSeedOption)
     .option("--dry-run", "skip the remote model call and exercise the manifest spine")
     .option("--show-image-code", "print the imageCode receipt that records the fired VSC path")
     .option("--show-semantic", "print the emitted/effective Semantic IR for inspection")

@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { InvalidArgumentError } from "commander";
 import type { RunManifest, WittgensteinRequest } from "@wittgenstein/schemas";
 import { Wittgenstein } from "@wittgenstein/core";
 
 export interface CommandRuntimeOptions {
   out?: string;
-  seed?: string;
+  seed?: number;
   dryRun?: boolean;
   config?: string;
   allowResearchWeights?: boolean;
@@ -70,12 +71,25 @@ export async function runCodecCommand(
   }
 }
 
-export function parseOptionalSeed(seed: string | undefined): number | null | undefined {
+export function parseSeedOption(seed: string): number {
+  if (!/^-?\d+$/.test(seed)) {
+    throw new InvalidArgumentError("Seed must be an integer.");
+  }
+
+  const parsed = Number(seed);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new InvalidArgumentError("Seed must be a safe integer.");
+  }
+
+  return parsed;
+}
+
+export function parseOptionalSeed(seed: number | undefined): number | null | undefined {
   if (seed === undefined) {
     return undefined;
   }
 
-  return Number.parseInt(seed, 10);
+  return seed;
 }
 
 export function resolveExecutionRoot(): string {
