@@ -55,6 +55,7 @@ describe("image v2 round trip", () => {
       "route",
       "renderPath",
       "image.code",
+      "image.adapter",
       "quality.structural",
       "quality.partial",
       "metadata.warnings",
@@ -62,11 +63,14 @@ describe("image v2 round trip", () => {
       "L5.decoderHash",
       "artifact.sha256",
     ]);
-    expect(
-      imageV2Codec.manifestRows(art).find((row) => row.key === "renderPath")?.value,
-    ).toBe("visual-seed-code");
+    expect(imageV2Codec.manifestRows(art).find((row) => row.key === "renderPath")?.value).toBe(
+      "visual-seed-code",
+    );
     expect(imageV2Codec.manifestRows(art).find((row) => row.key === "image.code")?.value).toEqual(
       art.metadata.imageCode,
     );
+    expect(
+      imageV2Codec.manifestRows(art).find((row) => row.key === "image.adapter")?.value,
+    ).toEqual(art.metadata.adapterReceipt);
   });
 });

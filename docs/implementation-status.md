@@ -90,37 +90,37 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 ### @wittgenstein/codec-image
 
-| Component                                     | Status         | Notes                                                                                                                           |
-| --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Schema + Zod image-code contract              | ✅ Ships       | Visual Seed Code contract now supports `seedCode`, optional `semantic`, optional `coarseVq`, and `providerLatents`              |
-| `expand.ts` — prompt → image code             | ⚠️ Partial     | LLM-driven; dry-run emits deterministic `witt-dry-run` seed tokens, while real prompt-stack quality remains a follow-up         |
-| `adapter.ts` — seed / semantic → latent codes | ⚠️ Partial     | Priority order now ships as `providerLatents -> coarseVq -> seedCode -> semantic fallback -> placeholder`; trained expander TBD |
-| Image-code manifest receipts                  | ✅ Ships       | `metadata.imageCode` / manifest `image.code` records fired path, semantic source, seed family/mode/length, and VQ grids         |
-| `decoder.ts` — latent codes → raster          | ⚠️ Partial     | `renderSky()` / `renderTerrain()` functional; `tryDecodeReferenceLandscape()` fires when reference weights present              |
-| `package.ts` — raster → PNG                   | ✅ Ships       |                                                                                                                                 |
-| `decoders/llamagen.ts`                        | 🔴 Stub        | Throws `NotImplementedError` — bridge to LlamaGen VQ-VAE decoder, not yet wired                                                 |
-| `decoders/seed.ts`                            | 🔴 Stub        | Throws `NotImplementedError` — bridge to SEED decoder                                                                           |
-| `training/`                                   | 📋 Recipe only | Seed-expansion training direction is locked; concrete tokenizer family, dataset, and weights remain open                        |
+| Component                                     | Status         | Notes                                                                                                                                                   |
+| --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema + Zod image-code contract              | ✅ Ships       | Visual Seed Code contract now supports `seedCode`, optional `semantic`, optional `coarseVq`, and `providerLatents`                                      |
+| `expand.ts` — prompt → image code             | ⚠️ Partial     | LLM-driven; dry-run emits deterministic `witt-dry-run` seed tokens, while real prompt-stack quality remains a follow-up                                 |
+| `adapter.ts` — seed / semantic → latent codes | ⚠️ Partial     | Priority order now ships as `providerLatents -> coarseVq -> seedCode -> semantic fallback -> placeholder`; trained expander TBD                         |
+| Image-code manifest receipts                  | ✅ Ships       | `metadata.imageCode` / manifest `image.code` records intent; `renderPath` and `image.adapter` record fired tier, fallback reasons, and seed-expander id |
+| `decoder.ts` — latent codes → raster          | ⚠️ Partial     | `renderSky()` / `renderTerrain()` functional; `tryDecodeReferenceLandscape()` fires when reference weights present                                      |
+| `package.ts` — raster → PNG                   | ✅ Ships       |                                                                                                                                                         |
+| `decoders/llamagen.ts`                        | 🔴 Stub        | Throws `NotImplementedError` — bridge to LlamaGen VQ-VAE decoder, not yet wired                                                                         |
+| `decoders/seed.ts`                            | 🔴 Stub        | Throws `NotImplementedError` — bridge to SEED decoder                                                                                                   |
+| `training/`                                   | 📋 Recipe only | Seed-expansion training direction is locked; concrete tokenizer family, dataset, and weights remain open                                                |
 
 ### @wittgenstein/codec-video
 
-| Component                  | Status     | Notes                                                                                          |
-| -------------------------- | ---------- | ---------------------------------------------------------------------------------------------- |
-| Schema + Zod               | ✅ Ships   | Validates `VideoComposition`                                                                   |
-| HTML composition renderer  | ✅ Ships   | Emits self-contained HyperFrames-shaped HTML via `scene-card` / `svg-slide` compositions       |
-| Distilled MP4 renderer     | ⚠️ Opt-in  | Default MP4 backend with `WITTGENSTEIN_HYPERFRAMES_RENDER=1`; local Chrome/Chromium + FFmpeg required |
-| Upstream CLI backend       | ⚠️ Opt-in  | `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli` keeps an explicit parity / experiment path          |
-| `videoRender` receipts     | ✅ Ships   | Records backend, FPS, quality, dimensions, frame count / duration, output kind, tool versions  |
+| Component                 | Status    | Notes                                                                                                 |
+| ------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| Schema + Zod              | ✅ Ships  | Validates `VideoComposition`                                                                          |
+| HTML composition renderer | ✅ Ships  | Emits self-contained HyperFrames-shaped HTML via `scene-card` / `svg-slide` compositions              |
+| Distilled MP4 renderer    | ⚠️ Opt-in | Default MP4 backend with `WITTGENSTEIN_HYPERFRAMES_RENDER=1`; local Chrome/Chromium + FFmpeg required |
+| Upstream CLI backend      | ⚠️ Opt-in | `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli` keeps an explicit parity / experiment path                 |
+| `videoRender` receipts    | ✅ Ships  | Records backend, FPS, quality, dimensions, frame count / duration, output kind, tool versions         |
 
 ### @wittgenstein/cli
 
-| Command               | Status   | Notes                                                     |
-| --------------------- | -------- | --------------------------------------------------------- |
-| `wittgenstein image`  | ✅ Ships | Calls codec-image; renders with available adapter/decoder |
-| `wittgenstein audio`  | ✅ Ships | Full speech + soundscape + music routes                   |
-| `wittgenstein sensor` | ✅ Ships | Full signal expand + Loupe dashboard                      |
+| Command               | Status     | Notes                                                                 |
+| --------------------- | ---------- | --------------------------------------------------------------------- |
+| `wittgenstein image`  | ✅ Ships   | Calls codec-image; renders with available adapter/decoder             |
+| `wittgenstein audio`  | ✅ Ships   | Full speech + soundscape + music routes                               |
+| `wittgenstein sensor` | ✅ Ships   | Full signal expand + Loupe dashboard                                  |
 | `wittgenstein video`  | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in |
-| `wittgenstein doctor` | ✅ Ships | Checks node, pnpm, env vars, package links, optional video MP4 deps |
+| `wittgenstein doctor` | ✅ Ships   | Checks node, pnpm, env vars, package links, optional video MP4 deps   |
 
 ### @wittgenstein/sandbox
 

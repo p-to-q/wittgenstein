@@ -29,6 +29,20 @@ export type ImageAdapterOutcome =
   | "learned-mlp"
   | "placeholder";
 
+export type ImageAdapterFallbackReason =
+  | "provider-latents-invalid"
+  | "coarse-vq-invalid"
+  | "seed-code-invalid"
+  | "no-decoder-facing-code"
+  | "learned-mlp-unavailable";
+
+export interface ImageAdapterReceipt {
+  readonly outcome: ImageAdapterOutcome;
+  readonly attemptedPaths: readonly ImageCodePath[];
+  readonly fallbackReasons: readonly ImageAdapterFallbackReason[];
+  readonly seedExpanderId: string | null;
+}
+
 export type ImageSemanticSource = "emitted" | "legacy-top-level" | "absent";
 
 export interface ImageCodeReceipt {
@@ -67,6 +81,7 @@ export interface ImageArtifactMetadata extends codecV2.BaseArtifactMetadata {
    * `RenderResult.metadata.renderPath`.
    */
   readonly adapterOutcome: ImageAdapterOutcome;
+  readonly adapterReceipt: ImageAdapterReceipt;
   readonly quality: {
     readonly structural: {
       readonly schemaValidated: boolean;
