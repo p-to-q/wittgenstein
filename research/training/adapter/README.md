@@ -11,16 +11,22 @@ decoder. Per
 under `../tokenizer/`). The adapter is the natural follow-up: it consumes
 the trained tokenizer's codebook + checkpoints as a frozen target.
 
+Runtime-facing ABI baselines already exist in `packages/codec-image/src/adapters/`:
+`placeholderSeedExpander`, `tileMosaicSeedExpander`, and
+`blockCausalMaskgitSeedExpander`. They are deterministic placeholder-class
+expanders for manifests, receipts, and codec routing only. They do not replace
+this training subprogram; the learned adapter still owns the quality claim.
+
 Architecture target (per research-program note):
 
-| Field | Choice |
-|---|---|
-| Architecture | Bidirectional transformer (BERT-shaped), 12 layers, hidden 512, 8 heads (~50M params). |
-| Training pairs | (Visual Seed Code, full token grid). Bootstrap: VSC = full grid block-averaged to k×k coarse tokens (k ∈ {2, 4, 8} ablated). |
-| Loss | Token-level cross-entropy over the 16384-codebook. |
-| Inference schedule | 8-step parallel decoding (MaskGIT schedule), temperature 0 (deterministic) at ship time. |
-| Data | Token pairs extracted from ImageNet train + CC12M via the Phase-1.1 tokenizer. |
-| Compute budget | ~1–3 GPU-weeks on 4× A800. |
+| Field              | Choice                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Architecture       | Bidirectional transformer (BERT-shaped), 12 layers, hidden 512, 8 heads (~50M params).                                       |
+| Training pairs     | (Visual Seed Code, full token grid). Bootstrap: VSC = full grid block-averaged to k×k coarse tokens (k ∈ {2, 4, 8} ablated). |
+| Loss               | Token-level cross-entropy over the 16384-codebook.                                                                           |
+| Inference schedule | 8-step parallel decoding (MaskGIT schedule), temperature 0 (deterministic) at ship time.                                     |
+| Data               | Token pairs extracted from ImageNet train + CC12M via the Phase-1.1 tokenizer.                                               |
+| Compute budget     | ~1–3 GPU-weeks on 4× A800.                                                                                                   |
 
 ## Inputs from Phase 1.1
 
@@ -30,8 +36,8 @@ The adapter training script will need:
    verified via the training manifest's `checkpoint.weights_sha256`.
 2. **Tokenized dataset cache** — every image in the training corpus
    tokenized once into `[H, W]` integer grids, persisted to disk for
-   quick reload. Cache is content-addressable by `(image_sha256,
-   tokenizer_weights_sha256)`.
+   quick reload. Cache is content-addressable by `image_sha256` and
+   `tokenizer_weights_sha256`.
 3. **Visual Seed Code generator** — initial bootstrap: block-average
    pooling of the full grid to coarse k×k. Phase 2 may replace this
    with a learned compress step.
@@ -67,7 +73,7 @@ go with.
 - [#393](https://github.com/p-to-q/wittgenstein/issues/393) —
   Deterministic-unfolding adapter empirical sweep (baseline row).
 - [#453](https://github.com/p-to-q/wittgenstein/issues/453) — Block-causal
-  + clean-repaint adapter design (Cola-DLM-inspired, alternative).
+  plus clean-repaint adapter design (Cola-DLM-inspired, alternative).
 - [#454](https://github.com/p-to-q/wittgenstein/issues/454) — CoT-inspired
   visual reasoning block in the VSC preamble (Phase 2).
 

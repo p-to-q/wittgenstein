@@ -765,6 +765,41 @@ describe("image adapterOutcome (#247-style observability)", () => {
     });
   });
 
+  it("records the selected block-causal seed expander when configured", async () => {
+    const previous = process.env.WITTGENSTEIN_IMAGE_SEED_EXPANDER;
+    process.env.WITTGENSTEIN_IMAGE_SEED_EXPANDER = "block-causal-maskgit";
+    try {
+      const receipt = await adaptReceipt(
+        JSON.stringify({
+          mode: "one-shot-vsc",
+          decoder: {
+            family: "llamagen",
+            codebook: "stub-codebook",
+            codebookVersion: "v0",
+            latentResolution: [4, 4],
+          },
+          seedCode: {
+            family: "vqvae",
+            mode: "prefix",
+            tokens: [3, 17, 9, 220],
+          },
+        }),
+      );
+      expect(receipt).toEqual({
+        outcome: "visual-seed-code",
+        attemptedPaths: ["visual-seed-code"],
+        fallbackReasons: [],
+        seedExpanderId: "block-causal-maskgit-expander/v0",
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.WITTGENSTEIN_IMAGE_SEED_EXPANDER;
+      } else {
+        process.env.WITTGENSTEIN_IMAGE_SEED_EXPANDER = previous;
+      }
+    }
+  });
+
   it("reports placeholder when no hints are provided and no learned MLP is resolved", async () => {
     const outcome = await adaptOutcome(
       JSON.stringify({
