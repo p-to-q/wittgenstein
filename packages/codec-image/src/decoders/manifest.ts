@@ -3,9 +3,33 @@ import { DecoderFamilySchema } from "../schema.js";
 import { DecoderWeightsManifestSchema } from "./weights.js";
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
-const GateCMinSampleCount = 3;
-const GateCMaxTokenHammingRate = 0.0;
-const GateDMaxCpuDecodeSeconds = 30.0;
+const PositiveIntSchema = z.number().int().positive();
+const PositiveFiniteSchema = z.number().finite().positive();
+
+export const DecoderGateCParitySchema = z.enum([
+  "byte-identical",
+  "token-identical",
+  "structural-only",
+]);
+
+export const DecoderGateCAcceptanceSchema = z
+  .object({
+    mode: z.literal("within-device-determinism"),
+    minSampleCount: PositiveIntSchema,
+    requiredEncodeConsistency: z.literal(true),
+    requiredDecodeConsistency: z.literal(true),
+    crossDeviceParity: DecoderGateCParitySchema,
+    maxReencodeTokenHammingRate: z.number().finite().min(0).max(1).nullable(),
+  })
+  .strict();
+
+export const DecoderGateDAcceptanceSchema = z
+  .object({
+    maxCpuDecodeSeconds: PositiveFiniteSchema.max(30),
+    outputShape: z.tuple([PositiveIntSchema, PositiveIntSchema, z.literal(3)]),
+    requiresNode: z.literal(true),
+  })
+  .strict();
 
 export const DecoderShapeSupportManifestSchema = z.discriminatedUnion("shape", [
   z.object({
@@ -55,11 +79,13 @@ export const DecoderFamilyManifestSchema = z
         status: z.enum(["passed", "blocked", "skipped", "unknown"]),
         tracker: z.string().url(),
         receipt: z.string().optional(),
+        acceptance: DecoderGateCAcceptanceSchema.optional(),
       }),
       gateD: z.object({
         status: z.enum(["passed", "blocked", "skipped", "unknown"]),
         tracker: z.string().url(),
         receipt: z.string().optional(),
+        acceptance: DecoderGateDAcceptanceSchema.optional(),
       }),
     }),
     notes: z.array(z.string()).default([]),
@@ -111,6 +137,22 @@ export const DecoderFamilyManifestSchema = z
         }
       }
 
+      if (!manifest.audits.gateC.acceptance) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["audits", "gateC", "acceptance"],
+          message: "blessed decoder manifests require a Gate C acceptance policy.",
+        });
+      }
+
+      if (!manifest.audits.gateD.acceptance) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["audits", "gateD", "acceptance"],
+          message: "blessed decoder manifests require a Gate D acceptance policy.",
+        });
+      }
+
       if (!manifest.capabilities.decoderHash) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -118,6 +160,62 @@ export const DecoderFamilyManifestSchema = z
           message: "blessed decoder manifests require a decoderHash.",
         });
       }
+    }
+
+    if (manifest.audits.gateC.status === "passed" && !manifest.audits.gateC.acceptance) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audits", "gateC", "acceptance"],
+        message: "passed Gate C manifests require a declared acceptance policy.",
+      });
+    }
+
+    if (manifest.audits.gateD.status === "passed" && !manifest.audits.gateD.acceptance) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audits", "gateD", "acceptance"],
+        message: "passed Gate D manifests require a declared acceptance policy.",
+      });
+    }
+
+    const gateCAcceptance = manifest.audits.gateC.acceptance;
+    if (
+      gateCAcceptance?.crossDeviceParity === "structural-only" &&
+      manifest.capabilities.determinismClass !== "structural-parity"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audits", "gateC", "acceptance", "crossDeviceParity"],
+        message:
+          "structural-only Gate C parity requires capabilities.determinismClass='structural-parity'.",
+      });
+    }
+
+    if (
+      gateCAcceptance?.crossDeviceParity === "byte-identical" &&
+      manifest.capabilities.determinismClass !== "byte-parity"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audits", "gateC", "acceptance", "crossDeviceParity"],
+        message:
+          "byte-identical Gate C parity requires capabilities.determinismClass='byte-parity'.",
+      });
+    }
+
+    const gateDAcceptance = manifest.audits.gateD.acceptance;
+    if (
+      gateDAcceptance &&
+      !shapeSupportedByCapabilities(
+        gateDAcceptance.outputShape,
+        manifest.capabilities.supportedShapes,
+      )
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["audits", "gateD", "acceptance", "outputShape"],
+        message: "Gate D outputShape must match one advertised capability outputPixels entry.",
+      });
     }
   });
 
@@ -155,8 +253,13 @@ export const DecoderGateAuditReceiptSchema = z.object({
         metrics: z
           .object({
             roundtrip_passed: z.boolean().optional(),
+            encode_consistent: z.boolean().optional(),
+            decode_consistent: z.boolean().optional(),
+            reencode_consistent: z.boolean().optional(),
             sample_count: z.number().int().optional(),
             token_hamming_rate: z.number().optional(),
+            reencode_token_hamming_rate: z.number().optional(),
+            cross_device_parity: DecoderGateCParitySchema.optional(),
             onnx_cpu_passed: z.boolean().optional(),
             cpu_decode_seconds: z.number().optional(),
             output_shape: z.array(z.number()).optional(),
@@ -267,7 +370,9 @@ export function validateDecoderManifestAuditReceipts(
     }
 
     const hardChecksPass =
-      expectedGate === "C" ? gateCReceiptPasses(gateReceipt) : gateDReceiptPasses(gateReceipt);
+      expectedGate === "C"
+        ? gateCReceiptPasses(gateReceipt, manifest.audits.gateC.acceptance)
+        : gateDReceiptPasses(gateReceipt, manifest.audits.gateD.acceptance);
     if (gateReceipt.status !== "passed" || !hardChecksPass) {
       issues.push({
         path: `receipts.${gateManifest.receipt}.gates.${expectedGate}.status`,
@@ -281,14 +386,36 @@ export function validateDecoderManifestAuditReceipts(
 
 type ParsedGateReceipt = z.infer<typeof DecoderGateAuditReceiptSchema>["gates"][number];
 
-function gateCReceiptPasses(gateReceipt: ParsedGateReceipt): boolean {
+type GateCAcceptance = z.infer<typeof DecoderGateCAcceptanceSchema>;
+type GateDAcceptance = z.infer<typeof DecoderGateDAcceptanceSchema>;
+
+function gateCReceiptPasses(
+  gateReceipt: ParsedGateReceipt,
+  acceptance: GateCAcceptance | undefined,
+): boolean {
+  if (!acceptance) {
+    return false;
+  }
+
+  const sampleCount = gateReceipt.metrics.sample_count;
+  const reencodeHammingRate =
+    numericMetric(gateReceipt.metrics.reencode_token_hamming_rate) ??
+    numericMetric(gateReceipt.metrics.token_hamming_rate);
+  const reencodePasses =
+    acceptance.maxReencodeTokenHammingRate === null ||
+    (reencodeHammingRate !== undefined &&
+      reencodeHammingRate <= acceptance.maxReencodeTokenHammingRate);
+
   return (
     gateReceipt.metrics.pass_check?.passed === true &&
-    gateReceipt.metrics.roundtrip_passed === true &&
-    typeof gateReceipt.metrics.sample_count === "number" &&
-    gateReceipt.metrics.sample_count >= GateCMinSampleCount &&
-    typeof gateReceipt.metrics.token_hamming_rate === "number" &&
-    gateReceipt.metrics.token_hamming_rate <= GateCMaxTokenHammingRate
+    gateReceipt.metrics.cross_device_parity === acceptance.crossDeviceParity &&
+    (gateReceipt.metrics.encode_consistent === true ||
+      gateReceipt.metrics.roundtrip_passed === true) &&
+    (gateReceipt.metrics.decode_consistent === true ||
+      gateReceipt.metrics.roundtrip_passed === true) &&
+    typeof sampleCount === "number" &&
+    sampleCount >= acceptance.minSampleCount &&
+    reencodePasses
   );
 }
 
@@ -296,16 +423,37 @@ function candidateMatchesFamily(candidate: string, family: string): boolean {
   return candidate === family || candidate.endsWith(`/${family}`);
 }
 
-function gateDReceiptPasses(gateReceipt: ParsedGateReceipt): boolean {
+function gateDReceiptPasses(
+  gateReceipt: ParsedGateReceipt,
+  acceptance: GateDAcceptance | undefined,
+): boolean {
+  if (!acceptance) {
+    return false;
+  }
+
   return (
     gateReceipt.metrics.pass_check?.passed === true &&
     gateReceipt.metrics.onnx_cpu_passed === true &&
     typeof gateReceipt.metrics.cpu_decode_seconds === "number" &&
-    gateReceipt.metrics.cpu_decode_seconds <= GateDMaxCpuDecodeSeconds &&
+    gateReceipt.metrics.cpu_decode_seconds <= acceptance.maxCpuDecodeSeconds &&
     Array.isArray(gateReceipt.metrics.output_shape) &&
-    gateReceipt.metrics.output_shape.length === 3 &&
-    gateReceipt.metrics.output_shape[0] === 256 &&
-    gateReceipt.metrics.output_shape[1] === 256 &&
-    gateReceipt.metrics.output_shape[2] === 3
+    sameShape(gateReceipt.metrics.output_shape, acceptance.outputShape)
+  );
+}
+
+function numericMetric(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function sameShape(left: ReadonlyArray<number>, right: ReadonlyArray<number>): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function shapeSupportedByCapabilities(
+  outputShape: readonly [number, number, 3],
+  supportedShapes: ReadonlyArray<z.infer<typeof DecoderShapeSupportManifestSchema>>,
+): boolean {
+  return supportedShapes.some(
+    (shape) => shape.outputPixels[0] === outputShape[0] && shape.outputPixels[1] === outputShape[1],
   );
 }

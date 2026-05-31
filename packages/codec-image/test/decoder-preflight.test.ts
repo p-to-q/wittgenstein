@@ -96,6 +96,19 @@ const CODEBOOK = new TextEncoder().encode("codebook");
 const WEIGHTS_SHA = sha256(WEIGHTS);
 const CODEBOOK_SHA = sha256(CODEBOOK);
 const DECODER_HASH = "1".repeat(64);
+const GATE_C_ACCEPTANCE = {
+  mode: "within-device-determinism" as const,
+  minSampleCount: 3,
+  requiredEncodeConsistency: true as const,
+  requiredDecodeConsistency: true as const,
+  crossDeviceParity: "structural-only" as const,
+  maxReencodeTokenHammingRate: null,
+};
+const GATE_D_ACCEPTANCE = {
+  maxCpuDecodeSeconds: 30,
+  outputShape: [256, 256, 3] as [number, number, 3],
+  requiresNode: true as const,
+};
 
 function candidateManifest(overrides: Partial<DecoderFamilyManifest> = {}): DecoderFamilyManifest {
   const base: DecoderFamilyManifest = {
@@ -156,11 +169,13 @@ function blessedManifest(): DecoderFamilyManifest {
         status: "passed",
         tracker: "https://github.com/p-to-q/wittgenstein/issues/334",
         receipt: "artifacts/m1b-audit/vqgan-gates.json",
+        acceptance: GATE_C_ACCEPTANCE,
       },
       gateD: {
         status: "passed",
         tracker: "https://github.com/p-to-q/wittgenstein/issues/335",
         receipt: "artifacts/m1b-audit/vqgan-gates.json",
+        acceptance: GATE_D_ACCEPTANCE,
       },
     },
   });
@@ -183,8 +198,13 @@ function auditReceipt() {
         required_inputs: ["weights", "roundtrip metrics"],
         metrics: {
           roundtrip_passed: true,
+          encode_consistent: true,
+          decode_consistent: true,
+          reencode_consistent: true,
           sample_count: 3,
           token_hamming_rate: 0.0,
+          reencode_token_hamming_rate: 0.0,
+          cross_device_parity: "structural-only",
           pass_check: { passed: true, required: {} },
         },
       },

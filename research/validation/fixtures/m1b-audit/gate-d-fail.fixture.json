@@ -13,6 +13,7 @@
     "input_dtype": "tensor(int64)",
     "input_name": "tokens",
     "input_shape": [1, 16, 16],
+    "max_cpu_decode_seconds": 30.0,
     "onnx": "/fixture/decoder.onnx",
     "onnx_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
     "token_grid": [16, 16]

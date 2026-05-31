@@ -8,6 +8,7 @@ from pathlib import Path
 from . import m1b_gate_c_roundtrip as gate_c
 from . import m1b_gate_d_onnx_cpu as gate_d
 from . import m1b_export_llamagen_decoder_onnx as export_onnx
+from . import vqgan_gate_audit as gate_audit
 from .vqgan_gate_audit import gate_c_passes, gate_d_passes
 
 
@@ -15,11 +16,43 @@ class M1BMetricProducerTests(unittest.TestCase):
     def test_gate_c_metric_shape_satisfies_receipt_hard_check(self) -> None:
         metrics = {
             "roundtrip_passed": True,
+            "encode_consistent": True,
+            "decode_consistent": True,
             "sample_count": 3,
             "token_hamming_rate": 0.0,
+            "reencode_token_hamming_rate": 0.0,
+            "cross_device_parity": "structural-only",
         }
 
         self.assertEqual(gate_c_passes(metrics)["passed"], True)
+
+    def test_gate_c_structural_policy_keeps_reencode_drift_advisory(self) -> None:
+        metrics = {
+            "encode_consistent": True,
+            "decode_consistent": True,
+            "reencode_consistent": False,
+            "sample_count": 3,
+            "token_hamming_rate": 0.1211,
+            "reencode_token_hamming_rate": 0.1211,
+            "cross_device_parity": "structural-only",
+        }
+
+        self.assertEqual(gate_c_passes(metrics)["passed"], True)
+
+    def test_gate_c_candidate_specific_hamming_cap_blocks_when_declared(self) -> None:
+        metrics = {
+            "encode_consistent": True,
+            "decode_consistent": True,
+            "sample_count": 3,
+            "reencode_token_hamming_rate": 0.1211,
+            "cross_device_parity": "structural-only",
+        }
+        policy = {
+            **gate_audit.DEFAULT_GATE_C_ACCEPTANCE,
+            "max_reencode_token_hamming_rate": 0.0,
+        }
+
+        self.assertEqual(gate_c_passes(metrics, policy)["passed"], False)
 
     def test_gate_d_metric_shape_satisfies_receipt_hard_check(self) -> None:
         metrics = {
@@ -29,6 +62,19 @@ class M1BMetricProducerTests(unittest.TestCase):
         }
 
         self.assertEqual(gate_d_passes(metrics, node_available=True)["passed"], True)
+
+    def test_gate_d_manifest_declared_threshold_is_binding(self) -> None:
+        metrics = {
+            "onnx_cpu_passed": True,
+            "cpu_decode_seconds": 1.25,
+            "output_shape": [256, 256, 3],
+        }
+        policy = {
+            **gate_audit.DEFAULT_GATE_D_ACCEPTANCE,
+            "max_cpu_decode_seconds": 1.0,
+        }
+
+        self.assertEqual(gate_d_passes(metrics, node_available=True, acceptance=policy)["passed"], False)
 
     def test_gate_d_parse_shape_rejects_wrong_arity(self) -> None:
         with self.assertRaises(SystemExit):

@@ -11,6 +11,9 @@
     "torch_version": "fixture"
   },
   "generated_at": "2026-05-26T00:00:00Z",
+  "cross_device_parity": "structural-only",
+  "decode_consistent": true,
+  "encode_consistent": true,
   "inputs": {
     "downsample_size": 16,
     "image_size": 256,
@@ -25,6 +28,7 @@
     "1111111111111111111111111111111111111111111111111111111111111111"
   ],
   "roundtrip_passed": true,
+  "reencode_consistent": true,
   "runs": [
     {
       "decoded_shape": [1, 3, 256, 256],
@@ -56,6 +60,7 @@
   ],
   "sample_count": 3,
   "schema_version": "m1b-gate-c-roundtrip-metrics.v0",
+  "reencode_token_hamming_rate": 0.0,
   "token_hamming_rate": 0.0,
   "token_sha256s": [
     "1111111111111111111111111111111111111111111111111111111111111111",

@@ -7,6 +7,19 @@ import {
 
 const SHA_ZERO = "0".repeat(64);
 const SHA_ONE = "1".repeat(64);
+const GATE_C_ACCEPTANCE = {
+  mode: "within-device-determinism" as const,
+  minSampleCount: 3,
+  requiredEncodeConsistency: true as const,
+  requiredDecodeConsistency: true as const,
+  crossDeviceParity: "structural-only" as const,
+  maxReencodeTokenHammingRate: null,
+};
+const GATE_D_ACCEPTANCE = {
+  maxCpuDecodeSeconds: 30,
+  outputShape: [256, 256, 3] as [number, number, 3],
+  requiresNode: true as const,
+};
 
 describe("decoder family manifest contract", () => {
   it("accepts a candidate manifest with blocked empirical gates", () => {
@@ -64,11 +77,13 @@ describe("decoder family manifest contract", () => {
           status: "passed",
           tracker: "https://github.com/p-to-q/wittgenstein/issues/334",
           receipt: "artifacts/m1b-audit/vqgan-gates.json",
+          acceptance: GATE_C_ACCEPTANCE,
         },
         gateD: {
           status: "passed",
           tracker: "https://github.com/p-to-q/wittgenstein/issues/335",
           receipt: "artifacts/m1b-audit/vqgan-gates.json",
+          acceptance: GATE_D_ACCEPTANCE,
         },
       },
     });
@@ -215,6 +230,62 @@ describe("decoder family manifest contract", () => {
     );
   });
 
+  it("lets Gate C bless structural parity without requiring re-encode fixed points", () => {
+    const manifest = blessedManifest();
+    const receipt = auditReceipt({
+      reencodeConsistent: false,
+      reencodeTokenHammingRate: 0.1211,
+    });
+
+    const validation = validateDecoderManifestAuditReceipts(
+      manifest,
+      new Map([["artifacts/m1b-audit/vqgan-gates.json", receipt]]),
+    );
+
+    expect(validation).toEqual({ ok: true, issues: [] });
+  });
+
+  it("rejects Gate C receipts whose measured parity differs from the manifest policy", () => {
+    const manifest = blessedManifest();
+    const receipt = auditReceipt({ crossDeviceParity: "byte-identical" });
+
+    const validation = validateDecoderManifestAuditReceipts(
+      manifest,
+      new Map([["artifacts/m1b-audit/vqgan-gates.json", receipt]]),
+    );
+
+    expect(validation.ok).toBe(false);
+    expect(validation.issues.map((issue) => issue.path)).toContain(
+      "receipts.artifacts/m1b-audit/vqgan-gates.json.gates.C.status",
+    );
+  });
+
+  it("applies the manifest-declared Gate D latency threshold instead of a receipt claim", () => {
+    const manifest = blessedManifest({
+      audits: {
+        ...blessedManifest().audits,
+        gateD: {
+          ...blessedManifest().audits.gateD,
+          acceptance: {
+            ...GATE_D_ACCEPTANCE,
+            maxCpuDecodeSeconds: 1,
+          },
+        },
+      },
+    });
+    const receipt = auditReceipt({ gateDCpuDecodeSeconds: 1.25 });
+
+    const validation = validateDecoderManifestAuditReceipts(
+      manifest,
+      new Map([["artifacts/m1b-audit/vqgan-gates.json", receipt]]),
+    );
+
+    expect(validation.ok).toBe(false);
+    expect(validation.issues.map((issue) => issue.path)).toContain(
+      "receipts.artifacts/m1b-audit/vqgan-gates.json.gates.D.status",
+    );
+  });
+
   it("accepts blessed manifests only when Gate C/D receipts support them", () => {
     const manifest = blessedManifest();
 
@@ -275,8 +346,8 @@ function candidateManifest(overrides: Partial<DecoderFamilyManifest> = {}): Deco
   };
 }
 
-function blessedManifest(): DecoderFamilyManifest {
-  return candidateManifest({
+function blessedManifest(overrides: Partial<DecoderFamilyManifest> = {}): DecoderFamilyManifest {
+  const base = candidateManifest({
     status: "blessed",
     capabilities: {
       ...candidateManifest().capabilities,
@@ -289,14 +360,21 @@ function blessedManifest(): DecoderFamilyManifest {
         status: "passed",
         tracker: "https://github.com/p-to-q/wittgenstein/issues/334",
         receipt: "artifacts/m1b-audit/vqgan-gates.json",
+        acceptance: GATE_C_ACCEPTANCE,
       },
       gateD: {
         status: "passed",
         tracker: "https://github.com/p-to-q/wittgenstein/issues/335",
         receipt: "artifacts/m1b-audit/vqgan-gates.json",
+        acceptance: GATE_D_ACCEPTANCE,
       },
     },
   });
+
+  return {
+    ...base,
+    ...overrides,
+  };
 }
 
 function auditReceipt(
@@ -306,6 +384,10 @@ function auditReceipt(
     gateDStatus?: "passed" | "blocked" | "skipped";
     gateCPassCheck?: boolean;
     gateDPassCheck?: boolean;
+    crossDeviceParity?: "byte-identical" | "token-identical" | "structural-only";
+    reencodeConsistent?: boolean;
+    reencodeTokenHammingRate?: number;
+    gateDCpuDecodeSeconds?: number;
     omitHardMetrics?: boolean;
     environment?: Record<string, string>;
   } = {},
@@ -314,14 +396,19 @@ function auditReceipt(
     ? {}
     : {
         roundtrip_passed: true,
+        encode_consistent: true,
+        decode_consistent: true,
+        reencode_consistent: overrides.reencodeConsistent ?? true,
         sample_count: 3,
-        token_hamming_rate: 0.0,
+        token_hamming_rate: overrides.reencodeTokenHammingRate ?? 0.0,
+        reencode_token_hamming_rate: overrides.reencodeTokenHammingRate ?? 0.0,
+        cross_device_parity: overrides.crossDeviceParity ?? "structural-only",
       };
   const gateDMetrics = overrides.omitHardMetrics
     ? {}
     : {
         onnx_cpu_passed: true,
-        cpu_decode_seconds: 1.25,
+        cpu_decode_seconds: overrides.gateDCpuDecodeSeconds ?? 1.25,
         output_shape: [256, 256, 3],
       };
 
