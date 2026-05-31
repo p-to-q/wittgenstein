@@ -61,12 +61,14 @@ artifact bundle. It records:
 - Per-eval-step metric snapshots
 - Checkpoint path, SHA-256, byte size, and weights license
 
-Do not put a freeform hyperparameter blob inside the receipt. Training
-configuration stays in the training program's own config file; the receipt
-may point at that file with a path and SHA-256. The same receipt can be
-mirrored to Aim (local) and W&B (when a project key is set via
-`WANDB_PROJECT`). Aim is the default because the manifest spine is the
-canonical record and Aim stays local + offline-friendly.
+Do not put a freeform hyperparameter blob or tracker block inside the receipt.
+Training configuration stays in the training program's own config file; the
+receipt may point at that file with a path and SHA-256. Experiment tracker
+linkage is a sibling `witt.training.experiment/v0.1` receipt, with a local JSONL
+implementation used by CPU smoke tests. See
+[training experiment tracking](../training/experiment-tracking.md) for the
+contract and the #399 boundary between repo-side receipts and the still-external
+shared Aim deployment.
 
 The three manifest surfaces are intentionally separate:
 

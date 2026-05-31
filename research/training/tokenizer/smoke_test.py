@@ -30,6 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from research.training.tokenizer.config import smoke_config
 from research.training.tokenizer.train import train
+from research.training._shared.experiment_tracking import assert_training_experiment_receipt_shape
 from research.training._shared.manifest import assert_training_run_manifest_shape
 
 
@@ -61,6 +62,24 @@ def main() -> int:
     except Exception as exc:
         print(f"[smoke] FAIL: manifest shape invalid: {exc}")
         return 1
+    experiment_receipt_path = run_dir / "experiment.json"
+    experiment_metrics_path = run_dir / "experiment-metrics.jsonl"
+    if not experiment_receipt_path.exists():
+        print("[smoke] FAIL: experiment receipt missing")
+        return 1
+    if not experiment_metrics_path.exists():
+        print("[smoke] FAIL: experiment metrics log missing")
+        return 1
+    try:
+        experiment_payload = json.loads(experiment_receipt_path.read_text(encoding="utf-8"))
+        assert_training_experiment_receipt_shape(experiment_payload)
+    except Exception as exc:
+        print(f"[smoke] FAIL: experiment receipt shape invalid: {exc}")
+        return 1
+    metrics_lines = experiment_metrics_path.read_text(encoding="utf-8").splitlines()
+    if not metrics_lines:
+        print("[smoke] FAIL: experiment metrics log is empty")
+        return 1
     acceptance = summary.get("acceptance", {})
     if summary.get("final_step") != cfg.max_steps:
         print(
@@ -72,6 +91,12 @@ def main() -> int:
         return 1
     if acceptance.get("final_checkpoint_written") is not True:
         print("[smoke] FAIL: final checkpoint missing from acceptance summary")
+        return 1
+    if acceptance.get("experiment_receipt_written") is not True:
+        print("[smoke] FAIL: experiment receipt missing from acceptance summary")
+        return 1
+    if acceptance.get("experiment_metrics_written") is not True:
+        print("[smoke] FAIL: experiment metrics missing from acceptance summary")
         return 1
     if acceptance.get("used_synthetic_data") is not True:
         print("[smoke] FAIL: smoke run did not report synthetic dataset usage")

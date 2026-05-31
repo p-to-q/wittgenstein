@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .experiment_tracking import JsonlExperimentTracker, TrainingExperimentManifestReference
 from .manifest import (
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
     TrainingRunHardware,
@@ -22,6 +23,7 @@ from .manifest import (
     capture_lockfile_sha256,
     capture_training_checkpoint,
     new_run_id,
+    sha256_file,
     synthetic_optimizer_checkpoint,
     utc_now_iso,
     write_training_config_snapshot,
@@ -42,12 +44,16 @@ def build_smoke_manifest(out_root: Path, run_id: str | None = None) -> dict[str,
     dataset_marker.write_text("wittgenstein synthetic training manifest smoke\n", encoding="utf-8")
     checkpoint_path = ckpt_dir / "final.synthetic"
     checkpoint_path.write_bytes(b"wittgenstein synthetic checkpoint bytes\n")
+    tracker = JsonlExperimentTracker(run_dir, run_id)
+    tracker.log_params({"purpose": "stdlib training-manifest smoke", "subprogram": "tokenizer"})
+    tracker.log_metrics(0, {"loss": 0.0, "wallClockSec": 0.0})
     config_ref = write_training_config_snapshot(
         run_dir / "config.json",
         {
             "purpose": "stdlib training-manifest smoke",
             "realTraining": False,
             "subprogram": "tokenizer",
+            "experimentTracking": tracker.config_reference(),
         },
     )
 
@@ -79,11 +85,21 @@ def build_smoke_manifest(out_root: Path, run_id: str | None = None) -> dict[str,
     )
     manifest_path = run_dir / "manifest.json"
     write_training_run_manifest(manifest, manifest_path)
+    tracker.finish(
+        TrainingExperimentManifestReference(
+            runId=run_id,
+            manifestPath=str(manifest_path),
+            manifestSha256=sha256_file(manifest_path),
+            checkpointSha256=sha256_file(checkpoint_path),
+        )
+    )
     return {
         "runId": run_id,
         "runDir": str(run_dir),
         "manifestPath": str(manifest_path),
         "checkpointPath": str(checkpoint_path),
+        "experimentReceiptPath": str(tracker.receipt_path),
+        "experimentMetricsPath": str(tracker.metrics_path),
     }
 
 

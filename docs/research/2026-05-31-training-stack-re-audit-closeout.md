@@ -47,6 +47,10 @@ expensive training run. The durable boundary is:
   The Python helper now mirrors it, including optimizer state SHA-256,
   checkpoint byte/SHA/license fields, dataset SHA, hardware, and config
   reference.
+- **Tracker contract:** experiment tracker linkage is a sibling
+  `witt.training.experiment/v0.1` receipt, not a top-level freeform field in
+  `TrainingRunManifest`. The local JSONL tracker is only the executable smoke
+  floor; #399 still owns shared Aim deployment evidence.
 - **CPU smoke honesty:** schema hardware now permits `gpuCount: 0`. CPU-only
   smoke receipts should say they are CPU receipts instead of inventing a GPU.
 - **Reuse strategy:** LlamaGen tokenizer reuse remains limited to the audited
@@ -63,9 +67,11 @@ The following is safe to merge before lab compute:
 
 - stdlib-only `research.training._shared.smoke_manifest`;
 - `research.training._shared.test_manifest`;
+- `research.training._shared.test_experiment_tracking`;
 - canonical Python manifest writer updates;
-- schema tests for optimizer receipts and CPU-only smoke;
-- tokenizer smoke validation that fails if the emitted manifest shape drifts.
+- schema tests for optimizer receipts, experiment receipts, and CPU-only smoke;
+- tokenizer smoke validation that fails if the emitted manifest or experiment
+  receipt shape drifts.
 
 These changes are receipt-floor work. They do not claim model quality, dataset
 readiness, or checkpoint publishability.

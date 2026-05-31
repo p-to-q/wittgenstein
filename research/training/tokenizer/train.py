@@ -43,6 +43,10 @@ for p in (_REPO_ROOT, _SHARED):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from research.training._shared.experiment_tracking import (  # noqa: E402
+    JsonlExperimentTracker,
+    TrainingExperimentManifestReference,
+)
 from research.training._shared.manifest import (  # noqa: E402
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
     TrainingRunManifest,
@@ -54,6 +58,7 @@ from research.training._shared.manifest import (  # noqa: E402
     capture_optimizer_checkpoint,
     capture_training_checkpoint,
     new_run_id,
+    sha256_file,
     utc_now_iso,
     write_training_config_snapshot,
     write_training_run_manifest,
@@ -236,7 +241,11 @@ def train(cfg: TrainConfig) -> dict:
         )
         docker_image_sha = capture_docker_image_sha()
         hardware = capture_hardware()
-        config_ref = write_training_config_snapshot(run_dir / "config.json", cfg_to_dict(cfg))
+        experiment_tracker = JsonlExperimentTracker(run_dir, run_id)
+        experiment_tracker.log_params({"subprogram": "tokenizer", "config": cfg_to_dict(cfg)})
+        config_payload = cfg_to_dict(cfg)
+        config_payload["experimentTracking"] = experiment_tracker.config_reference()
+        config_ref = write_training_config_snapshot(run_dir / "config.json", config_payload)
         if cfg.smoke or not cfg.train_data_root:
             dataset_fp = capture_dataset_fingerprint(
                 "synthetic", files=[], revision="synthetic-smoke",
@@ -333,6 +342,14 @@ def train(cfg: TrainConfig) -> dict:
             )
             last_log_t = time.perf_counter()
             summary["final_components"] = components
+            experiment_tracker.log_metrics(
+                step,
+                {
+                    "lr": lr,
+                    "imgsPerSec": ips,
+                    **components,
+                },
+            )
 
         # Checkpoint
         if is_main(rank) and step > 0 and step % cfg.checkpoint_every == 0:
@@ -359,7 +376,7 @@ def train(cfg: TrainConfig) -> dict:
 
     # ---- Final checkpoint + manifest ----
     if is_main(rank):
-        _write_checkpoint(
+        final_manifest_path = _write_checkpoint(
             run_dir,
             model,
             optim,
@@ -378,8 +395,20 @@ def train(cfg: TrainConfig) -> dict:
         )
         final_ckpt = run_dir / "ckpts" / "final.pt"
         final_manifest = run_dir / "ckpts" / "final.manifest.json"
+        experiment_tracker.finish(
+            TrainingExperimentManifestReference(
+                runId=run_id,
+                manifestPath=str(final_manifest_path),
+                manifestSha256=sha256_file(final_manifest_path),
+                checkpointSha256=sha256_file(final_ckpt),
+            )
+        )
         summary["acceptance"]["final_checkpoint_written"] = final_ckpt.exists()
         summary["acceptance"]["manifest_written"] = final_manifest.exists()
+        summary["acceptance"]["experiment_receipt_written"] = (run_dir / "experiment.json").exists()
+        summary["acceptance"]["experiment_metrics_written"] = (
+            run_dir / "experiment-metrics.jsonl"
+        ).exists()
         summary["acceptance"]["dataset_corrupt_count"] = int(
             getattr(train_ds, "corrupt_count", 0)
         )
@@ -431,7 +460,9 @@ def _write_checkpoint(
         checkpoint=capture_training_checkpoint(ckpt_path, weights_license=weights_license),
         trainingConfig=config_ref,
     )
-    write_training_run_manifest(manifest, run_dir / "ckpts" / (ckpt_path.stem + ".manifest.json"))
+    manifest_path = run_dir / "ckpts" / (ckpt_path.stem + ".manifest.json")
+    write_training_run_manifest(manifest, manifest_path)
+    return manifest_path
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:

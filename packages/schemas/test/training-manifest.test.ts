@@ -68,6 +68,29 @@ describe("TrainingRunManifestSchema", () => {
     );
   });
 
+  it("rejects tracker linkage as a freeform top-level manifest field", () => {
+    const fixture = readTrainingManifestFixture();
+
+    const parsed = TrainingRunManifestSchema.safeParse({
+      ...fixture,
+      experiment: {
+        tracker: "aim",
+        uri: "aim://wittgenstein/tokenizer-a1b2c3d4",
+        runId: "a1b2c3d4",
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unrecognized_keys",
+          keys: ["experiment"],
+        }),
+      ]),
+    );
+  });
+
   it("rejects impossible run windows", () => {
     const fixture = readTrainingManifestFixture();
 
