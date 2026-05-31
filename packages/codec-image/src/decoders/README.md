@@ -58,7 +58,9 @@ infrastructure lands).
   any bridge loads weights. `validateDecoderManifestAuditReceipts()` cross-checks
   passed Gate C/D claims against the audit receipt emitted by
   `research/validation/vqgan_gate_audit.py`; a manifest cannot be treated as
-  blessed on schema shape alone.
+  blessed on schema shape alone. Gate C/D thresholds live in the manifest's
+  `audits.gateC.acceptance` and `audits.gateD.acceptance` blocks, not as hidden
+  script constants.
 - [`./runtime.ts`](./runtime.ts) — `ensureOnnxRuntime()` helper that every
   bridge calls before building an inference session. Turns missing-peer
   failures into typed `DECODER_RUNTIME_UNAVAILABLE` errors instead of

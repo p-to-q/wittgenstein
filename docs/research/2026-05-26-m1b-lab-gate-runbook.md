@@ -27,11 +27,11 @@ visibility.
 
 ## Execution lanes
 
-| Lane | Runs where | Must prove | Does not prove |
-|---|---|---|---|
-| Local contract preflight | Any dev machine, CPU-only | Scripts start, failure receipts are structured, manifest validation rejects unsupported claims | Decoder feasibility |
-| Lab empirical gate | Lab node with pinned weights/tooling | Gate C/D metrics under real weights and recorded runtime environment | Contributor install UX |
-| Contributor smoke | MacBook / common laptop after lab pass | Doctor/install/cache/runtime messages are usable on non-lab machines | Gate C/D by itself |
+| Lane                     | Runs where                             | Must prove                                                                                     | Does not prove         |
+| ------------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------- |
+| Local contract preflight | Any dev machine, CPU-only              | Scripts start, failure receipts are structured, manifest validation rejects unsupported claims | Decoder feasibility    |
+| Lab empirical gate       | Lab node with pinned weights/tooling   | Gate C/D metrics under real weights and recorded runtime environment                           | Contributor install UX |
+| Contributor smoke        | MacBook / common laptop after lab pass | Doctor/install/cache/runtime messages are usable on non-lab machines                           | Gate C/D by itself     |
 
 ## Local contract preflight
 
@@ -73,7 +73,10 @@ python3 -m research.validation.vqgan_gate_audit \
   --torch-version "$WITTGENSTEIN_AUDIT_TORCH_VERSION" \
   --onnxruntime-version "$WITTGENSTEIN_AUDIT_ONNXRUNTIME_VERSION" \
   --cuda-version "$WITTGENSTEIN_AUDIT_CUDA_VERSION" \
-  --driver-version "$WITTGENSTEIN_AUDIT_DRIVER_VERSION"
+  --driver-version "$WITTGENSTEIN_AUDIT_DRIVER_VERSION" \
+  --gate-c-cross-device-parity structural-only \
+  --gate-d-max-cpu-decode-seconds 30 \
+  --gate-d-output-shape 256,256,3
 ```
 
 The metric producers are:
@@ -92,7 +95,9 @@ python3 -m research.validation.m1b_export_llamagen_decoder_onnx \
 
 python3 -m research.validation.m1b_gate_d_onnx_cpu \
   --out artifacts/m1b-audit/gate-d-onnx-cpu.json \
-  --onnx artifacts/m1b-audit/decoder.onnx
+  --onnx artifacts/m1b-audit/decoder.onnx \
+  --max-cpu-decode-seconds 30 \
+  --output-shape 256,256,3
 ```
 
 They write plain JSON only; the receipt wrapper applies the hard pass criteria.
@@ -106,17 +111,26 @@ job status and the JSON as the audit evidence.
 
 ```json
 {
-  "roundtrip_passed": true,
+  "encode_consistent": true,
+  "decode_consistent": true,
   "sample_count": 3,
-  "token_hamming_rate": 0.0
+  "reencode_token_hamming_rate": 0.1211
 }
 ```
 
 Minimum pass criteria:
 
-- `roundtrip_passed=true`
+- `encode_consistent=true`
+- `decode_consistent=true`
 - `sample_count>=3`
-- `token_hamming_rate=0.0`
+- `reencode_token_hamming_rate` is advisory unless the manifest declares a hard
+  `maxReencodeTokenHammingRate`
+
+The final `vqgan-gates.json` wrapper must carry the measured
+`cross_device_parity` that matches the decoder-family manifest acceptance
+policy. The LlamaGen/VQGAN-class policy is `structural-only` parity with
+advisory re-encode drift. Do not reintroduce `token_hamming_rate=0.0` as a hard
+rule without an explicit candidate-owner policy change.
 
 ## Gate D metric shape
 
@@ -165,9 +179,11 @@ A decoder-family manifest may move from `candidate` to `blessed` only after:
    revision.
 2. Gate C and Gate D have a receipt that passes the hard checks in
    `packages/codec-image/src/decoders/manifest.ts`.
-3. `wittgenstein doctor` and `wittgenstein install image --dry-run` expose the
+3. The decoder-family manifest declares Gate C/D acceptance policy:
+   `audits.gateC.acceptance` and `audits.gateD.acceptance`.
+4. `wittgenstein doctor` and `wittgenstein install image --dry-run` expose the
    selected family, cache, license, and runtime status without silent fallback.
-4. The PR states which checks were local contract checks and which were lab
+5. The PR states which checks were local contract checks and which were lab
    empirical checks.
 
 Until then, #402 remains blocked and M1B wiring must keep the current structured

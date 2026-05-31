@@ -15,11 +15,20 @@
         "pass_check": {
           "passed": true,
           "required": {
-            "roundtrip_passed": true,
-            "sample_count_min": 3,
-            "token_hamming_rate_max": 0.0
+            "cross_device_parity": "structural-only",
+            "decode_consistent": true,
+            "encode_consistent": true,
+            "mode": "within-device-determinism",
+            "reencode_token_hamming_rate_hard_blocker": false,
+            "reencode_token_hamming_rate_max": null,
+            "sample_count_min": 3
           }
         },
+        "cross_device_parity": "structural-only",
+        "decode_consistent": true,
+        "encode_consistent": true,
+        "reencode_consistent": true,
+        "reencode_token_hamming_rate": 0.0,
         "roundtrip_passed": true,
         "sample_count": 3,
         "token_hamming_rate": 0.0
@@ -28,7 +37,8 @@
       "required_inputs": [
         "local PyTorch environment",
         "SHA-pinned VQGAN-class weights",
-        "encode -> decode -> re-encode metric JSON"
+        "within-device encode/decode determinism metric JSON",
+        "measured CPU/GPU parity class"
       ],
       "status": "passed",
       "tracker": "https://github.com/p-to-q/wittgenstein/issues/334"

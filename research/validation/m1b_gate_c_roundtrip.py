@@ -65,12 +65,10 @@ def main(argv: list[str] | None = None) -> int:
     token_sha256s = [run["token_sha256"] for run in runs]
     decoded_sha256s = [run["decoded_sha256"] for run in runs]
     reencoded_sha256s = [run["reencoded_token_sha256"] for run in runs]
-    roundtrip_passed = (
-        all_equal(token_sha256s)
-        and all_equal(decoded_sha256s)
-        and all_equal(reencoded_sha256s)
-        and max(token_hamming_rates) == 0.0
-    )
+    encode_consistent = all_equal(token_sha256s)
+    decode_consistent = all_equal(decoded_sha256s)
+    reencode_consistent = all_equal(reencoded_sha256s) and max(token_hamming_rates) == 0.0
+    roundtrip_passed = encode_consistent and decode_consistent and reencode_consistent
 
     write_json(
         Path(args.out),
@@ -78,8 +76,12 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": "m1b-gate-c-roundtrip-metrics.v0",
             "generated_at": utc_now_iso(),
             "roundtrip_passed": roundtrip_passed,
+            "encode_consistent": encode_consistent,
+            "decode_consistent": decode_consistent,
+            "reencode_consistent": reencode_consistent,
             "sample_count": args.sample_count,
             "token_hamming_rate": max(token_hamming_rates),
+            "reencode_token_hamming_rate": max(token_hamming_rates),
             "token_sha256s": token_sha256s,
             "decoded_sha256s": decoded_sha256s,
             "reencoded_token_sha256s": reencoded_sha256s,

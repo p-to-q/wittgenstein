@@ -24,6 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--onnx", required=True, help="Path to exported decoder ONNX file.")
     parser.add_argument("--token-grid", default="16,16", help="Token grid as H,W.")
     parser.add_argument("--output-shape", default="256,256,3", help="Expected output shape as H,W,C.")
+    parser.add_argument("--max-cpu-decode-seconds", type=float, default=30.0)
     parser.add_argument("--codebook-size", type=int, default=16384)
     parser.add_argument("--sample-count", type=int, default=3)
     parser.add_argument("--warmup-count", type=int, default=1)
@@ -35,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.sample_count < 1:
         raise SystemExit("--sample-count must be >= 1")
+    if args.max_cpu_decode_seconds <= 0:
+        raise SystemExit("--max-cpu-decode-seconds must be > 0")
 
     ort = import_onnxruntime()
     np = import_numpy()
@@ -58,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     output_array = normalize_output(np, output)
     observed_shape = list(output_array.shape)
     max_seconds = max(timings)
-    onnx_cpu_passed = observed_shape == expected_shape and max_seconds <= 30.0
+    onnx_cpu_passed = observed_shape == expected_shape and max_seconds <= args.max_cpu_decode_seconds
 
     write_json(
         Path(args.out),
@@ -85,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
                 "input_dtype": input_meta.type,
                 "token_grid": token_grid,
                 "expected_output_shape": expected_shape,
+                "max_cpu_decode_seconds": args.max_cpu_decode_seconds,
             },
         },
     )

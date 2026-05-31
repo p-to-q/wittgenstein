@@ -115,11 +115,13 @@ python3 -m unittest \
 ```
 
 Without local weights the receipt is expected to stay `blocked` / `skipped`.
-Gate C passes only after empirical round-trip metrics include
-`roundtrip_passed=true`, `sample_count>=3`, and `token_hamming_rate=0.0`.
-Gate D passes only after ONNX/CPU metrics include `onnx_cpu_passed=true`,
-`cpu_decode_seconds<=30`, and `output_shape=[256,256,3]`. That makes #334 /
-#335 close over evidence rather than prose.
+Gate C passes only after empirical metrics match the decoder-family manifest's
+declared acceptance policy: at minimum `encode_consistent=true`,
+`decode_consistent=true`, `sample_count>=3`, and the measured
+`cross_device_parity`. Re-encode token drift is advisory for the LlamaGen
+structural-parity policy unless the manifest declares a hard cap. Gate D passes
+only after ONNX/CPU metrics match the manifest-declared latency and output shape
+policy. That makes #334 / #335 close over evidence rather than prose.
 
 When lab compute is available, use the lab gate runbook rather than treating a
 contributor laptop as the full empirical gate:

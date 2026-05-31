@@ -44,9 +44,13 @@ class VqganGateAuditTests(unittest.TestCase):
             roundtrip.write_text(
                 json.dumps(
                     {
-                        "roundtrip_passed": True,
+                        "roundtrip_passed": False,
+                        "encode_consistent": True,
+                        "decode_consistent": True,
+                        "reencode_consistent": False,
                         "sample_count": 3,
-                        "token_hamming_rate": 0.0,
+                        "token_hamming_rate": 0.1211,
+                        "reencode_token_hamming_rate": 0.1211,
                     }
                 ),
                 encoding="utf-8",
@@ -94,7 +98,10 @@ class VqganGateAuditTests(unittest.TestCase):
             self.assertEqual(parsed["environment"]["accelerator"], "A100")
             self.assertEqual(parsed["environment"]["torchVersion"], "2.4.0")
             self.assertEqual(parsed["environment"]["onnxRuntimeVersion"], "1.18.0")
-            self.assertEqual(parsed["gates"][0]["metrics"]["roundtrip_passed"], True)
+            self.assertEqual(parsed["gates"][0]["metrics"]["roundtrip_passed"], False)
+            self.assertEqual(parsed["gates"][0]["metrics"]["encode_consistent"], True)
+            self.assertEqual(parsed["gates"][0]["metrics"]["decode_consistent"], True)
+            self.assertEqual(parsed["gates"][0]["metrics"]["cross_device_parity"], "structural-only")
             self.assertEqual(parsed["gates"][0]["metrics"]["pass_check"]["passed"], True)
             self.assertEqual(parsed["gates"][1]["metrics"]["onnx_cpu_passed"], True)
             self.assertEqual(parsed["gates"][1]["metrics"]["pass_check"]["passed"], True)

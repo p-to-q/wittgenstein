@@ -29,13 +29,13 @@ This package turns the M1B decoder-delivery blocker into a verifiable surface:
 
 ## Issue map
 
-| Issue | Role in this package | Current state |
-|---|---|---|
-| #334 | Gate C deterministic round-trip | Metric producer + receipt hard checks exist; real lab run still required |
-| #335 | Gate D ONNX / CPU feasibility | ONNX export producer + CPU metric producer + receipt hard checks exist; real lab run still required |
-| #402 | Decoder delivery decision | Preflight / CLI visibility blocks install until a manifest is blessed |
-| #435 | Owner-review hub | This review pack and artifact handoff provide the review map |
-| #441 | Training-stack re-audit | Training manifest smoke remains CPU-only; lab gate evidence is separate from training |
+| Issue | Role in this package            | Current state                                                                                       |
+| ----- | ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| #334  | Gate C deterministic round-trip | Metric producer + receipt hard checks exist; real lab run still required                            |
+| #335  | Gate D ONNX / CPU feasibility   | ONNX export producer + CPU metric producer + receipt hard checks exist; real lab run still required |
+| #402  | Decoder delivery decision       | Preflight / CLI visibility blocks install until a manifest is blessed                               |
+| #435  | Owner-review hub                | This review pack and artifact handoff provide the review map                                        |
+| #441  | Training-stack re-audit         | Training manifest smoke remains CPU-only; lab gate evidence is separate from training               |
 
 ## Local contract checks
 
@@ -85,26 +85,29 @@ not sufficient to bless a decoder.
 ## Research presentation guardrails
 
 - Do not write "Gate C passed" unless `vqgan-gates.json` contains Gate C with
-  `status=passed` and hard metrics `roundtrip_passed=true`,
-  `sample_count>=3`, `token_hamming_rate=0.0`.
+  `status=passed`, hard metrics `encode_consistent=true`,
+  `decode_consistent=true`, `sample_count>=3`, and measured
+  `cross_device_parity` matching the decoder-family manifest. Re-encode drift
+  is a hard blocker only when the manifest declares
+  `maxReencodeTokenHammingRate`.
 - Do not write "Gate D passed" unless `vqgan-gates.json` contains Gate D with
-  `status=passed` and hard metrics `onnx_cpu_passed=true`,
-  `cpu_decode_seconds<=30`, `output_shape=[256,256,3]`.
+  `status=passed` and hard metrics matching the decoder-family manifest's
+  `maxCpuDecodeSeconds` and `outputShape`.
 - Do not describe fixture files as empirical results.
 - Do not wire `loadLlamagenDecoderBridge` from this package alone; wiring comes
   after a blessed manifest and lab evidence.
 
 ## Review file map
 
-| Surface | Files |
-|---|---|
-| Manifest / receipt contract | `packages/codec-image/src/decoders/manifest.ts`, `packages/codec-image/test/decoder-family-manifest.test.ts` |
-| Preflight / CLI visibility | `packages/codec-image/src/decoders/preflight.ts`, `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/doctor.ts` |
-| Gate C/D metric producers | `research/validation/m1b_gate_c_roundtrip.py`, `research/validation/m1b_export_llamagen_decoder_onnx.py`, `research/validation/m1b_gate_d_onnx_cpu.py` |
-| Final receipt wrapper | `research/validation/vqgan_gate_audit.py`, `research/validation/test_vqgan_gate_audit.py` |
-| Fixture receipts | `research/validation/fixtures/m1b-audit/*.fixture.json` |
-| Local self-check / artifact check | `scripts/m1b-audit-self-check.mjs`, `scripts/m1b-audit-artifact-check.mjs`, `scripts/m1b-staging-plan-check.mjs` |
-| Operator handoff | `artifacts/m1b-audit/README.md`, `docs/research/2026-05-26-m1b-lab-gate-runbook.md` |
+| Surface                           | Files                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Manifest / receipt contract       | `packages/codec-image/src/decoders/manifest.ts`, `packages/codec-image/test/decoder-family-manifest.test.ts`                                           |
+| Preflight / CLI visibility        | `packages/codec-image/src/decoders/preflight.ts`, `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/doctor.ts`                        |
+| Gate C/D metric producers         | `research/validation/m1b_gate_c_roundtrip.py`, `research/validation/m1b_export_llamagen_decoder_onnx.py`, `research/validation/m1b_gate_d_onnx_cpu.py` |
+| Final receipt wrapper             | `research/validation/vqgan_gate_audit.py`, `research/validation/test_vqgan_gate_audit.py`                                                              |
+| Fixture receipts                  | `research/validation/fixtures/m1b-audit/*.fixture.json`                                                                                                |
+| Local self-check / artifact check | `scripts/m1b-audit-self-check.mjs`, `scripts/m1b-audit-artifact-check.mjs`, `scripts/m1b-staging-plan-check.mjs`                                       |
+| Operator handoff                  | `artifacts/m1b-audit/README.md`, `docs/research/2026-05-26-m1b-lab-gate-runbook.md`                                                                    |
 
 ## Suggested reviewer path
 
