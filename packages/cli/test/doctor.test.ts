@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { isNodeVersionAtLeast } from "../src/commands/doctor.js";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(testDir, "..");
@@ -18,6 +19,14 @@ afterEach(() => {
 });
 
 describe("doctor tier readiness", () => {
+  it("checks the full semver floor for Node runtime gates", () => {
+    expect(isNodeVersionAtLeast("v20.18.9", [20, 19, 0])).toBe(false);
+    expect(isNodeVersionAtLeast("20.19.0", [20, 19, 0])).toBe(true);
+    expect(isNodeVersionAtLeast("v20.19.1", [20, 19, 0])).toBe(true);
+    expect(isNodeVersionAtLeast("v21.0.0", [20, 19, 0])).toBe(true);
+    expect(isNodeVersionAtLeast("not-a-node-version", [20, 19, 0])).toBe(false);
+  });
+
   it("prints the current tier readiness table", () => {
     const doctor = runDoctor();
 
