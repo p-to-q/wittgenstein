@@ -9,13 +9,19 @@ import {
   type ImageLatentCodes,
   type ImageSceneSpec,
 } from "../schema.js";
-import type { ImageAdapterOutcome } from "../types.js";
+import type {
+  ImageAdapterFallbackReason,
+  ImageAdapterOutcome,
+  ImageAdapterReceipt,
+  ImageCodePath,
+} from "../types.js";
 
 export type { ImageLatentCodes };
 export { ImageLatentCodesSchema };
 
 /** v1 stub: tokens[0]=1, tokens[1]=byte length, tokens[2..]=UTF-8 bytes of caption. */
 export const STUB_LATENT_PROTOCOL_V1 = 1;
+export const PLACEHOLDER_SEED_EXPANDER_ID = "placeholder-seed-expander/v0";
 
 /**
  * Result of `adaptSceneToLatents`: the decoder-native latents plus a record
@@ -27,38 +33,52 @@ export const STUB_LATENT_PROTOCOL_V1 = 1;
 export interface AdaptSceneResult {
   readonly latents: ImageLatentCodes;
   readonly outcome: ImageAdapterOutcome;
+  readonly receipt: ImageAdapterReceipt;
 }
 
 export async function adaptSceneToLatents(
   parsed: ImageSceneSpec,
   ctx: RenderCtx,
 ): Promise<AdaptSceneResult> {
+  const attemptedPaths: ImageCodePath[] = [];
+  const fallbackReasons: ImageAdapterFallbackReason[] = [];
+
   if (parsed.providerLatents) {
+    attemptedPaths.push("provider-latents");
     const validated = ImageLatentCodesSchema.safeParse(parsed.providerLatents);
     if (validated.success) {
       ctx.logger.info("Using provider-included latents; skipping learned adapter.");
-      return { latents: validated.data, outcome: "provider-latents" };
+      return {
+        latents: validated.data,
+        outcome: "provider-latents",
+        receipt: adapterReceipt("provider-latents", attemptedPaths, fallbackReasons),
+      };
     }
+    fallbackReasons.push("provider-latents-invalid");
     ctx.logger.warn("providerLatents failed validation; falling back to adapter.", {
       issues: validated.error?.issues,
     });
   }
 
   if (parsed.coarseVq) {
+    attemptedPaths.push("coarse-vq");
     const validated = ImageCoarseVqSchema.safeParse(parsed.coarseVq);
     if (validated.success) {
       ctx.logger.info("Using coarseVq hints; expanding to decoder-native latents.");
       return {
         latents: expandCoarseVqToLatents(parsed, validated.data),
         outcome: "coarse-vq",
+        receipt: adapterReceipt("coarse-vq", attemptedPaths, fallbackReasons),
       };
     }
+    fallbackReasons.push("coarse-vq-invalid");
     ctx.logger.warn("coarseVq failed validation; falling back to next adapter tier.", {
       issues: validated.error?.issues,
     });
   }
 
   if (parsed.seedCode) {
+    attemptedPaths.push("visual-seed-code");
     const validated = ImageVisualSeedCodeSchema.safeParse(parsed.seedCode);
     if (validated.success) {
       ctx.logger.info("Using Visual Seed Code; expanding to decoder-native latents.");
@@ -69,11 +89,19 @@ export async function adaptSceneToLatents(
           seed: hashSpecToSeed(parsed),
         }),
         outcome: "visual-seed-code",
+        receipt: adapterReceipt("visual-seed-code", attemptedPaths, fallbackReasons, {
+          seedExpanderId: PLACEHOLDER_SEED_EXPANDER_ID,
+        }),
       };
     }
+    fallbackReasons.push("seed-code-invalid");
     ctx.logger.warn("seedCode failed validation; falling back to next adapter tier.", {
       issues: validated.error?.issues,
     });
+  }
+
+  if (attemptedPaths.length === 0) {
+    fallbackReasons.push("no-decoder-facing-code");
   }
 
   const resolved = await resolveMlpForScene(parsed, ctx);
@@ -81,12 +109,29 @@ export async function adaptSceneToLatents(
     return {
       latents: annotateLatents(parsed, await predictWithResolved(parsed, resolved)),
       outcome: "learned-mlp",
+      receipt: adapterReceipt("learned-mlp", attemptedPaths, fallbackReasons),
     };
   }
 
+  fallbackReasons.push("learned-mlp-unavailable");
   return {
     latents: annotateLatents(parsed, placeholderLatents(parsed, ctx)),
     outcome: "placeholder",
+    receipt: adapterReceipt("placeholder", attemptedPaths, fallbackReasons),
+  };
+}
+
+function adapterReceipt(
+  outcome: ImageAdapterOutcome,
+  attemptedPaths: readonly ImageCodePath[],
+  fallbackReasons: readonly ImageAdapterFallbackReason[],
+  options: { seedExpanderId?: string | null } = {},
+): ImageAdapterReceipt {
+  return {
+    outcome,
+    attemptedPaths: [...attemptedPaths],
+    fallbackReasons: [...fallbackReasons],
+    seedExpanderId: options.seedExpanderId ?? null,
   };
 }
 

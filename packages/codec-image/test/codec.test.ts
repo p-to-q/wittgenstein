@@ -662,6 +662,14 @@ describe("image adapterOutcome (#247-style observability)", () => {
     return outcome;
   }
 
+  async function adaptReceipt(specJson: string) {
+    const parsed = imageCodec.parse(specJson);
+    if (!parsed.ok) throw new Error("parse failed");
+    const ctx = await makeRenderCtx({ runId: "receipt-test", seed: 7, label: "receipt" });
+    const { receipt } = await adaptSceneToLatents(parsed.value, ctx);
+    return receipt;
+  }
+
   it("reports provider-latents when validation succeeds", async () => {
     const outcome = await adaptOutcome(
       JSON.stringify({
@@ -732,6 +740,31 @@ describe("image adapterOutcome (#247-style observability)", () => {
     expect(outcome).toBe("visual-seed-code");
   });
 
+  it("records the concrete seed expander when the visual-seed-code tier fires", async () => {
+    const receipt = await adaptReceipt(
+      JSON.stringify({
+        mode: "one-shot-vsc",
+        decoder: {
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          latentResolution: [4, 4],
+        },
+        seedCode: {
+          family: "vqvae",
+          mode: "prefix",
+          tokens: [3, 17, 9, 220],
+        },
+      }),
+    );
+    expect(receipt).toEqual({
+      outcome: "visual-seed-code",
+      attemptedPaths: ["visual-seed-code"],
+      fallbackReasons: [],
+      seedExpanderId: "placeholder-seed-expander/v0",
+    });
+  });
+
   it("reports placeholder when no hints are provided and no learned MLP is resolved", async () => {
     const outcome = await adaptOutcome(
       JSON.stringify({
@@ -746,6 +779,25 @@ describe("image adapterOutcome (#247-style observability)", () => {
       }),
     );
     expect(outcome).toBe("placeholder");
+  });
+
+  it("records placeholder fallback reasons when no decoder-facing code is emitted", async () => {
+    const receipt = await adaptReceipt(
+      JSON.stringify({
+        decoder: {
+          family: "llamagen",
+          codebook: "stub-codebook",
+          codebookVersion: "v0",
+          latentResolution: [2, 2],
+        },
+      }),
+    );
+    expect(receipt).toEqual({
+      outcome: "placeholder",
+      attemptedPaths: [],
+      fallbackReasons: ["no-decoder-facing-code", "learned-mlp-unavailable"],
+      seedExpanderId: null,
+    });
   });
 
   it("propagates outcome to RenderResult.metadata.renderPath via the pipeline", async () => {

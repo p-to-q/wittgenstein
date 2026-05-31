@@ -102,8 +102,9 @@ The image codec records two distinct path facts so a maintainer can tell intent 
 
 - `manifest["image.code"].path` — _intent_: which hint did the LLM-emitted spec carry? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `semantic-fallback`.
 - `manifest.renderPath` — _outcome_: which adapter tier actually produced the latents? One of `provider-latents` / `coarse-vq` / `visual-seed-code` / `learned-mlp` / `placeholder`. Plumbed via `ImageAdapterOutcome` (PR #250). A bogus `providerLatents` that fails validation now surfaces as `renderPath: coarse-vq` (or further down the fall-through), not as a silent path swap.
+- `manifest["image.adapter"]` — _adapter receipt_: records the outcome, the decoder-facing paths that were attempted, fallback reasons, and the concrete `seedExpanderId` when the Visual Seed Code tier expands tokens.
 
-Both fields are written through the harness manifest spine. The important parity with audio and sensor is not the field name: audio reports its concrete backend under `audioRender.decoderId` / `determinismClass`, sensor reports its dashboard route through `renderPath`, and image reports adapter-tier outcome through `renderPath`. In all three cases, the manifest names the path that actually fired instead of silently swapping behavior.
+These fields are written through the harness manifest spine. The important parity with audio and sensor is not the field name: audio reports its concrete backend under `audioRender.decoderId` / `determinismClass`, sensor reports its dashboard route through `renderPath`, and image reports adapter-tier outcome through `renderPath`. In all three cases, the manifest names the path that actually fired instead of silently swapping behavior.
 
 ## Adapter Role
 
