@@ -1,5 +1,10 @@
 import type { Command } from "commander";
-import { runCodecCommand, parseOptionalSeed, type CommandRuntimeOptions } from "./shared.js";
+import {
+  runCodecCommand,
+  parseOptionalSeed,
+  parseSeedOption,
+  type CommandRuntimeOptions,
+} from "./shared.js";
 
 export interface SvgCommandOptions extends CommandRuntimeOptions {
   source?: string;
@@ -13,7 +18,7 @@ export function registerSvgCommand(program: Command): void {
       "Run the SVG codec: `engine` calls the grammar engine HTTP; `local` emits deterministic vector art from the prompt (no text, black background).",
     )
     .option("--out <path>", "output path")
-    .option("--seed <number>", "seed")
+    .option("--seed <number>", "seed", parseSeedOption)
     .option("--source <engine|local>", "svg generation source", "engine")
     .option("--dry-run", "skip remote model / engine calls and exercise the manifest spine")
     .option("--config <path>", "config path")
