@@ -24,7 +24,6 @@ import type { Command } from "commander";
 import {
   RunManifestSchema,
   WittgensteinRequestSchema,
-  type RunManifest,
   type WittgensteinRequest,
 } from "@wittgenstein/schemas";
 import { Wittgenstein } from "@wittgenstein/core";
@@ -40,11 +39,19 @@ const REPLAY_SUPPORTED_ROUTES: ReadonlySet<string> = new Set([
   "asciipng-local",
 ]);
 
-function manifestReplayKey(manifest: RunManifest): string {
-  if (manifest.codec === "sensor") return "sensor";
-  if (manifest.codec === "svg") return "svg-local"; // svg-local is the deterministic path
-  if (manifest.codec === "asciipng") return "asciipng-local";
-  return manifest.codec;
+function requestReplayKey(request: WittgensteinRequest): string {
+  if (request.modality === "sensor") return "sensor";
+  if (request.modality === "svg") return `svg-${request.source}`;
+  if (request.modality === "asciipng") return `asciipng-${request.source}`;
+  return request.modality;
+}
+
+function writeStructuredError(payload: Record<string, unknown>): void {
+  console.error(JSON.stringify({ ok: false, ...payload }, null, 2));
+}
+
+function errorCause(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function registerReplayCommand(program: Command): void {
@@ -62,18 +69,11 @@ export function registerReplayCommand(program: Command): void {
       try {
         manifestJson = await readFile(absPath, "utf8");
       } catch (error) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_READ_FAILED",
-              message: `Could not read manifest at ${absPath}`,
-              cause: error instanceof Error ? error.message : String(error),
-            },
-            null,
-            2,
-          ),
-        );
+        writeStructuredError({
+          code: "MANIFEST_READ_FAILED",
+          message: `Could not read manifest at ${absPath}`,
+          cause: errorCause(error),
+        });
         process.exitCode = 1;
         return;
       }
@@ -82,124 +82,118 @@ export function registerReplayCommand(program: Command): void {
       try {
         parsedManifest = JSON.parse(manifestJson);
       } catch (error) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_INVALID_JSON",
-              message: `Manifest at ${absPath} is not valid JSON.`,
-              cause: error instanceof Error ? error.message : String(error),
-            },
-            null,
-            2,
-          ),
-        );
+        writeStructuredError({
+          code: "MANIFEST_INVALID_JSON",
+          message: `Manifest at ${absPath} is not valid JSON.`,
+          cause: errorCause(error),
+        });
         process.exitCode = 1;
         return;
       }
 
       const validation = RunManifestSchema.safeParse(parsedManifest);
       if (!validation.success) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_SCHEMA_INVALID",
-              message: "Manifest does not match RunManifestSchema.",
-              issues: validation.error.issues,
-            },
-            null,
-            2,
-          ),
-        );
+        writeStructuredError({
+          code: "MANIFEST_SCHEMA_INVALID",
+          message: "Manifest does not match RunManifestSchema.",
+          issues: validation.error.issues,
+        });
         process.exitCode = 1;
         return;
       }
       const manifest = validation.data;
 
-      const replayKey = manifestReplayKey(manifest);
-      if (!REPLAY_SUPPORTED_ROUTES.has(replayKey)) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "REPLAY_UNSUPPORTED_ROUTE",
-              message: `Replay is not yet wired for codec '${manifest.codec}'. Currently supported: sensor, svg (local), asciipng (local). Image / audio / video pending M1B / M2-cross-platform / M4 — see issue #384.`,
-              codec: manifest.codec,
-            },
-            null,
-            2,
-          ),
-        );
-        process.exitCode = 1;
-        return;
-      }
-
       if (manifest.request === undefined) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_MISSING_REQUEST",
-              message:
-                "Manifest predates the `request` field added for replay. Re-run the original command to produce a replay-compatible manifest (Issue #384).",
-            },
-            null,
-            2,
-          ),
-        );
+        writeStructuredError({
+          code: "MANIFEST_MISSING_REQUEST",
+          message:
+            "Manifest predates the `request` field added for replay. Re-run the original command to produce a replay-compatible manifest (Issue #384).",
+        });
         process.exitCode = 1;
         return;
       }
 
       const requestValidation = WittgensteinRequestSchema.safeParse(manifest.request);
       if (!requestValidation.success) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_REQUEST_INVALID",
-              message:
-                "Recorded request does not match WittgensteinRequestSchema; cannot replay.",
-              issues: requestValidation.error.issues,
-            },
-            null,
-            2,
-          ),
-        );
+        writeStructuredError({
+          code: "MANIFEST_REQUEST_INVALID",
+          message: "Recorded request does not match WittgensteinRequestSchema; cannot replay.",
+          issues: requestValidation.error.issues,
+        });
         process.exitCode = 1;
         return;
       }
       const request: WittgensteinRequest = requestValidation.data;
 
-      if (manifest.artifactSha256 === null) {
-        console.error(
-          JSON.stringify(
-            {
-              ok: false,
-              code: "MANIFEST_NO_BASELINE_HASH",
-              message:
-                "Original manifest has no artifactSha256 to compare against (likely a failed run). Nothing to verify.",
-            },
-            null,
-            2,
-          ),
-        );
+      if (request.modality !== manifest.codec) {
+        writeStructuredError({
+          code: "MANIFEST_REQUEST_CODEC_MISMATCH",
+          message:
+            "Manifest codec does not match the recorded request modality; refusing to replay an ambiguous run.",
+          codec: manifest.codec,
+          requestModality: request.modality,
+        });
         process.exitCode = 1;
         return;
       }
 
-      const harness = await Wittgenstein.bootstrap({
-        cwd: workspaceRoot,
-        ...(options.config ? { configPath: options.config } : {}),
-      });
+      const replayKey = requestReplayKey(request);
+      if (!REPLAY_SUPPORTED_ROUTES.has(replayKey)) {
+        writeStructuredError({
+          code: "REPLAY_UNSUPPORTED_ROUTE",
+          message: `Replay is not yet wired for route '${replayKey}'. Currently supported: sensor, svg (local), asciipng (local). Image / audio / video pending M1B / M2-cross-platform / M4 — see issue #384.`,
+          codec: manifest.codec,
+          route: replayKey,
+        });
+        process.exitCode = 1;
+        return;
+      }
 
-      const outcome = await harness.run(request, {
-        command: "replay",
-        args: [absPath],
-        cwd: workspaceRoot,
-        dryRun: true,
-      });
+      if (manifest.artifactSha256 === null) {
+        writeStructuredError({
+          code: "MANIFEST_NO_BASELINE_HASH",
+          message:
+            "Original manifest has no artifactSha256 to compare against (likely a failed run). Nothing to verify.",
+        });
+        process.exitCode = 1;
+        return;
+      }
+
+      let outcome: Awaited<ReturnType<Wittgenstein["run"]>>;
+      try {
+        const harness = await Wittgenstein.bootstrap({
+          cwd: workspaceRoot,
+          ...(options.config ? { configPath: options.config } : {}),
+        });
+
+        outcome = await harness.run(request, {
+          command: "replay",
+          args: [absPath],
+          cwd: workspaceRoot,
+          dryRun: true,
+        });
+      } catch (error) {
+        writeStructuredError({
+          code: "REPLAY_EXECUTION_FAILED",
+          message: "Replay execution failed before a comparable manifest was produced.",
+          cause: errorCause(error),
+        });
+        process.exitCode = 1;
+        return;
+      }
+
+      if (outcome.error !== null || !outcome.manifest.ok) {
+        writeStructuredError({
+          code: "REPLAY_EXECUTION_FAILED",
+          message: "Replay execution produced a failed manifest; cannot compare artifact hashes.",
+          replayRunId: outcome.manifest.runId,
+          replayRunDir: outcome.runDir,
+          cause: outcome.error?.message ?? "Unknown replay failure.",
+          error: outcome.error,
+        });
+        process.exitCode = 1;
+        return;
+      }
 
       const replayedHash = outcome.manifest.artifactSha256;
       const baselineHash = manifest.artifactSha256;

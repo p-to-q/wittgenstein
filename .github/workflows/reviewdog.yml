@@ -48,7 +48,7 @@ jobs:
           filter_mode: added
           level: warning
           fail_level: none
-          markdownlint_flags: "README.md CONTRIBUTING.md CHANGELOG.md PROMPT.md docs/THESIS.md docs/architecture.md docs/hard-constraints.md docs/implementation-status.md docs/quickstart.md docs/reproducibility.md docs/codecs/*.md"
+          markdownlint_flags: "--config .markdownlint-cli2.yaml --configPointer /config README.md CONTRIBUTING.md CHANGELOG.md PROMPT.md docs/THESIS.md docs/architecture.md docs/hard-constraints.md docs/implementation-status.md docs/quickstart.md docs/reproducibility.md docs/codecs/*.md"
 
   eslint:
     name: ESLint review comments

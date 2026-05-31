@@ -21,8 +21,9 @@ describe("@wittgenstein/codec-asciipng", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("ASCIIPNG_SCHEMA_INVALID");
-    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
-      .issues;
+    const issues = (
+      result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> }
+    ).issues;
     expect(issues.some((issue) => issue.path.includes("columns"))).toBe(true);
   });
 

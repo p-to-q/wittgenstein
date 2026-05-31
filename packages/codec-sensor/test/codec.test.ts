@@ -376,8 +376,9 @@ describe("@wittgenstein/codec-sensor structured error paths", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("SENSOR_SCHEMA_INVALID");
-    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
-      .issues;
+    const issues = (
+      result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> }
+    ).issues;
     expect(issues.length).toBeGreaterThan(0);
     expect(issues.some((issue) => issue.path.includes("signal"))).toBe(true);
   });
@@ -420,8 +421,9 @@ describe("@wittgenstein/codec-sensor structured error paths", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("SENSOR_SCHEMA_INVALID");
-    const issues = (result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> })
-      .issues;
+    const issues = (
+      result.error.details as { issues: ReadonlyArray<{ path: ReadonlyArray<string | number> }> }
+    ).issues;
     expect(issues.some((issue) => issue.path.includes("operators"))).toBe(true);
   });
 });

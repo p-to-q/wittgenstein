@@ -34,12 +34,12 @@ text-first LLM
   → real artifact + manifest receipt
 ```
 
-| Modality  | LLM-facing code layer                                                | Local execution layer                                               | Artifact               |
-| --------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------- |
-| 🖼️ Image  | Visual Seed Code (primary) + optional `Semantic IR`                  | Seed expander → frozen VQ decoder¹                                  | PNG                    |
-| 🔊 Audio  | Route-specific audio code (speech / soundscape / music)              | Procedural synth (default) + opt-in Kokoro speech                   | WAV                    |
-| 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion                                      | CSV + interactive HTML |
-| 🎞️ Video  | Composition spec                                                     | HyperFrames-shaped local render (HTML default, MP4 opt-in)          | MP4 / HTML             |
+| Modality  | LLM-facing code layer                                                | Local execution layer                                      | Artifact               |
+| --------- | -------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------- |
+| 🖼️ Image  | Visual Seed Code (primary) + optional `Semantic IR`                  | Seed expander → frozen VQ decoder¹                         | PNG                    |
+| 🔊 Audio  | Route-specific audio code (speech / soundscape / music)              | Procedural synth (default) + opt-in Kokoro speech          | WAV                    |
+| 📡 Sensor | Operator program (with `patchGrammar` for local-context composition) | Deterministic signal expansion                             | CSV + interactive HTML |
+| 🎞️ Video  | Composition spec                                                     | HyperFrames-shaped local render (HTML default, MP4 opt-in) | MP4 / HTML             |
 
 Image, audio, sensor, and video HTML produce real artifacts today; video MP4 is an opt-in local-render path requiring Chrome/Chromium + FFmpeg. Per-modality maturity is in [`docs/implementation-status.md`](docs/implementation-status.md); the full five-layer mapping is in the [Architecture](#architecture-five-layers) section below; the [30-second sensor quickstart](#quickstart-30-seconds-no-api-key) is the smallest no-API-key proof.
 
@@ -370,17 +370,17 @@ not neural text-to-video generation.
 
 This is the shortest “what can I actually get out today?” view. For deeper component-by-component detail, keep using `docs/implementation-status.md`.
 
-| Modality | Default artifact | Opt-in artifact | Notes |
-| --- | --- | --- | --- |
-| Image (TS) | PNG (placeholder-class) | PNG (reference decode when weights present) | Scene + seed/semantic receipts ship; frozen decoder bridge not yet wired for LlamaGen/SEED |
-| Image (polyglot-mini) | PNG | — | Research-grade code-as-painter and MLP fallback painter ship |
-| Audio (TS) | WAV | — | Speech + soundscape + music ship |
-| Sensor (TS) | JSON / HTML / PNG | — | Loupe dashboard ships |
-| Video (TS) | HyperFrames-shaped HTML | MP4 (local) | MP4 requires local Chrome/Chromium + FFmpeg and enabling `WITTGENSTEIN_HYPERFRAMES_RENDER=1` |
+| Modality              | Default artifact            | Opt-in artifact                             | Notes                                                                                        |
+| --------------------- | --------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Image (TS)            | PNG (placeholder-class)     | PNG (reference decode when weights present) | Scene + seed/semantic receipts ship; frozen decoder bridge not yet wired for LlamaGen/SEED   |
+| Image (polyglot-mini) | PNG                         | —                                           | Research-grade code-as-painter and MLP fallback painter ship                                 |
+| Audio (TS)            | WAV                         | —                                           | Speech + soundscape + music ship                                                             |
+| Sensor (TS)           | HTML / JSON (+ CSV sidecar) | —                                           | Loupe dashboard ships                                                                        |
+| Video (TS)            | HyperFrames-shaped HTML     | MP4 (local)                                 | MP4 requires local Chrome/Chromium + FFmpeg and enabling `WITTGENSTEIN_HYPERFRAMES_RENDER=1` |
 
 **What's next.** Doctrine is locked; the active workstream is the Codec Protocol v2 port
 across all modalities, sequenced in [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md)
-(`M0` and `M1A` are landed; `M2 audio` is next; `M1B image depth` is tracked separately).
+(`M0`, `M1A`, `M2 audio`, and `M3 sensor` are landed; `M1B image depth` is tracked separately).
 
 Roadmap: [`docs/roadmap.md`](docs/roadmap.md). Changelog: [`CHANGELOG.md`](CHANGELOG.md).
 Security: [`SECURITY.md`](SECURITY.md).
@@ -396,7 +396,7 @@ is visible, but **do not depend on them in production** until the status matrix 
 | Surface                                       | State             | What works today                                                                      | What's missing                                                                 |
 | --------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | TS `codec-image` adapter + decoder            | ⚠️ Partial        | Scene JSON, placeholder latents, MLP loader, `renderSky` / `renderTerrain` primitives | Frozen VQ decoder bridge (LlamaGen / SEED); trained adapter weights            |
-| TS `codec-video`                              | ⚠️ Partial        | Schema, HTML renderer, opt-in repo-owned MP4 renderer                                  | M5b video metrics / richer composition features                                |
+| TS `codec-video`                              | ⚠️ Partial        | Schema, HTML renderer, opt-in repo-owned MP4 renderer                                 | M5b video metrics / richer composition features                                |
 | Benchmark quality scores                      | ⚠️ Proxy          | Structural smoke checks, cost/latency timing                                          | CLIPScore, Whisper WER, UTMOS, discriminative score runners                    |
 | `polyglot-mini` image code-as-painter sandbox | ⚠️ Research-grade | `subprocess` with 20 s timeout + safe globals                                         | Kernel-level isolation for multi-tenant use (see [`SECURITY.md`](SECURITY.md)) |
 
