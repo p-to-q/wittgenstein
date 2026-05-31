@@ -100,6 +100,14 @@ for the fixture. It exits non-zero when a requested backend fails the gate. Set
 `WITTGENSTEIN_VALIDATE_VIDEO_BACKENDS=distilled-internal,npx-cli` to compare both
 backends.
 
+The validation JSON records an `environment` block (OS, Node, FFmpeg, ffprobe,
+and optional `WITTGENSTEIN_VALIDATION_ENVIRONMENT_ID`) and a `portability`
+summary with the structure and portable receipt fields to compare across
+machines. `WITTGENSTEIN_VIDEO_VALIDATION_DIR` may be relative or absolute; the
+script resolves it before handing frame paths to FFmpeg. The #476 cross-machine
+sweep is recorded in
+`docs/research/2026-05-31-video-mp4-receipt-portability.md`.
+
 ## Benchmark Direction
 
 With the opt-in MP4 branch wired, video should align with common evaluation practice instead of ad-hoc scores once the local-compute gate is run:
