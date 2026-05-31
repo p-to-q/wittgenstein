@@ -1,0 +1,4 @@
+[core]
+    remote = local-smoke
+[remote "local-smoke"]
+    url = research/training/data/.dvc-cache

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "witt.training.sweep-manifest/v0.1",
+  "sweepId": "phase1-smoke",
+  "generatedAt": "2026-05-31T12:05:00Z",
+  "tracker": "https://github.com/p-to-q/wittgenstein/issues/400",
+  "source": {
+    "specPath": "bench/gpu/smoke-sweep.yaml",
+    "specSha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "rows": [
+    {
+      "rowId": "tokenizer-stdlib-smoke",
+      "subprogram": "tokenizer",
+      "status": "passed",
+      "dataset": {
+        "snapshotId": "synthetic-smoke-2026q2",
+        "snapshotPath": "research/training/data/snapshots/synthetic-smoke.dataset.json",
+        "snapshotSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "datasetSha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "command": ["python3", "-m", "research.training._shared.smoke_manifest"],
+      "config": {
+        "path": "research/training/_shared/runs/smoke/tokenizer-stdlib-smoke/config.json",
+        "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "trainingRun": {
+        "runId": "tokenizer-stdlib-smoke",
+        "manifestPath": "research/training/_shared/runs/smoke/tokenizer-stdlib-smoke/manifest.json",
+        "manifestSha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "checkpointSha256": "6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "experiment": {
+        "tracker": "jsonl",
+        "uri": "file:///tmp/wittgenstein/experiment-metrics.jsonl",
+        "runId": "jsonl-tokenizer-stdlib-smoke",
+        "receiptPath": "research/training/_shared/runs/smoke/tokenizer-stdlib-smoke/experiment.json",
+        "receiptSha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "metricsSha256": "8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "metrics": [
+        {
+          "name": "loss",
+          "value": 0,
+          "unit": "loss",
+          "higherIsBetter": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  }
+}

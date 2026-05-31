@@ -1,0 +1,10 @@
+{
+  "outs": [
+    {
+      "path": "../smoke/synthetic-manifest-smoke.txt",
+      "size": 46,
+      "md5": "4a8685c927c10ccec30a7f8d9d16d7b7",
+      "hash": "md5"
+    }
+  ]
+}

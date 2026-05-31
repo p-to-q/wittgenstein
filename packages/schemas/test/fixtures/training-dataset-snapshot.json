@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "witt.training.dataset-snapshot/v0.1",
+  "snapshotId": "synthetic-smoke-2026q2",
+  "generatedAt": "2026-05-31T12:00:00Z",
+  "dataset": {
+    "name": "synthetic-manifest-smoke",
+    "split": "smoke",
+    "role": "smoke",
+    "uri": "dvc://research/training/data/snapshots/synthetic-smoke.dataset.json",
+    "license": "permissive",
+    "sampleCount": 1
+  },
+  "dvc": {
+    "path": "research/training/data/snapshots/synthetic-smoke.dvc",
+    "repoRevLock": "smoke-local",
+    "remote": {
+      "name": "local-smoke"
+    },
+    "outs": [
+      {
+        "path": "research/training/data/smoke/synthetic-manifest-smoke.txt",
+        "size": 46,
+        "md5": "4a8685c927c10ccec30a7f8d9d16d7b7",
+        "hash": "md5"
+      }
+    ]
+  },
+  "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+}

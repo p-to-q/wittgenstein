@@ -1,0 +1,40 @@
+{
+  "sweepId": "phase1-smoke",
+  "tracker": "https://github.com/p-to-q/wittgenstein/issues/400",
+  "rows": [
+    {
+      "rowId": "tokenizer-stdlib-smoke",
+      "subprogram": "tokenizer",
+      "datasetSnapshot": {
+        "outPath": "artifacts/benchmarks/training-data-snapshots/synthetic-smoke.dataset.json",
+        "snapshotId": "synthetic-smoke-2026q2",
+        "dvcPath": "research/training/data/snapshots/synthetic-smoke.dvc",
+        "name": "synthetic-manifest-smoke",
+        "split": "smoke",
+        "role": "smoke",
+        "license": "permissive",
+        "sampleCount": 1,
+        "remoteName": "local-smoke",
+        "repoRevLock": "smoke-local"
+      },
+      "command": ["python3", "-m", "research.training._shared.smoke_manifest"]
+    },
+    {
+      "rowId": "tokenizer-training-smoke",
+      "subprogram": "tokenizer",
+      "datasetSnapshot": {
+        "outPath": "artifacts/benchmarks/training-data-snapshots/synthetic-smoke.dataset.json",
+        "snapshotId": "synthetic-smoke-2026q2",
+        "dvcPath": "research/training/data/snapshots/synthetic-smoke.dvc",
+        "name": "synthetic-manifest-smoke",
+        "split": "smoke",
+        "role": "smoke",
+        "license": "permissive",
+        "sampleCount": 1,
+        "remoteName": "local-smoke",
+        "repoRevLock": "smoke-local"
+      },
+      "command": ["python3", "-m", "research.training.tokenizer.smoke_test"]
+    }
+  ]
+}

@@ -83,18 +83,32 @@ The three manifest surfaces are intentionally separate:
 Datasets will be pinned with [DVC](https://dvc.org/) so a training receipt
 points to an exact data SHA, not a moving HF dataset id.
 
-The DVC remote does not exist yet. It is tracked by
-[#400](https://github.com/p-to-q/wittgenstein/issues/400), which owns the
-dataset snapshots, remote-storage choice, and sweep-manifest shape for
-Phase 1 training. Once #400 lands, configure the remote before running:
+The repo includes the #400 executable smoke floor:
+
+- `.dvc/config` with a local-smoke remote only
+- `research/training/data/snapshots/synthetic-smoke.dvc`
+- `docs/training/data.md` for the dataset-snapshot and refresh policy
+- `bench/gpu/sweep.py` for maintainer-run sweep receipts
+
+The smoke file itself is checked in; no DVC pull is required for the stdlib
+smoke sweep. The real lab remote does not exist yet. ImageNet / CC12M / COCO
+pointers, remote-storage choice, and credentials still need model-owner review
+through [#400](https://github.com/p-to-q/wittgenstein/issues/400) and #435. Once
+the lab remote exists, configure it before running real training:
 
 ```bash
 cd research/training
 dvc pull
 ```
 
-Until that remote exists, `dvc pull` is a placeholder command, not an
-operational checkout step.
+Until that remote exists, `dvc pull` is not an operational ImageNet / CC12M /
+COCO setup step.
+
+Run the smoke sweep without GPU or DVC installed:
+
+```bash
+python3 bench/gpu/sweep.py --spec bench/gpu/smoke-sweep.yaml
+```
 
 ## CI guards
 

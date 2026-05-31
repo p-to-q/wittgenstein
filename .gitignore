@@ -53,6 +53,7 @@ artifacts/m1b-audit/*
 # Local CPU/GPU training smoke outputs; receipts/checkpoints are committed only
 # when deliberately copied into an artifact bundle.
 research/training/_shared/runs/
+research/training/data/snapshots/*.dataset.json
 
 # Local image-adapter training outputs (keep raw data private / large)
 data/image_adapter/train/*.jsonl

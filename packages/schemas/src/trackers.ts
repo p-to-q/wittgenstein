@@ -47,6 +47,8 @@ export const TRACKERS = {
   decoderDeliveryDecision: issueUrl(402),
   /** `wittgenstein install <tier>` CLI + doctor tier readiness. */
   installTierCli: issueUrl(403),
+  /** DVC dataset snapshots + maintainer-run GPU sweep receipts. */
+  trainingDataSweepInfra: issueUrl(400),
 } as const;
 
 /**
