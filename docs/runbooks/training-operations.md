@@ -35,7 +35,8 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
    checkpoint.** Loop: pick the emptiest GPUs, launch `torchrun … --resume-from
    <latest step_*.pt>`, and relaunch on non-zero exit until the deadline. Use
    `checkpoint_every` small enough (e.g. 1000) that a crash loses little. Launch
-   detached (`setsid nohup …`) so it survives an SSH disconnect.
+   detached (`setsid nohup …`) so it survives an SSH disconnect. The checked-in
+   launcher for this is `research/training/supervise_tokenizer_run.py`.
 3. **Always export these before `torchrun`:**
    - `PYTHONUNBUFFERED=1` — live logs (otherwise child stdout is block-buffered).
    - `PYTHONDONTWRITEBYTECODE=1` and clear `__pycache__` — avoid stale-pyc field shadowing.
@@ -58,6 +59,8 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
   and reports codebook row-norm / dead-code stats.
 - **Reconstruction sanity**: `recon_check.py` loads the checkpoint, encode→decode
   one image, and reports L2/PSNR + before/after PNGs.
+- **Closeout pack**: `closeout_tokenizer_run.py` wraps the plot, integrity, and
+  reconstruction tools and writes a `CLOSEOUT.md` with command outputs embedded.
 - **Loss is healthy, not just decreasing**: a VQGAN total loss can be negative by
   design when an entropy anti-collapse term is in the sum — check l2 and lpips
   are falling and codebook usage is rising, rather than reading the total alone.
@@ -78,6 +81,8 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
 
 - `research/training/tokenizer/train.py`, `config.py` — training entrypoint + config.
 - `research/training/_shared/manifest.py` — the receipt schema (`WITT_GIT_SHA` fallback).
-- `research/training/integrity_check.py`, `recon_check.py`, `plot_training.py` — offline audit tooling.
+- `research/training/supervise_tokenizer_run.py` — resumable wall-clock launcher.
+- `research/training/integrity_check.py`, `recon_check.py`, `plot_training.py`,
+  `closeout_tokenizer_run.py` — offline audit tooling.
 - Issues: #251 (grad accumulation), #198 (AMP), #181 (checkpoint rotation),
   #405 (reproducibility test), #270 (PatchGAN), #400 (license-clean data + DVC).
