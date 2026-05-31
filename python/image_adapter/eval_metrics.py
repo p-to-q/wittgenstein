@@ -10,7 +10,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from features import scene_dict_to_feature_vector
+from features import FEATURE_SCHEMA_SHA256, scene_dict_to_feature_vector
 
 
 class MlpAdapter(nn.Module):
@@ -28,6 +28,12 @@ def load_weights(path: Path) -> tuple[MlpAdapter, dict]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != "witt.image.adapter.mlp/v0.1":
         raise SystemExit("Unsupported adapter file")
+    feature_schema = raw.get("featureSchema", FEATURE_SCHEMA_SHA256)
+    if feature_schema != FEATURE_SCHEMA_SHA256:
+        raise SystemExit(
+            "Unsupported adapter featureSchema "
+            f"{feature_schema!r}; this evaluator only supports {FEATURE_SCHEMA_SHA256}"
+        )
     gw, gh = raw["tokenGrid"]
     num_tokens = gw * gh
     hidden = raw["hiddenDim"]

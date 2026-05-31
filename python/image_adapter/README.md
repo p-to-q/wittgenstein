@@ -26,16 +26,16 @@ Apple Silicon: PyTorch uses MPS when available.
 
 ## Scripts
 
-| Script | Purpose |
-| --- | --- |
-| `prepare_dataset.py` | `raw/metadata.jsonl` + images → `train/scenes.jsonl` |
-| `encode_offline.py` | images → `target_tokens` (stub grid quantizer) → `train/encoded.jsonl` |
-| `train.py` | trains MLP (PyTorch), writes `adapter_mlp.json` |
-| `train_numpy.py` | same JSON contract, **pure NumPy + Adam** (no torch) — good for CI / parity with polyglot-style loops |
-| `eval_metrics.py` | token MAE / exact-match rate on a held-out file |
-| `eval_all.py` | one-shot runner: token metrics + spectrum health checks |
-| `spectrum_check.py` | singular-value spectrum + effective-rank health checks for adapter weights (detect rank-collapse) |
-| `build_natural_dataset.py` | optional: generate or download a larger, category-bounded dataset |
+| Script                     | Purpose                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `prepare_dataset.py`       | `raw/metadata.jsonl` + images → `train/scenes.jsonl`                                                  |
+| `encode_offline.py`        | images → `target_tokens` (stub grid quantizer) → `train/encoded.jsonl`                                |
+| `train.py`                 | trains MLP (PyTorch), writes `adapter_mlp.json`                                                       |
+| `train_numpy.py`           | same JSON contract, **pure NumPy + Adam** (no torch) — good for CI / parity with polyglot-style loops |
+| `eval_metrics.py`          | token MAE / exact-match rate on a held-out file                                                       |
+| `eval_all.py`              | one-shot runner: token metrics + spectrum health checks                                               |
+| `spectrum_check.py`        | singular-value spectrum + effective-rank health checks for adapter weights (detect rank-collapse)     |
+| `build_natural_dataset.py` | optional: generate or download a larger, category-bounded dataset                                     |
 
 CI owns only the stdlib compile pass plus the pure-NumPy smoke:
 
@@ -47,6 +47,12 @@ python3 -m unittest discover -s python/image_adapter -p 'test_*.py' -v
 That proves the exported `witt.image.adapter.mlp/v0.1` JSON contract stays
 loadable. It does not claim the PyTorch trainer, real dataset build, or model
 quality gate has run.
+
+Current exports declare the SHA feature schema
+(`witt.image.adapter.features/sha256-canonical-json-v0`). Older weights without
+that field are treated as this same SHA/canonical-JSON feature contract; any
+future CLIP/SigLIP feature extractor must use a new explicit contract instead
+of reusing v0.1 silently.
 
 ## Environment (runtime)
 

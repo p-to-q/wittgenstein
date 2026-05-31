@@ -130,12 +130,12 @@ This is the **most likely scenario** and is what Wittgenstein's L4 adapter is de
 
 ## Validation timeline
 
-| Phase              | What                                                                                                     | When                                   | Blocks on                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------- |
-| **Phase 0** (now)  | LLM emission distribution analysis: prompt LLM 100x, collect seed codes, measure entropy and structure   | Immediate                              | Nothing — uses current preamble + any frontier LLM |
-| **Phase 0b** (now) | Semantic IR field sensitivity: with placeholder adapter, vary one field at a time, measure output change | Immediate                              | Nothing — uses current code                        |
-| **Phase 1** (M1B)  | Criterion 2: Seed code ↔ image content mutual information                                                | After tokenizer family selected (#283) | Tokenizer selection                                |
-| **Phase 2** (M1B)  | Criteria 1, 3, 4: Full adapter training + held-out eval + CLIPScore                                      | After adapter training infrastructure  | Research program Track 1                           |
+| Phase              | What                                                                                                                             | When                                   | Blocks on                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------- |
+| **Phase 0** (now)  | LLM emission distribution analysis: prompt LLM 100x, collect seed codes, measure entropy and structure                           | Immediate                              | Nothing — uses current preamble + any frontier LLM |
+| **Phase 0b** (now) | Semantic IR field sensitivity: with current Visual Seed Code seed-expander path, vary one field at a time, measure output change | Immediate                              | Nothing — uses current code                        |
+| **Phase 1** (M1B)  | Criterion 2: Seed code ↔ image content mutual information                                                                        | After tokenizer family selected (#283) | Tokenizer selection                                |
+| **Phase 2** (M1B)  | Criteria 1, 3, 4: Full adapter training + held-out eval + CLIPScore                                                              | After adapter training infrastructure  | Research program Track 1                           |
 
 ### Phase 0 actions (can execute now)
 
@@ -155,13 +155,24 @@ Prompt a frontier LLM with the VSC preamble for 10 different image prompts, 10 r
 
 **Action 0b: Semantic IR field sensitivity**
 
-Using the current placeholder adapter:
+Using the current Visual Seed Code seed-expander path:
 
 1. Fix all fields except one (e.g., `lighting.mood`)
 2. Generate images with `mood = "warm golden"` vs `mood = "cold fluorescent"`
 3. Compare output PNGs pixel-by-pixel
 
-**Expected result:** With current SHA256-hash feature engineering, the outputs WILL differ (different hash → different seed → different image). But the difference will be random, not semantically meaningful. This establishes the **baseline** against which a trained adapter can be measured.
+**Expected result:** With the current per-spec hash seed, the outputs WILL differ (different hashed scene fields → different seed-expander input → different image). But the difference will be random, not semantically meaningful. This establishes the **baseline** against which a trained adapter can be measured.
+
+**Implementation status (2026-05-31):** `research/validation/phase0b_semantic_ir_sensitivity.ts`
+turns this into a repeatable receipt. It records token and PNG-byte deltas
+across varied Semantic IR fields and labels the result explicitly as a
+Visual Seed Code seed-expander hash baseline. This is intentionally weaker
+than the later CLIP/SigLIP criterion: it proves the current output changes when
+fields change, while also preserving the finding that the changes are
+hash-driven rather than semantically aligned. Separately, the v0.1 learned MLP
+runtime now declares the SHA feature schema
+(`witt.image.adapter.features/sha256-canonical-json-v0`) so future CLIP/SigLIP
+adapters cannot silently reuse the baseline contract.
 
 ---
 
@@ -206,7 +217,7 @@ The maintainer's concern touches a deeper issue: Wittgenstein defines IR as a **
 
 1. Execute Phase 0a and 0b immediately (no dependencies)
 2. Add "prefix degradation curve" and "emission distribution analysis" to the M1B prep checklist
-3. Upgrade adapter feature engineering from SHA256-hash to CLIP/SigLIP embedding (tracked as adapter architecture decision)
+3. Upgrade adapter feature engineering from SHA256-hash to CLIP/SigLIP embedding (tracked as adapter architecture decision). The v0.1 MLP runtime now declares `featureSchema: witt.image.adapter.features/sha256-canonical-json-v0`; CLIP/SigLIP-conditioned adapters require a new runtime contract rather than silently reusing the SHA baseline.
 4. File issue for Semantic IR field-sensitivity baseline measurement
 
 ## Cross-references

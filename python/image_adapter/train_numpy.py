@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from features import scene_dict_to_feature_vector
+from features import FEATURE_SCHEMA_SHA256, scene_dict_to_feature_vector
 
 MLP_VERSION = "witt.image.adapter.mlp/v0.1"
 INPUT_DIM = 128
@@ -101,6 +101,7 @@ def export_json(
 ) -> None:
     payload = {
         "version": MLP_VERSION,
+        "featureSchema": FEATURE_SCHEMA_SHA256,
         "codebookSize": codebook_size,
         "tokenGrid": [gw, gh],
         "inputDim": INPUT_DIM,

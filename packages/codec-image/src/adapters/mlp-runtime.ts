@@ -4,9 +4,22 @@ import type { ImageSceneSpec, ImageLatentCodes } from "../schema.js";
 import { ImageLatentCodesSchema } from "../schema.js";
 
 export const MLP_ADAPTER_VERSION = "witt.image.adapter.mlp/v0.1";
+export const MLP_ADAPTER_FEATURE_SCHEMA_SHA256 =
+  "witt.image.adapter.features/sha256-canonical-json-v0";
+
+export type MlpAdapterFeatureSchema = typeof MLP_ADAPTER_FEATURE_SCHEMA_SHA256;
 
 export interface MlpAdapterWeights {
   version: typeof MLP_ADAPTER_VERSION;
+  /**
+   * Feature-extractor contract for `w1` input rows.
+   *
+   * v0.1 weights historically omitted this field; omitted means the legacy
+   * SHA256-over-canonical-JSON vector below. CLIP/SigLIP-conditioned adapters
+   * must not masquerade as v0.1 weights because the input semantics and
+   * dimensionality are different.
+   */
+  featureSchema?: MlpAdapterFeatureSchema;
   codebookSize: number;
   tokenGrid: [number, number];
   inputDim: number;
@@ -18,6 +31,20 @@ export interface MlpAdapterWeights {
   family: ImageLatentCodes["family"];
   codebook: string;
   codebookVersion: string;
+}
+
+export function adapterFeatureSchema(weights: {
+  featureSchema?: unknown;
+}): MlpAdapterFeatureSchema {
+  const schema = weights.featureSchema ?? MLP_ADAPTER_FEATURE_SCHEMA_SHA256;
+  if (schema !== MLP_ADAPTER_FEATURE_SCHEMA_SHA256) {
+    throw new Error(
+      `Unsupported adapter featureSchema: ${String(
+        schema,
+      )}. v0.1 runtime only supports ${MLP_ADAPTER_FEATURE_SCHEMA_SHA256}; CLIP/SigLIP adapters require a new declared runtime contract.`,
+    );
+  }
+  return schema;
 }
 
 function canonicalJson(value: unknown): string {
@@ -108,6 +135,7 @@ export async function loadMlpAdapterFromJsonPath(filePath: string): Promise<MlpA
   if (w.version !== MLP_ADAPTER_VERSION) {
     throw new Error(`Unsupported adapter version: ${String(w.version)}`);
   }
+  adapterFeatureSchema(w);
   if (
     typeof w.codebookSize !== "number" ||
     !Array.isArray(w.tokenGrid) ||
@@ -124,7 +152,11 @@ export async function loadMlpAdapterFromJsonPath(filePath: string): Promise<MlpA
   return w as MlpAdapterWeights;
 }
 
-export function predictLatentsFromMlp(spec: ImageSceneSpec, weights: MlpAdapterWeights): ImageLatentCodes {
+export function predictLatentsFromMlp(
+  spec: ImageSceneSpec,
+  weights: MlpAdapterWeights,
+): ImageLatentCodes {
+  adapterFeatureSchema(weights);
   const features = sceneSpecToFeatureVector(spec);
   const logits = forwardMlp(features, weights);
   const tokens = logitsToTokens(logits, weights.codebookSize);
