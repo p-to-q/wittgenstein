@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdir, readFile, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { mkdtemp } from "node:fs/promises";
+import { arch, platform, release } from "node:os";
 import { videoCodec } from "../../packages/codec-video/src/index.js";
 import type { VideoComposition } from "../../packages/codec-video/src/schema.js";
 
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
           {
             ok: true,
             mode: "html-only",
+            environment: environmentReceipt(),
             skippedMp4:
               "Set WITTGENSTEIN_VALIDATE_VIDEO_MP4=1 and WITTGENSTEIN_HYPERFRAMES_RENDER=1 with Chrome + FFmpeg installed to run MP4 validation.",
             html: htmlReceipt,
@@ -78,9 +80,7 @@ async function main(): Promise<void> {
       .map((value) => value.trim())
       .filter((value) => value === "distilled-internal" || value === "npx-cli");
     if (backends.length === 0) {
-      throw new Error(
-        "No valid MP4 backends selected. Use distilled-internal and/or npx-cli.",
-      );
+      throw new Error("No valid MP4 backends selected. Use distilled-internal and/or npx-cli.");
     }
     const mp4 = [];
     for (const backend of backends) {
@@ -102,9 +102,15 @@ async function main(): Promise<void> {
         {
           ok,
           mode: "mp4-double-render",
+          environment: environmentReceipt(),
           validatedBackends: mp4.length,
           html: htmlReceipt,
           mp4,
+          portability: {
+            policy:
+              "same-platform byte parity is required per backend; cross-platform MP4 bytes are informational; cross-platform structural parity is the portability floor.",
+            backends: mp4.map((result) => portabilitySummary(result)),
+          },
         },
         null,
         2,
@@ -120,6 +126,21 @@ async function main(): Promise<void> {
       await rm(dir, { recursive: true, force: true });
     }
   }
+}
+
+function environmentReceipt() {
+  return {
+    os: {
+      platform: platform(),
+      release: release(),
+      arch: arch(),
+    },
+    nodeVersion: process.version,
+    ffmpegVersion: toolVersion("ffmpeg"),
+    ffprobeVersion: toolVersion("ffprobe"),
+    ci: process.env.CI === "1" || process.env.CI === "true",
+    environmentId: process.env.WITTGENSTEIN_VALIDATION_ENVIRONMENT_ID,
+  };
 }
 
 async function renderMp4(value: VideoComposition, dir: string, label: string) {
@@ -139,6 +160,28 @@ async function renderMp4(value: VideoComposition, dir: string, label: string) {
     bytes: file.size,
     structure: probeVideo(result.artifactPath),
     videoRender: result.metadata.videoRender,
+  };
+}
+
+function portabilitySummary(result: {
+  backend: string;
+  first: Awaited<ReturnType<typeof renderMp4>>;
+  second: Awaited<ReturnType<typeof renderMp4>>;
+  verdict: "byte-parity-on-platform" | "failed";
+}) {
+  const firstStructure = videoStructureSignature(result.first.structure);
+  const secondStructure = videoStructureSignature(result.second.structure);
+  const firstReceipt = videoReceiptSignature(result.first.videoRender);
+  const secondReceipt = videoReceiptSignature(result.second.videoRender);
+  return {
+    backend: result.backend,
+    samePlatformByteParity: result.verdict === "byte-parity-on-platform",
+    samePlatformStructuralParity: sameJson(firstStructure, secondStructure),
+    samePlatformPortableReceiptParity: sameJson(firstReceipt, secondReceipt),
+    firstStructure,
+    secondStructure,
+    firstReceipt,
+    secondReceipt,
   };
 }
 
@@ -170,8 +213,68 @@ function validVideoStructure(structure: ReturnType<typeof probeVideo>): boolean 
   );
 }
 
+function videoStructureSignature(structure: ReturnType<typeof probeVideo>) {
+  if (!structure.ok) {
+    return {
+      ok: false,
+      message: structure.message,
+    };
+  }
+  const stream = structure.value.streams?.[0];
+  return {
+    ok: true,
+    codec: stream?.codec_name ?? null,
+    width: stream?.width ?? null,
+    height: stream?.height ?? null,
+    fps: stream?.r_frame_rate ?? null,
+    duration: stream?.duration ?? null,
+    frameCount: stream?.nb_frames ?? null,
+  };
+}
+
+function videoReceiptSignature(receipt: Awaited<ReturnType<typeof renderMp4>>["videoRender"]) {
+  return {
+    renderPath: receipt?.renderPath ?? null,
+    backend: receipt?.backend ?? null,
+    backendVersion: receipt?.backendVersion ?? null,
+    determinismClass: receipt?.determinismClass ?? null,
+    fps: receipt?.fps ?? null,
+    quality: receipt?.quality ?? null,
+    frameCount: receipt?.frameCount ?? null,
+    width: receipt?.width ?? null,
+    height: receipt?.height ?? null,
+    durationSec: receipt?.durationSec ?? null,
+    outputKind: receipt?.outputKind ?? null,
+  };
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function sha256(data: Buffer): string {
   return createHash("sha256").update(data).digest("hex");
+}
+
+function toolVersion(command: "ffmpeg" | "ffprobe"): string {
+  const result = spawnSync(command, ["-version"], { encoding: "utf8", timeout: 5_000 });
+  if (result.status !== 0) {
+    return result.stderr.trim() || `${command} unavailable`;
+  }
+  return firstLine(result.stdout, result.stderr) || command;
+}
+
+function firstLine(...values: string[]): string {
+  for (const value of values) {
+    const line = value
+      .split(/\r?\n/u)
+      .map((entry) => entry.trim())
+      .find((entry) => entry.length > 0);
+    if (line !== undefined) {
+      return line;
+    }
+  }
+  return "";
 }
 
 function probeVideo(path: string) {
@@ -215,8 +318,9 @@ async function createValidationDir(): Promise<string> {
   const baseDir =
     process.env.WITTGENSTEIN_VIDEO_VALIDATION_DIR ??
     join(process.cwd(), "artifacts", "tmp", "video-mp4-renderer");
-  await mkdir(baseDir, { recursive: true });
-  return mkdtemp(join(baseDir, "run-"));
+  const resolvedBaseDir = resolve(baseDir);
+  await mkdir(resolvedBaseDir, { recursive: true });
+  return mkdtemp(join(resolvedBaseDir, "run-"));
 }
 
 void main();

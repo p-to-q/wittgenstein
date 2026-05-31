@@ -173,10 +173,12 @@ async function encodeFrames(
 function readFfmpegVersion(): string {
   // `ffmpeg -version` is a synchronous version probe — the encode timeout
   // (10-minute render budget) is the wrong policy here; use the
-  // process-runner default (1s) which is the right floor for version checks.
+  // process-runner probe shape but allow a 5s ceiling. The cross-environment
+  // #476 sweep showed Linux containers can exceed the 1s default while still
+  // returning a useful receipt version.
   // On failure, fall back to the literal "ffmpeg" — the encode call below
   // will surface any real process error via runProcess.
-  const result = spawnVersionCheck("ffmpeg", ["-version"]);
+  const result = spawnVersionCheck("ffmpeg", ["-version"], { timeoutMs: 5_000 });
   if (result.ok) {
     return firstOutputLine(result.stdout, result.stderr) || "ffmpeg";
   }
