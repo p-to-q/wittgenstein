@@ -43,6 +43,13 @@ class TrainConfig:
     image_size: int = 256
     num_workers: int = 8
 
+    # Dataset license → checkpoint publishability. SAFE DEFAULT is
+    # "research-only": a checkpoint trained on borrowed/uncommitted data must
+    # NOT be published. Set to "permissive" ONLY when the corpus is verified
+    # license-clean (e.g. an Apache/CC-BY snapshot). This flows verbatim into
+    # the manifest's checkpoint.weightsLicense and gates downstream release.
+    dataset_license: str = "research-only"  # {"research-only", "permissive"}
+
     # Batch size:
     #   - LlamaGen recipe: 128 per-GPU at 256² on A100-80G is comfortable.
     #   - 8× A800-80GB single node → effective 1024 with DDP, no grad
@@ -58,12 +65,15 @@ class TrainConfig:
 
     # GAN
     gan_on_step: int = 20_000    # warmup recon-only first, then add GAN
-    # No PatchGAN discriminator is wired yet (train.py instantiates the loss with
-    # discriminator=None; losses.py only applies the GAN term when one is present).
-    # Default False so the training manifest does NOT record gan_enabled=True for a
-    # run where no adversarial training actually happened. Flip to True only once a
-    # discriminator is wired — until then it is a no-op that misleads the receipt.
+    # A PatchGAN discriminator IS wired (discriminator.py + train.py), but it is
+    # OPT-IN: default False keeps runs reconstruction-only (cheaper, and avoids
+    # recording gan_enabled=True for a run that did no adversarial training).
+    # Enable adversarial training with gan_enabled=True or the --gan CLI flag.
     gan_enabled: bool = False
+    gan_weight: float = 0.1      # generator adversarial-term weight
+    disc_base_channels: int = 64  # PatchGAN ndf
+    disc_n_layers: int = 3        # PatchGAN downsampling blocks
+    disc_lr: float = 1e-4         # discriminator optimizer lr
 
     # Losses
     lpips_enabled: bool = True

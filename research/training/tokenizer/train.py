@@ -50,6 +50,9 @@ from research.training._shared.experiment_tracking import (  # noqa: E402
 from research.training._shared.manifest import (  # noqa: E402
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
     TrainingRunManifest,
+    TrainingRunEvalDataset,
+    TrainingRunEvalMetric,
+    TrainingRunEvalSnapshot,
     capture_dataset_fingerprint,
     capture_docker_image_sha,
     capture_git_sha,
@@ -63,6 +66,10 @@ from research.training._shared.manifest import (  # noqa: E402
     write_training_config_snapshot,
     write_training_run_manifest,
 )
+from research.training._shared.eval import (  # noqa: E402
+    TokenizerEvalConfig,
+    evaluate_tokenizer_reconstruction,
+)
 from research.training._shared.dataset import (  # noqa: E402
     ImageFolderDataset,
     SyntheticImageDataset,
@@ -74,6 +81,10 @@ from research.training.tokenizer.config import (  # noqa: E402
     to_dict as cfg_to_dict,
 )
 from research.training.tokenizer.losses import LossWeights, TokenizerLoss  # noqa: E402
+from research.training.tokenizer.discriminator import (  # noqa: E402
+    PatchGANDiscriminator,
+    discriminator_loss,
+)
 from research.training.tokenizer.model import (  # noqa: E402
     TokenizerConfig,
     build_tokenizer,
@@ -199,11 +210,40 @@ def train(cfg: TrainConfig) -> dict:
         except ImportError:
             if is_main(rank):
                 print("[loss] lpips not installed; continuing with L2-only")
+    # ---- Discriminator (PatchGAN) ----
+    # The reconstruction-only stack (L2+LPIPS+commit) converges soft; the GAN
+    # term sharpens texture. Built only when enabled so a reconstruction-only
+    # run carries no idle params. `gan_on_step` keeps it off during warmup.
+    discriminator = None
+    d_optim = None
+    gan_on_step = cfg.gan_on_step if cfg.gan_enabled else 10**18
+    if cfg.gan_enabled:
+        disc_core = PatchGANDiscriminator(
+            in_channels=3,
+            base_channels=cfg.disc_base_channels,
+            n_layers=cfg.disc_n_layers,
+            use_batchnorm=not cfg.smoke,  # BN stats are unstable at smoke batch sizes
+        ).to(device)
+        d_optim = torch.optim.AdamW(
+            disc_core.parameters(),
+            lr=cfg.disc_lr,
+            betas=(cfg.optim.beta1, cfg.optim.beta2),
+        )
+        discriminator = (
+            DDP(disc_core, device_ids=[local_rank], output_device=local_rank)
+            if world > 1
+            else disc_core
+        )
+        if is_main(rank):
+            dn = sum(p.numel() for p in disc_core.parameters())
+            print(f"[gan] PatchGAN discriminator params={dn:,} gan_on_step={gan_on_step} "
+                  f"gan_weight={cfg.gan_weight}")
+
     loss_fn = TokenizerLoss(
-        weights=LossWeights(),
+        weights=LossWeights(gan=cfg.gan_weight),
         lpips_module=lpips_mod,
-        discriminator=None,  # GAN added in a follow-up after warmup_iters
-        gan_on_step=cfg.gan_on_step if cfg.gan_enabled else 10**18,
+        discriminator=discriminator,
+        gan_on_step=gan_on_step,
     ).to(device)
 
     # ---- Optimizer ----
@@ -319,7 +359,9 @@ def train(cfg: TrainConfig) -> dict:
         total_loss, components = loss_fn(img, recon, vq_total, global_step=step)
         components["codebook_usage"] = float(codebook_usage if codebook_usage is not None else 0.0)
 
-        # Backward
+        # Generator backward. When the GAN term is active, total_loss includes
+        # softplus(-D(recon)); its backward also populates grads on D (via the
+        # shared graph) which we discard by zero_grad'ing d_optim below.
         optim.zero_grad(set_to_none=True)
         total_loss.backward()
         if cfg.optim.grad_clip_norm > 0:
@@ -328,6 +370,17 @@ def train(cfg: TrainConfig) -> dict:
                 cfg.optim.grad_clip_norm,
             )
         optim.step()
+
+        # Discriminator step (after warmup): train D on real vs. detached recon
+        # so D's update doesn't flow back into the generator.
+        if discriminator is not None and step >= gan_on_step:
+            d_optim.zero_grad(set_to_none=True)
+            real_logits = discriminator(img)
+            fake_logits = discriminator(recon.detach())
+            d_loss = discriminator_loss(real_logits, fake_logits)
+            d_loss.backward()
+            d_optim.step()
+            components["d_loss"] = float(d_loss.detach().cpu())
 
         # Log
         if is_main(rank) and (step % cfg.log_every == 0 or step == cfg.max_steps - 1):
@@ -368,14 +421,21 @@ def train(cfg: TrainConfig) -> dict:
                 hardware,
                 dataset_fp,
                 config_ref,
+                discriminator=discriminator,
             )
 
         step += 1
 
     summary["final_step"] = step
 
-    # ---- Final checkpoint + manifest ----
+    # ---- Final eval (best-effort) + checkpoint + manifest ----
     if is_main(rank):
+        eval_snapshots = _maybe_run_eval(cfg, model, device, step, world)
+        summary["acceptance"]["eval_snapshot_count"] = len(eval_snapshots)
+        if eval_snapshots:
+            summary["final_eval_metrics"] = {
+                m.name: m.value for m in eval_snapshots[0].metrics
+            }
         final_manifest_path = _write_checkpoint(
             run_dir,
             model,
@@ -391,6 +451,8 @@ def train(cfg: TrainConfig) -> dict:
             hardware,
             dataset_fp,
             config_ref,
+            discriminator=discriminator,
+            eval_snapshots=eval_snapshots,
             final=True,
         )
         final_ckpt = run_dir / "ckpts" / "final.pt"
@@ -419,6 +481,119 @@ def train(cfg: TrainConfig) -> dict:
     return summary
 
 
+# Eval metric metadata for manifest snapshots: name -> (unit, higherIsBetter).
+# The manifest validator requires unit to be a NONEMPTY string and
+# higherIsBetter to be a bool whenever the keys are present (asdict always
+# emits them), so every metric we surface must carry both. Metrics not in this
+# table are bookkeeping (e.g. n_images_evaluated) and are intentionally not
+# emitted as quality metrics.
+_EVAL_METRIC_META = {
+    "psnr": ("dB", True),
+    "ssim": ("ratio", True),
+    "lpips": ("distance", False),
+    "rfid": ("fid", False),
+    "codebook_used_pct": ("fraction", True),
+    "codebook_used_count": ("count", True),
+}
+
+
+def _eval_dataset_sha(ds_name: str, split: str, files=None) -> str:
+    """Deterministic 64-hex identity for the eval set.
+
+    The manifest schema requires `evalSnapshots[].dataset.sha256` to be a real
+    sha256. This identifies WHICH eval set produced the metrics (label + sorted
+    file names when a real folder is used); it is NOT a content lock of the
+    training data (that is the separate dataset fingerprint). Stable across runs
+    for the same eval set, and never empty.
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    h.update(f"{ds_name}:{split}".encode("utf-8"))
+    if files:
+        for p in sorted(str(x) for x in files):
+            h.update(b"\0")
+            h.update(p.encode("utf-8"))
+    return h.hexdigest()
+
+
+def _maybe_run_eval(cfg, model, device, step, world) -> list:
+    """Run reconstruction eval on a val set; return [] on any failure.
+
+    Eval must never kill a training run, so every path is guarded. Uses
+    `val_data_root` when set, else a small synthetic set for smoke. Heavy
+    metrics (rFID) are left to the eval harness's own dependency degradation.
+    """
+    try:
+        eval_files = None
+        if cfg.val_data_root:
+            val_ds = ImageFolderDataset(
+                Path(cfg.val_data_root), image_size=cfg.image_size, with_labels=False
+            )
+            split = "val"
+            ds_name = Path(cfg.val_data_root).name
+            eval_files = val_ds.file_list_for_manifest()
+        elif cfg.smoke or not cfg.train_data_root:
+            val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
+            split = "synthetic-val"
+            ds_name = "synthetic"
+        else:
+            return []  # real training run with no val set declared — skip
+
+        loader = DataLoader(
+            val_ds,
+            batch_size=cfg.batch_size_per_gpu,
+            shuffle=False,
+            num_workers=0,
+            drop_last=False,
+        )
+        eval_cfg = TokenizerEvalConfig(
+            eval_set_name=ds_name,
+            batch_size=cfg.batch_size_per_gpu,
+            compute_rfid=not cfg.smoke,  # rFID is slow + needs clean-fid; skip in smoke
+        )
+        core = model.module if world > 1 else model
+        was_training = core.training
+        core.eval()
+        metrics = evaluate_tokenizer_reconstruction(core, loader, device, eval_cfg)
+        if was_training:
+            core.train()
+
+        metric_objs = []
+        for k, v in metrics.items():
+            meta = _EVAL_METRIC_META.get(k)
+            if meta is None:
+                continue  # bookkeeping field, not a quality metric
+            if not isinstance(v, (int, float)) or isinstance(v, bool):
+                continue
+            if not math.isfinite(float(v)):
+                continue
+            unit, higher_is_better = meta
+            metric_objs.append(
+                TrainingRunEvalMetric(
+                    name=k,
+                    value=float(v),
+                    unit=unit,
+                    higherIsBetter=higher_is_better,
+                )
+            )
+        if not metric_objs:
+            return []  # nothing measurable → no snapshot (keeps manifest valid)
+        snapshot = TrainingRunEvalSnapshot(
+            modality="image",
+            dataset=TrainingRunEvalDataset(
+                name=ds_name, split=split, sha256=_eval_dataset_sha(ds_name, split, eval_files)
+            ),
+            step=step,
+            generatedAt=utc_now_iso(),
+            metrics=metric_objs,
+        )
+        return [snapshot]
+    except Exception as exc:  # eval is best-effort; never fail the run
+        print(f"[eval] skipped due to error: {type(exc).__name__}: {exc}")
+        return []
+
+
 def _write_checkpoint(
     run_dir,
     model,
@@ -434,12 +609,26 @@ def _write_checkpoint(
     hardware,
     dataset_fp,
     config_ref,
+    discriminator=None,
+    eval_snapshots=None,
     final=False,
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
     state = (model.module if hasattr(model, "module") else model).state_dict()
-    torch.save({"model": state, "step": step}, ckpt_path)
-    weights_license = "permissive" if cfg.smoke or not cfg.train_data_root else "research-only"
+    payload = {"model": state, "step": step}
+    if discriminator is not None:
+        payload["discriminator"] = (
+            discriminator.module if hasattr(discriminator, "module") else discriminator
+        ).state_dict()
+    torch.save(payload, ckpt_path)
+    # Smoke / synthetic data has no license encumbrance. For real data, the
+    # operator must declare the corpus license; default research-only keeps an
+    # undeclared run un-publishable. Anything other than "permissive" is
+    # treated as research-only (fail safe).
+    if cfg.smoke or not cfg.train_data_root:
+        weights_license = "permissive"
+    else:
+        weights_license = "permissive" if cfg.dataset_license == "permissive" else "research-only"
     manifest = TrainingRunManifest(
         schemaVersion=TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
         runId=run_id,
@@ -456,7 +645,7 @@ def _write_checkpoint(
         wallClockSec=time.perf_counter() - t0,
         hardware=hardware,
         optimizer=capture_optimizer_checkpoint(optim, name="AdamW"),
-        evalSnapshots=[],
+        evalSnapshots=eval_snapshots or [],
         checkpoint=capture_training_checkpoint(ckpt_path, weights_license=weights_license),
         trainingConfig=config_ref,
     )
@@ -477,6 +666,21 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--smoke", action="store_true", help="Run smoke config (5 steps, synthetic)")
     p.add_argument("--num-workers", type=int, default=8)
+    p.add_argument("--val-data-root", default="", help="Validation image folder for end-of-run eval")
+    p.add_argument(
+        "--dataset-license",
+        default="research-only",
+        choices=["research-only", "permissive"],
+        help="Corpus license. 'permissive' marks the checkpoint publishable; "
+             "use ONLY for verified license-clean data. Default research-only.",
+    )
+    gan_group = p.add_mutually_exclusive_group()
+    gan_group.add_argument("--gan", dest="gan_enabled", action="store_true", default=None,
+                           help="Enable the PatchGAN adversarial term.")
+    gan_group.add_argument("--no-gan", dest="gan_enabled", action="store_false",
+                           help="Disable the GAN term (reconstruction-only).")
+    p.add_argument("--gan-on-step", type=int, default=None,
+                   help="Step at which the GAN term turns on (warmup recon-only before).")
     return p
 
 
@@ -487,15 +691,21 @@ def main():
     else:
         cfg = TrainConfig(
             train_data_root=args.train_data_root,
+            val_data_root=args.val_data_root,
             out_root=args.out_root,
             max_steps=args.max_steps,
             batch_size_per_gpu=args.batch_size_per_gpu,
             image_size=args.image_size,
             seed=args.seed,
             num_workers=args.num_workers,
+            dataset_license=args.dataset_license,
         )
         cfg.tokenizer = TokenizerConfig(codebook_embed_dim=args.codebook_embed_dim, image_size=args.image_size)
         cfg.optim = OptimConfig(lr=args.lr)
+        if args.gan_enabled is not None:
+            cfg.gan_enabled = args.gan_enabled
+        if args.gan_on_step is not None:
+            cfg.gan_on_step = args.gan_on_step
     train(cfg)
 
 
