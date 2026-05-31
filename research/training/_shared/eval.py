@@ -61,7 +61,7 @@ def evaluate_tokenizer_reconstruction(
     device: torch.device,
     cfg: TokenizerEvalConfig | None = None,
 ) -> dict[str, Any]:
-    """Run reconstruction eval; returns metrics for a TrainingRunEvalSnapshot.
+    """Run reconstruction eval; returns metric dict for manifest.eval.metrics.
 
     Caller is responsible for setting `model.eval()` (we don't toggle here
     so the caller's state stays explicit).
@@ -83,6 +83,8 @@ def evaluate_tokenizer_reconstruction(
             degradation_reasons.append("torchmetrics-missing:psnr-ssim")
 
     lpips_metric = None
+    lpips_sum = 0.0      # batch-size-weighted running sum for an exact streaming mean
+    lpips_count = 0
     if cfg.compute_lpips:
         try:
             import lpips
@@ -129,8 +131,12 @@ def evaluate_tokenizer_reconstruction(
                 ssim_metric.update(rec_u8.float(), img_u8.float())
 
         if lpips_metric is not None:
-            # LPIPS expects [-1, 1] which is what we have
-            _ = lpips_metric(recon, img).mean()  # streaming mean accumulated below
+            # LPIPS expects [-1, 1], which is what we have. Accumulate a
+            # batch-size-weighted running SUM so the final mean is exact even
+            # when the last batch is short (a plain mean-of-batch-means is not).
+            per_image = lpips_metric(recon, img)  # shape [N,1,1,1]
+            lpips_sum += float(per_image.sum().detach().cpu())
+            lpips_count += img.shape[0]
 
         if rfid_tmpdir is not None:
             from PIL import Image
@@ -172,10 +178,12 @@ def evaluate_tokenizer_reconstruction(
         metrics["psnr"] = float(psnr_metric.compute().cpu())
     if ssim_metric is not None:
         metrics["ssim"] = float(ssim_metric.compute().cpu())
-    if lpips_metric is not None:
-        # Re-run for accurate streaming mean (the .mean() above wasn't accumulated cleanly).
-        # For a careful audit, a follow-up should accumulate per-sample LPIPS in a running tensor.
-        metrics["lpips_note"] = "per-sample accumulation TBD; current eval uses streaming approx"
+    if lpips_metric is not None and lpips_count > 0:
+        # Exact dataset-mean LPIPS = sum(per-image LPIPS) / n_images.
+        metrics["lpips"] = lpips_sum / lpips_count
+    elif lpips_metric is not None:
+        metrics["lpips_error"] = "no images evaluated"
+        degradation_reasons.append("lpips-no-images")
 
     if rfid_tmpdir is not None:
         try:
