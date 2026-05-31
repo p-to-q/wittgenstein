@@ -196,9 +196,10 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
       request: { modality: "svg", prompt: "prompt", source: "local" },
     });
 
+    const missingConfigPath = join(workDir, "wittgenstein-missing-config.toml");
     const replay = spawnSync(
       process.execPath,
-      [cliBin, "replay", fakeManifestPath, "--config", "/tmp/wittgenstein-missing-config.toml"],
+      [cliBin, "replay", fakeManifestPath, "--config", missingConfigPath],
       {
         cwd: packageRoot,
         encoding: "utf8",
@@ -209,6 +210,27 @@ describe("@wittgenstein/cli replay (Issue #384)", () => {
     expect(errOutput.code).toBe("REPLAY_EXECUTION_FAILED");
     expect(errOutput.cause).toContain("wittgenstein-missing-config.toml");
   });
+
+  it("reports invalid recorded requests before replay execution", async () => {
+    const fakeManifestPath = await writeManifest("fake-invalid-request", {
+      codec: "svg",
+      command: "wittgenstein svg",
+      artifactPath: "/tmp/out.svg",
+      rawRequest: { modality: "svg", prompt: "" },
+    });
+
+    const replay = spawnSync(process.execPath, [cliBin, "replay", fakeManifestPath], {
+      cwd: packageRoot,
+      encoding: "utf8",
+    });
+    expect(replay.status).toBe(1);
+    const errOutput = JSON.parse(replay.stderr) as {
+      code: string;
+      issues: Array<{ path: Array<string | number> }>;
+    };
+    expect(errOutput.code).toBe("MANIFEST_REQUEST_INVALID");
+    expect(errOutput.issues.some((issue) => issue.path.includes("prompt"))).toBe(true);
+  });
 });
 
 type ManifestFixtureOptions = {
@@ -217,6 +239,7 @@ type ManifestFixtureOptions = {
   route?: string;
   artifactPath: string;
   request?: WittgensteinRequest;
+  rawRequest?: unknown;
 };
 
 async function writeManifest(
@@ -247,7 +270,7 @@ async function writeManifest(
     promptExpanded: "prompt",
     llmOutputRaw: "{}",
     llmOutputParsed: {},
-    request: options.request,
+    request: options.rawRequest ?? options.request,
     artifactPath: options.artifactPath,
     artifactSha256: "deadbeef",
     startedAt: new Date().toISOString(),

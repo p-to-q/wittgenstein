@@ -370,13 +370,13 @@ not neural text-to-video generation.
 
 This is the shortest “what can I actually get out today?” view. For deeper component-by-component detail, keep using `docs/implementation-status.md`.
 
-| Modality              | Default artifact        | Opt-in artifact                             | Notes                                                                                        |
-| --------------------- | ----------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Image (TS)            | PNG (placeholder-class) | PNG (reference decode when weights present) | Scene + seed/semantic receipts ship; frozen decoder bridge not yet wired for LlamaGen/SEED   |
-| Image (polyglot-mini) | PNG                     | —                                           | Research-grade code-as-painter and MLP fallback painter ship                                 |
-| Audio (TS)            | WAV                     | —                                           | Speech + soundscape + music ship                                                             |
-| Sensor (TS)           | JSON / HTML / PNG       | —                                           | Loupe dashboard ships                                                                        |
-| Video (TS)            | HyperFrames-shaped HTML | MP4 (local)                                 | MP4 requires local Chrome/Chromium + FFmpeg and enabling `WITTGENSTEIN_HYPERFRAMES_RENDER=1` |
+| Modality              | Default artifact            | Opt-in artifact                             | Notes                                                                                        |
+| --------------------- | --------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Image (TS)            | PNG (placeholder-class)     | PNG (reference decode when weights present) | Scene + seed/semantic receipts ship; frozen decoder bridge not yet wired for LlamaGen/SEED   |
+| Image (polyglot-mini) | PNG                         | —                                           | Research-grade code-as-painter and MLP fallback painter ship                                 |
+| Audio (TS)            | WAV                         | —                                           | Speech + soundscape + music ship                                                             |
+| Sensor (TS)           | HTML / JSON (+ CSV sidecar) | —                                           | Loupe dashboard ships                                                                        |
+| Video (TS)            | HyperFrames-shaped HTML     | MP4 (local)                                 | MP4 requires local Chrome/Chromium + FFmpeg and enabling `WITTGENSTEIN_HYPERFRAMES_RENDER=1` |
 
 **What's next.** Doctrine is locked; the active workstream is the Codec Protocol v2 port
 across all modalities, sequenced in [`docs/exec-plans/active/codec-v2-port.md`](docs/exec-plans/active/codec-v2-port.md)
