@@ -21,7 +21,30 @@ describe("TrainingRunManifestSchema", () => {
     expect(parsed).toEqual(fixture);
     expect(parsed.schemaVersion).toBe(TrainingRunManifestSchemaVersion);
     expect(parsed.subprogram).toBe("tokenizer");
+    expect(parsed.optimizer.stateSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(parsed.checkpoint.weightsLicense).toBe("research-only");
+  });
+
+  it("accepts a CPU-only smoke receipt without pretending a GPU ran", () => {
+    const fixture = readTrainingManifestFixture();
+
+    const parsed = TrainingRunManifestSchema.parse({
+      ...fixture,
+      runId: "tokenizer-stdlib-smoke",
+      hardware: {
+        gpuModel: "cpu:arm64",
+        gpuCount: 0,
+        nodeCount: 1,
+      },
+      evalSnapshots: [],
+      checkpoint: {
+        ...fixture.checkpoint,
+        weightsLicense: "permissive",
+      },
+    });
+
+    expect(parsed.hardware.gpuCount).toBe(0);
+    expect(parsed.evalSnapshots).toEqual([]);
   });
 
   it("rejects receipts that smuggle hyperparameters as a freeform top-level blob", () => {

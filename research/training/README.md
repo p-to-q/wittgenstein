@@ -24,6 +24,7 @@ See the operating doctrine:
 - [docs/research/2026-05-13-wittgenstein-research-program.md](../../docs/research/2026-05-13-wittgenstein-research-program.md) — three-track framing (engineering / research / hacker)
 - [docs/research/2026-05-13-delivery-and-componentization.md](../../docs/research/2026-05-13-delivery-and-componentization.md) — tier doctrine + why training stays outside the publish surface
 - [docs/research/2026-05-13-m1b-prep-research.md](../../docs/research/2026-05-13-m1b-prep-research.md) — Phase-0 literature floor (LlamaGen, Open-MAGVIT2, TiTok, VAR)
+- [docs/research/2026-05-31-training-stack-re-audit-closeout.md](../../docs/research/2026-05-31-training-stack-re-audit-closeout.md) — #441 closeout: schema-aligned receipt floor + GPU wait lines
 - [docs/research/2026-05-27-pre-training-readiness.md](../../docs/research/2026-05-27-pre-training-readiness.md) — engineering-readiness audit run right before specialist kickoff (Tier-0 self-check, latent bugs found + fixed, open handoff issues)
 - [docs/contributing/training-setup.md](../../docs/contributing/training-setup.md) — environment setup for contributors
 
@@ -69,12 +70,14 @@ Every publishable training run emits, alongside the model checkpoint, a
 Wittgenstein `TrainingRunManifest` receipt validated by
 `TrainingRunManifestSchema` from `@wittgenstein/schemas`:
 
-- Dataset hash (DVC-pinned)
-- Training step count + wall-clock + GPU type
+- Dataset `dvcRev`, name, and SHA-256
+- Training step count, wall-clock, and hardware; CPU-only smoke receipts use
+  `gpuCount: 0` instead of pretending a GPU ran
 - Eval-metric snapshot (FID / CLIP / rFID per modality)
 - Git SHA of the harness at training time
 - Git SHA of the training code at training time
-- Seed, lockfile SHA, checkpoint SHA-256, and weights-license posture
+- Optimizer state SHA-256
+- Seed, lockfile SHA, checkpoint path/SHA-256/bytes, and weights-license posture
 
 A frozen checkpoint released to HuggingFace Hub ships with this manifest
 beside it. A downstream `DecoderFamilyManifest` can then bless that exact

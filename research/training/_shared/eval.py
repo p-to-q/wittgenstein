@@ -61,7 +61,7 @@ def evaluate_tokenizer_reconstruction(
     device: torch.device,
     cfg: TokenizerEvalConfig | None = None,
 ) -> dict[str, Any]:
-    """Run reconstruction eval; returns metric dict for manifest.eval.metrics.
+    """Run reconstruction eval; returns metrics for a TrainingRunEvalSnapshot.
 
     Caller is responsible for setting `model.eval()` (we don't toggle here
     so the caller's state stays explicit).

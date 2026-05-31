@@ -19,8 +19,10 @@ config defaults.
   research-program note. Our "Wittgenstein-native" lane = same
   architecture, our config (D=32 vs LlamaGen's D=8), our data,
   our weights, our license posture.
-- **Modifications:** None. Pure copy. If we ever need to modify, fork
-  to a `wittgenstein_*.py` sibling and document the diff here.
+- **Modifications:** local safety patch for smoke/receipt validation:
+  `codebook_used` is registered as a non-parameter integer buffer and updated
+  under `torch.no_grad()`, so codebook-usage accounting cannot enter optimizer
+  state or autograd.
 - **Update protocol:** When upstream lands a relevant fix, re-vendor
   by overwriting this file from the pinned upstream commit, update
   the "Pinned commit" line above, and re-run any training that

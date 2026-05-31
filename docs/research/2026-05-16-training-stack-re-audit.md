@@ -93,6 +93,13 @@ These are low-risk and should happen before any expensive training:
 These do not require real ImageNet / CC12M / COCO access and do not commit
 the project to a GPU framework.
 
+**Implementation status (2026-05-31):** the manifest helper now writes the
+canonical `witt.training.run-manifest/v0.1` shape used by
+`TrainingRunManifestSchema`, including optimizer state SHA-256 and an explicit
+CPU-only smoke path with `gpuCount: 0`. The stdlib smoke does not train a model
+or import torch; it proves the receipt floor. The tokenizer training entrypoint
+now emits the same canonical receipt beside each checkpoint.
+
 ## What must wait for owner review
 
 These choices should not land as "obvious implementation" PRs:

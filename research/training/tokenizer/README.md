@@ -32,7 +32,7 @@ Shared infrastructure (`research/training/_shared/`):
 
 ```
 _shared/
-├── manifest.py        # TrainingManifest emitter (Wittgenstein receipt spine)
+├── manifest.py        # TrainingRunManifest emitter (Wittgenstein receipt spine)
 ├── dataset.py         # ImageFolderDataset, SyntheticImageDataset, LlamaGen-canonical preproc
 └── _third_party/
     ├── README.md
@@ -63,15 +63,15 @@ must be true:
    exits 0, writes `final.pt` + `final.manifest.json`, and reports a clean
    acceptance summary.
 2. **Manifest spine is present** — every checkpoint being cited has a sibling
-   `*.manifest.json` with runtime, dataset, optimizer, checkpoint, and config
-   fields populated.
+   `*.manifest.json` with source provenance, dataset, hardware, optimizer,
+   checkpoint, and config-reference fields populated.
 3. **Dataset mode is explicit** — receipts clearly indicate whether the run
    used synthetic smoke data or a real dataset fingerprint; no ambiguous
    “training succeeded” wording across those two cases.
 4. **Metric degradation is observable** — if PSNR/SSIM, LPIPS, or rFID could
    not be computed because optional dependencies or runtime prerequisites were
-   missing, the receipt must say so in `eval.metrics.degraded` and
-   `eval.metrics.degradation_reasons`; silent metric omission is not acceptable.
+   missing, the run summary and eval receipt must say so explicitly; silent
+   metric omission is not acceptable.
 5. **No research blessing from smoke alone** — smoke proves loop integrity,
    manifest emission, and checkpoint I/O only. It does **not** count as model
    quality validation, tokenizer architecture approval, or dataset-license sign-off.
@@ -115,30 +115,36 @@ own-trained advantage is from D=32 vs D=8 + our license posture).
 
 ## Architecture choices vs LlamaGen baseline
 
-| Knob | LlamaGen `vq_ds16_c2i.pt` (audited) | Wittgenstein-native (this scaffold) | Why |
-|---|---|---|---|
-| Codebook K | 16384 | 16384 | Match audited baseline shape |
-| Embed dim D | 8 | **32** | Richer per-site latents for our learned MaskGIT adapter (LlamaGen's D=8 was intentionally low because their AR head carried semantic load — we don't have that constraint) |
-| Downsample p | 16 | 16 | Match audited baseline; 256² → 16×16 = 256 tokens |
-| Encoder ch_mult | [1,1,2,2,4] | [1,1,2,2,4] | Match |
-| Losses | L2 + LPIPS + PatchGAN + commit | Same | Match recipe |
-| Determinism class | structural-parity (Gate C) | structural-parity (planned) | Matches ADR-0015 precedent |
+| Knob              | LlamaGen `vq_ds16_c2i.pt` (audited) | Wittgenstein-native (this scaffold) | Why                                                                                                                                                                        |
+| ----------------- | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codebook K        | 16384                               | 16384                               | Match audited baseline shape                                                                                                                                               |
+| Embed dim D       | 8                                   | **32**                              | Richer per-site latents for our learned MaskGIT adapter (LlamaGen's D=8 was intentionally low because their AR head carried semantic load — we don't have that constraint) |
+| Downsample p      | 16                                  | 16                                  | Match audited baseline; 256² → 16×16 = 256 tokens                                                                                                                          |
+| Encoder ch_mult   | [1,1,2,2,4]                         | [1,1,2,2,4]                         | Match                                                                                                                                                                      |
+| Losses            | L2 + LPIPS + PatchGAN + commit      | Same                                | Match recipe                                                                                                                                                               |
+| Determinism class | structural-parity (Gate C)          | structural-parity (planned)         | Matches ADR-0015 precedent                                                                                                                                                 |
 
 ## Receipt-first design (per #441)
 
-Every checkpoint emits a `TrainingManifest` capturing:
+Every checkpoint emits a `TrainingRunManifest` validated by
+`@wittgenstein/schemas`:
 
-- **runtime**: `git_sha`, `lockfile_sha256`, torch/CUDA/cudnn versions, hostname, A800 device name
-- **dataset**: `name`, `root_sha256` (over sorted file enumeration + sizes), `file_count`, `total_bytes`, `revision`
-- **optimizer**: `state_hash` (SHA-256 over state_dict bytes), `lr`, `weight_decay`, `betas`
-- **checkpoint**: `run_id`, `step`, `epoch`, `wall_clock_s`, `seed`, `weights_path`, `weights_sha256`
-- **eval**: `eval_set`, `eval_set_sha256`, `metrics` (filled by eval pass)
-- **config**: full hyperparameter dump (snapshot of TrainConfig)
+- **run identity**: `runId`, `subprogram`, `startedAt`, `finishedAt`
+- **source provenance**: `harnessGitSha`, `trainingCodeGitSha`, optional
+  `dockerImageSha`, `lockfileSha256`
+- **dataset**: `dvcRev`, `name`, `sha256`
+- **hardware**: `gpuModel`, `gpuCount`, `nodeCount`
+- **optimizer**: `stateSha256`, `learningRate`, `weightDecay`, `betas`
+- **checkpoint**: `path`, `sha256`, `bytes`, `weightsLicense`
+- **eval**: `evalSnapshots` filled by the eval pass; empty for smoke/no-eval
+  checkpoints
+- **config**: `trainingConfig` path + SHA-256, not a freeform top-level
+  hyperparameter blob
 
-This matches Wittgenstein's inference-side `RunManifest` shape so
-`wittgenstein replay` works equivalently for inference + training
-receipts. No silent fallbacks; the harness can verify any checkpoint
-back to the exact configuration and data slice that produced it.
+This keeps the Python training side aligned with the TypeScript schema that
+downstream decoder-family manifests consume. No silent fallbacks; the harness
+can verify any checkpoint back to the exact configuration and data slice that
+produced it.
 
 ## Owning issues
 
@@ -155,11 +161,12 @@ back to the exact configuration and data slice that produced it.
 - **PatchGAN discriminator** — discriminator architecture + warmup-aware
   GAN training loop. The losses.py module is already shaped for this.
 - **Eval pass (rFID / PSNR / SSIM / LPIPS / codebook usage on val 50k)** —
-  fills `manifest.eval.metrics` at every `eval_every` step.
+  fills `evalSnapshots` at every `eval_every` step.
 - **Resume-from-checkpoint** — `--resume <ckpt>` flag, restores model +
   optim + step counter, preserves run_id continuity.
-- **Aim/W&B tracker integration** — `manifest.experiment_uri` is the
-  hook; currently empty.
+- **Aim/W&B tracker integration** — tracker links belong in the training config
+  or an issue-owned tracker receipt; they are not freeform top-level manifest
+  fields.
 - **DVC dataset pin** — train script reads dataset SHA from a DVC
   `.dvc` file rather than the cheap file-enumeration fingerprint.
 - **FSDP2 sharding** — only needed if larger tokenizer variants are
