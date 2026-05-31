@@ -21,6 +21,8 @@ from typing import Iterable
 
 import numpy as np
 
+from features import FEATURE_SCHEMA_SHA256
+
 
 @dataclass(frozen=True)
 class SpectrumSummary:
@@ -109,6 +111,12 @@ def load_mlp_adapter_json(path: Path) -> dict:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != "witt.image.adapter.mlp/v0.1":
         raise SystemExit("Unsupported adapter file (expected witt.image.adapter.mlp/v0.1)")
+    feature_schema = raw.get("featureSchema", FEATURE_SCHEMA_SHA256)
+    if feature_schema != FEATURE_SCHEMA_SHA256:
+        raise SystemExit(
+            "Unsupported adapter featureSchema "
+            f"{feature_schema!r}; this checker only supports {FEATURE_SCHEMA_SHA256}"
+        )
     return raw
 
 
@@ -165,4 +173,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

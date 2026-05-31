@@ -7,6 +7,9 @@ import json
 from typing import Any, Mapping
 
 
+FEATURE_SCHEMA_SHA256 = "witt.image.adapter.features/sha256-canonical-json-v0"
+
+
 def canonicalize(value: Any) -> Any:
     if isinstance(value, list):
         return [canonicalize(x) for x in value]

@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from features import scene_dict_to_feature_vector
+from features import FEATURE_SCHEMA_SHA256, scene_dict_to_feature_vector
 
 MLP_VERSION = "witt.image.adapter.mlp/v0.1"
 
@@ -109,6 +109,7 @@ def main() -> None:
     dec = spec0["decoder"]
     payload = {
         "version": MLP_VERSION,
+        "featureSchema": FEATURE_SCHEMA_SHA256,
         "codebookSize": codebook_size,
         "tokenGrid": [gw, gh],
         "inputDim": 128,

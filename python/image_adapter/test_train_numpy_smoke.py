@@ -84,6 +84,10 @@ class TrainNumpySmokeTest(unittest.TestCase):
             payload = json.loads(out_path.read_text(encoding="utf-8"))
 
         self.assertEqual(payload["version"], "witt.image.adapter.mlp/v0.1")
+        self.assertEqual(
+            payload["featureSchema"],
+            "witt.image.adapter.features/sha256-canonical-json-v0",
+        )
         self.assertEqual(payload["codebookSize"], 8)
         self.assertEqual(payload["tokenGrid"], [2, 2])
         self.assertEqual(payload["inputDim"], 128)

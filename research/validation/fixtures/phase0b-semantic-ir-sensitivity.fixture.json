@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "witt.research.phase0b-semantic-ir-sensitivity/v0.1",
+  "issue": 452,
+  "generatedAt": "2026-05-31T00:00:00.000Z",
+  "measurement": "Phase 0b semantic IR field sensitivity",
+  "adapter": {
+    "codePath": "visual-seed-code",
+    "seedExpanderId": "placeholder-seed-expander/v0",
+    "seedSensitivitySource": "adapter.hashSpecToSeed(scene)",
+    "learnedMlpFeatureSchema": "witt.image.adapter.features/sha256-canonical-json-v0",
+    "learnedMlpUsed": false,
+    "semanticAlignment": "not_measured_seed_expander_hash_baseline"
+  },
+  "controls": {
+    "seedCode": {
+      "schemaVersion": "witt.image.seed/v0.1",
+      "family": "vqvae",
+      "mode": "prefix",
+      "tokens": [42, 17, 88, 201, 15, 33, 77, 100]
+    },
+    "decoder": {
+      "family": "llamagen",
+      "codebook": "stub-codebook",
+      "codebookVersion": "v0",
+      "latentResolution": [4, 4]
+    },
+    "variedFields": [
+      "intent",
+      "lighting.mood",
+      "composition.framing",
+      "style.palette",
+      "constraints.negative"
+    ]
+  },
+  "cases": [
+    {
+      "field": "intent",
+      "baseValue": "stormy ocean at midnight",
+      "variantValue": "sunny meadow at noon",
+      "tokenHammingRate": 1,
+      "meanAbsoluteTokenDelta": 5536,
+      "maxAbsoluteTokenDelta": 5536,
+      "baseLatentSha256": "d078d418debbdeb2c4a2cb452d6bc2a93317d56d7f315fc2b17269c1efe0a021",
+      "variantLatentSha256": "85626357558e82d3aa48ae52fa0ff784208c2e2d4873f21b4f2645b1cf979078",
+      "basePngSha256": "57301486eff736cab8237a59679b7ff4dc8c5cb115df32c1105e8e622138a950",
+      "variantPngSha256": "a8d43a05b666f5e78d10e6274ecb6e23f6d72c06e874b9ff994715f97be85cec",
+      "pngByteHammingRate": 0.9978643473509256,
+      "pngLengthDelta": 214829,
+      "verdict": "output_changed_hash_baseline"
+    },
+    {
+      "field": "lighting.mood",
+      "baseValue": "warm golden",
+      "variantValue": "cold fluorescent",
+      "tokenHammingRate": 1,
+      "meanAbsoluteTokenDelta": 2158,
+      "maxAbsoluteTokenDelta": 2158,
+      "baseLatentSha256": "d078d418debbdeb2c4a2cb452d6bc2a93317d56d7f315fc2b17269c1efe0a021",
+      "variantLatentSha256": "626bb4a94796acab93b0571d67c9d9c7c62a11285eaaedf88d2f5bf504733f14",
+      "basePngSha256": "57301486eff736cab8237a59679b7ff4dc8c5cb115df32c1105e8e622138a950",
+      "variantPngSha256": "f71c39b803c81c6b7a13749b2110570f4fb51b1be0901c4699f779a91d18f555",
+      "pngByteHammingRate": 0.9960485156707231,
+      "pngLengthDelta": 23374,
+      "verdict": "output_changed_hash_baseline"
+    },
+    {
+      "field": "composition.framing",
+      "baseValue": "wide establishing shot",
+      "variantValue": "tight macro detail",
+      "tokenHammingRate": 1,
+      "meanAbsoluteTokenDelta": 2171,
+      "maxAbsoluteTokenDelta": 2171,
+      "baseLatentSha256": "d078d418debbdeb2c4a2cb452d6bc2a93317d56d7f315fc2b17269c1efe0a021",
+      "variantLatentSha256": "64561cc5878e81a27d239601a049878ae8596b3cbb3d89946232671097df29e5",
+      "basePngSha256": "57301486eff736cab8237a59679b7ff4dc8c5cb115df32c1105e8e622138a950",
+      "variantPngSha256": "a8d43a05b666f5e78d10e6274ecb6e23f6d72c06e874b9ff994715f97be85cec",
+      "pngByteHammingRate": 0.9978643473509256,
+      "pngLengthDelta": 214829,
+      "verdict": "output_changed_hash_baseline"
+    },
+    {
+      "field": "style.palette",
+      "baseValue": ["amber", "deep blue", "white"],
+      "variantValue": ["acid green", "magenta", "black"],
+      "tokenHammingRate": 1,
+      "meanAbsoluteTokenDelta": 436,
+      "maxAbsoluteTokenDelta": 436,
+      "baseLatentSha256": "d078d418debbdeb2c4a2cb452d6bc2a93317d56d7f315fc2b17269c1efe0a021",
+      "variantLatentSha256": "47e4727fb38ddde0a3766de333429e5799cb34bfb126965a915996eff9199a14",
+      "basePngSha256": "57301486eff736cab8237a59679b7ff4dc8c5cb115df32c1105e8e622138a950",
+      "variantPngSha256": "2686f6f1fb1ae0d156778a94c2ea621078dab401562c7cf04b5bd8b7cc5b90c4",
+      "pngByteHammingRate": 0.9960590491234641,
+      "pngLengthDelta": 21245,
+      "verdict": "output_changed_hash_baseline"
+    },
+    {
+      "field": "constraints.negative",
+      "baseValue": ["no text", "no watermark"],
+      "variantValue": ["no people", "no buildings"],
+      "tokenHammingRate": 1,
+      "meanAbsoluteTokenDelta": 349,
+      "maxAbsoluteTokenDelta": 349,
+      "baseLatentSha256": "d078d418debbdeb2c4a2cb452d6bc2a93317d56d7f315fc2b17269c1efe0a021",
+      "variantLatentSha256": "d98b5301a765ba4fd8c12416c212efe56bfdb0e9f71ff83be92b988cc33876ee",
+      "basePngSha256": "57301486eff736cab8237a59679b7ff4dc8c5cb115df32c1105e8e622138a950",
+      "variantPngSha256": "a8d43a05b666f5e78d10e6274ecb6e23f6d72c06e874b9ff994715f97be85cec",
+      "pngByteHammingRate": 0.9978643473509256,
+      "pngLengthDelta": 214829,
+      "verdict": "output_changed_hash_baseline"
+    }
+  ],
+  "aggregate": {
+    "caseCount": 5,
+    "meanTokenHammingRate": 1,
+    "meanPngByteHammingRate": 0.9971401213693929,
+    "allCasesChanged": true
+  },
+  "interpretation": "Current Visual Seed Code output is field-sensitive because adapter.hashSpecToSeed(scene) changes the seed-expander input. This is a null baseline receipt, not evidence of learned MLP or CLIP/SigLIP semantic conditioning."
+}
