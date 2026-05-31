@@ -58,7 +58,12 @@ class TrainConfig:
 
     # GAN
     gan_on_step: int = 20_000    # warmup recon-only first, then add GAN
-    gan_enabled: bool = True     # set False for smoke
+    # No PatchGAN discriminator is wired yet (train.py instantiates the loss with
+    # discriminator=None; losses.py only applies the GAN term when one is present).
+    # Default False so the training manifest does NOT record gan_enabled=True for a
+    # run where no adversarial training actually happened. Flip to True only once a
+    # discriminator is wired — until then it is a no-op that misleads the receipt.
+    gan_enabled: bool = False
 
     # Losses
     lpips_enabled: bool = True
