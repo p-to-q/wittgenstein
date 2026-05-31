@@ -155,6 +155,12 @@ The `polyglot-mini/train/m1b/` placement mirrors the existing M2 audio training 
 
 ### Manifest-schema contract (TS, lands when wiring starts)
 
+> 2026-05-31 update: this sketch is superseded by the canonical
+> `packages/schemas/src/training-manifest.ts`
+> `TrainingRunManifestSchema` and the Python emitter in
+> `research/training/_shared/manifest.py`. Keep this section as historical
+> prep context, not as the current receipt contract.
+
 Sketch of what `packages/codec-image/src/training/manifest-schema.ts` will export:
 
 ```ts

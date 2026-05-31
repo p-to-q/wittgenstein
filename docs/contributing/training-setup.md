@@ -57,6 +57,7 @@ artifact bundle. It records:
 - Git SHA of the training code at training time
 - Docker image SHA and lockfile SHA (when applicable)
 - Seed, step count, wall-clock duration, and hardware
+- Optimizer state SHA-256
 - Per-eval-step metric snapshots
 - Checkpoint path, SHA-256, byte size, and weights license
 

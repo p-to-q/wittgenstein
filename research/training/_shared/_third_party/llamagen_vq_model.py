@@ -209,7 +209,7 @@ class VectorQuantizer(nn.Module):
         if self.l2_norm:
             self.embedding.weight.data = F.normalize(self.embedding.weight.data, p=2, dim=-1)
         if self.show_usage:
-            self.register_buffer("codebook_used", nn.Parameter(torch.zeros(65536)))
+            self.register_buffer("codebook_used", torch.zeros(65536, dtype=torch.long))
 
     
     def forward(self, z):
@@ -239,10 +239,11 @@ class VectorQuantizer(nn.Module):
         codebook_usage = 0
 
         if self.show_usage and self.training:
-            cur_len = min_encoding_indices.shape[0]
-            self.codebook_used[:-cur_len] = self.codebook_used[cur_len:].clone()
-            self.codebook_used[-cur_len:] = min_encoding_indices
-            codebook_usage = len(torch.unique(self.codebook_used)) / self.n_e
+            with torch.no_grad():
+                cur_len = min(min_encoding_indices.shape[0], self.codebook_used.shape[0])
+                self.codebook_used[:-cur_len].copy_(self.codebook_used[cur_len:].clone())
+                self.codebook_used[-cur_len:].copy_(min_encoding_indices[-cur_len:].detach())
+                codebook_usage = len(torch.unique(self.codebook_used)) / self.n_e
 
         # compute loss for embedding
         if self.training:

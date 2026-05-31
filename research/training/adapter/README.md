@@ -33,11 +33,11 @@ Architecture target (per research-program note):
 The adapter training script will need:
 
 1. **Frozen tokenizer checkpoint** — the result of `tokenizer/train.py`,
-   verified via the training manifest's `checkpoint.weights_sha256`.
+   verified via the training manifest's `checkpoint.sha256`.
 2. **Tokenized dataset cache** — every image in the training corpus
    tokenized once into `[H, W]` integer grids, persisted to disk for
-   quick reload. Cache is content-addressable by `image_sha256` and
-   `tokenizer_weights_sha256`.
+   quick reload. Cache is content-addressable by image SHA-256 and
+   tokenizer checkpoint SHA-256.
 3. **Visual Seed Code generator** — initial bootstrap: block-average
    pooling of the full grid to coarse k×k. Phase 2 may replace this
    with a learned compress step.
@@ -60,9 +60,9 @@ adapter/
 ```
 
 The receipt-first design (per #441) carries through — every adapter
-checkpoint's manifest pins the tokenizer SHA it was trained against,
-so adapter receipts are unambiguous about which tokenizer family they
-go with.
+checkpoint's manifest pins the tokenizer run id and checkpoint SHA-256 it was
+trained against, so adapter receipts are unambiguous about which tokenizer
+family they go with.
 
 ## Owning issues
 
@@ -80,8 +80,9 @@ go with.
 ## Receipt contract
 
 Every adapter training run emits a Wittgenstein manifest receipt under
-`research/training/_shared/runs/<run-id>/` mirroring the tokenizer's
-`TrainingManifest` shape (see `../_shared/manifest.py`). Additional
-adapter-specific fields go into the `config.tokenizer_pin` slot:
-the frozen tokenizer's `weights_sha256` and training run-id, so adapter
-receipts are unambiguous about which Phase-1.1 checkpoint they consume.
+`research/training/_shared/runs/<run-id>/` using the canonical
+`TrainingRunManifest` shape (see `../_shared/manifest.py`). Additional
+adapter-specific pins should live in the referenced training config, not as
+freeform top-level manifest fields: the frozen tokenizer's checkpoint SHA-256
+and training run-id must be enough to make adapter receipts unambiguous about
+which Phase-1.1 checkpoint they consume.

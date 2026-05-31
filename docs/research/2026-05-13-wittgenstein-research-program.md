@@ -39,8 +39,8 @@ This note is the answer to that reframe.
 - **[ADR-0018](../adrs/0018-hybrid-image-code-and-visual-seed-token.md) Visual Seed Code as primary image research surface.**
 - **Manifest spine.** Every run is reproducible from `git SHA + lockfile
   hash + seed + LLM I/O + artifact SHA-256`. **Extends to training:**
-  every training run gets a manifest with dataset hash, training step
-  count, optimizer state hash, eval-metric snapshot.
+  every training run gets a manifest with dataset hash, `stepCount`,
+  `optimizer.stateSha256`, and `evalSnapshots`.
 - **[ADR-0020](../adrs/0020-code-weights-license-divergence-policy.md) license posture.** Permissive code+weights canonical. Own-trained models
   make this *easier* to satisfy — we own the weights end-to-end.
 - **Codec Protocol v2 modality boundaries.** One codec per modality, one
@@ -92,8 +92,8 @@ What we invest in next:
 - **Experiment tracking integrated with the manifest spine.** Use
   `aim` (open-source, self-hostable, Apache-2.0) as the primary tracker;
   W&B as the secondary if a contributor prefers. Each training run's
-  `manifest.json` carries an `experiment.uri` field pointing at the
-  tracker entry.
+  config reference or issue-owned tracker receipt points at the tracker entry;
+  the canonical training manifest stays strict.
 - **Data versioning.** DVC for ImageNet / CC12M / COCO eval sets;
   dataset SHA-256 + URL + revision pinned in every training manifest.
 - **GPU CI lane.** Initially a manual sweep harness (`bench/gpu/`) that
@@ -247,7 +247,7 @@ Every eval run writes a Wittgenstein manifest carrying:
 - The eval set's DVC hash
 - The metric values (PSNR / SSIM / LPIPS / rFID / FID-30K / CLIP /
   human-score)
-- The experiment URI (aim / W&B link)
+- The tracker URI through the referenced training config or tracker receipt
 
 ---
 
@@ -350,10 +350,10 @@ direction-setting.
   are the canonical path for image too.
 - **Training manifest schema.** The current `RunManifestSchema` is
   inference-shaped. Training runs need a sibling schema with
-  `dataset.sha256`, `optimizer.state_hash`, `train.step`, `eval.metric_snapshot`.
+  `dataset.sha256`, `optimizer.stateSha256`, `stepCount`, and `evalSnapshots`.
   This wants an RFC.
-- **The `experiment.uri` field on manifests.** Tying every receipt to a
-  remote tracker entry. Small ADR.
+- **Tracker linkage.** Tying every receipt bundle to a remote tracker entry
+  without adding freeform top-level fields to the canonical manifest. Small ADR.
 
 ---
 

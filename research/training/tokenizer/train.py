@@ -44,20 +44,30 @@ for p in (_REPO_ROOT, _SHARED):
         sys.path.insert(0, str(p))
 
 from research.training._shared.manifest import (  # noqa: E402
-    EvalSnapshot,
-    TrainingManifest,
+    TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
+    TrainingRunManifest,
     capture_dataset_fingerprint,
+    capture_docker_image_sha,
+    capture_git_sha,
+    capture_hardware,
+    capture_lockfile_sha256,
     capture_optimizer_checkpoint,
-    capture_runtime_fingerprint,
     capture_training_checkpoint,
     new_run_id,
-    write_training_manifest,
+    utc_now_iso,
+    write_training_config_snapshot,
+    write_training_run_manifest,
 )
 from research.training._shared.dataset import (  # noqa: E402
     ImageFolderDataset,
     SyntheticImageDataset,
 )
-from research.training.tokenizer.config import OptimConfig, TrainConfig, smoke_config  # noqa: E402
+from research.training.tokenizer.config import (  # noqa: E402
+    OptimConfig,
+    TrainConfig,
+    smoke_config,
+    to_dict as cfg_to_dict,
+)
 from research.training.tokenizer.losses import LossWeights, TokenizerLoss  # noqa: E402
 from research.training.tokenizer.model import (  # noqa: E402
     TokenizerConfig,
@@ -217,25 +227,31 @@ def train(cfg: TrainConfig) -> dict:
         (run_dir / "ckpts").mkdir(parents=True, exist_ok=True)
         print(f"[out] run_dir={run_dir}")
 
-    # ---- Capture once: runtime fingerprint + dataset fingerprint ----
+    # ---- Capture once: manifest invariants + dataset fingerprint ----
     if is_main(rank):
-        runtime_fp = capture_runtime_fingerprint(
-            repo_root=_REPO_ROOT,
-            lockfile=_REPO_ROOT / "research" / "training" / "requirements.txt",
+        started_at = utc_now_iso()
+        git_sha = capture_git_sha(_REPO_ROOT)
+        lockfile_sha = capture_lockfile_sha256(
+            _REPO_ROOT / "research" / "training" / "requirements.txt"
         )
+        docker_image_sha = capture_docker_image_sha()
+        hardware = capture_hardware()
+        config_ref = write_training_config_snapshot(run_dir / "config.json", cfg_to_dict(cfg))
         if cfg.smoke or not cfg.train_data_root:
             dataset_fp = capture_dataset_fingerprint(
                 "synthetic", files=[], revision="synthetic-smoke",
                 notes="SyntheticImageDataset; no on-disk files",
             )
         else:
-            file_list = train_ds.file_list_for_manifest()[:1000]  # sample for cheap fingerprint
+            train_data_root = Path(cfg.train_data_root)
+            file_list = train_ds.file_list_for_manifest()
             dataset_fp = capture_dataset_fingerprint(
-                Path(cfg.train_data_root).name,
+                train_data_root.name,
                 files=file_list,
                 revision="uncommitted",
-                notes=f"first 1000 files of {len(train_ds)}; full DVC pin pending #400",
-                cache_per_file=False,
+                notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
+                cache_per_file=True,
+                root=train_data_root,
             )
 
     # ---- Train loop ----
@@ -320,7 +336,22 @@ def train(cfg: TrainConfig) -> dict:
 
         # Checkpoint
         if is_main(rank) and step > 0 and step % cfg.checkpoint_every == 0:
-            _write_checkpoint(run_dir, model, optim, cfg, step, t0, run_id, runtime_fp, dataset_fp)
+            _write_checkpoint(
+                run_dir,
+                model,
+                optim,
+                cfg,
+                step,
+                t0,
+                run_id,
+                started_at,
+                git_sha,
+                lockfile_sha,
+                docker_image_sha,
+                hardware,
+                dataset_fp,
+                config_ref,
+            )
 
         step += 1
 
@@ -328,7 +359,23 @@ def train(cfg: TrainConfig) -> dict:
 
     # ---- Final checkpoint + manifest ----
     if is_main(rank):
-        _write_checkpoint(run_dir, model, optim, cfg, step, t0, run_id, runtime_fp, dataset_fp, final=True)
+        _write_checkpoint(
+            run_dir,
+            model,
+            optim,
+            cfg,
+            step,
+            t0,
+            run_id,
+            started_at,
+            git_sha,
+            lockfile_sha,
+            docker_image_sha,
+            hardware,
+            dataset_fp,
+            config_ref,
+            final=True,
+        )
         final_ckpt = run_dir / "ckpts" / "final.pt"
         final_manifest = run_dir / "ckpts" / "final.manifest.json"
         summary["acceptance"]["final_checkpoint_written"] = final_ckpt.exists()
@@ -343,28 +390,48 @@ def train(cfg: TrainConfig) -> dict:
     return summary
 
 
-def _write_checkpoint(run_dir, model, optim, cfg, step, t0, run_id, runtime_fp, dataset_fp, final=False):
-    from research.training.tokenizer.config import to_dict as cfg_to_dict
+def _write_checkpoint(
+    run_dir,
+    model,
+    optim,
+    cfg,
+    step,
+    t0,
+    run_id,
+    started_at,
+    git_sha,
+    lockfile_sha,
+    docker_image_sha,
+    hardware,
+    dataset_fp,
+    config_ref,
+    final=False,
+):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
     state = (model.module if hasattr(model, "module") else model).state_dict()
     torch.save({"model": state, "step": step}, ckpt_path)
-    manifest = TrainingManifest(
-        schema_version="witt.training/v0.1",
-        program="tokenizer",
-        family="wittgenstein-native-vqgan",
-        runtime=runtime_fp,
+    weights_license = "permissive" if cfg.smoke or not cfg.train_data_root else "research-only"
+    manifest = TrainingRunManifest(
+        schemaVersion=TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
+        runId=run_id,
+        subprogram="tokenizer",
+        startedAt=started_at,
+        finishedAt=utc_now_iso(),
+        harnessGitSha=git_sha,
+        trainingCodeGitSha=git_sha,
+        dockerImageSha=docker_image_sha,
+        lockfileSha256=lockfile_sha,
         dataset=dataset_fp,
+        seed=cfg.seed,
+        stepCount=step,
+        wallClockSec=time.perf_counter() - t0,
+        hardware=hardware,
         optimizer=capture_optimizer_checkpoint(optim, name="AdamW"),
-        checkpoint=capture_training_checkpoint(
-            run_id=run_id, step=step, epoch=0.0,
-            wall_clock_s=time.perf_counter() - t0, seed=cfg.seed,
-            weights_path=ckpt_path,
-        ),
-        eval=EvalSnapshot(eval_set="not-yet-evaluated", eval_set_sha256="pending", metrics={}),
-        config=cfg_to_dict(cfg),
-        notes=("final checkpoint" if final else f"checkpoint at step {step}"),
+        evalSnapshots=[],
+        checkpoint=capture_training_checkpoint(ckpt_path, weights_license=weights_license),
+        trainingConfig=config_ref,
     )
-    write_training_manifest(manifest, run_dir / "ckpts" / (ckpt_path.stem + ".manifest.json"))
+    write_training_run_manifest(manifest, run_dir / "ckpts" / (ckpt_path.stem + ".manifest.json"))
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:

@@ -20,8 +20,21 @@ export const TrainingRunDatasetSchema = z
 export const TrainingRunHardwareSchema = z
   .object({
     gpuModel: z.string().min(1),
-    gpuCount: z.number().int().positive(),
+    gpuCount: z.number().int().nonnegative(),
     nodeCount: z.number().int().positive(),
+  })
+  .strict();
+
+export const TrainingRunOptimizerSchema = z
+  .object({
+    name: z.string().min(1),
+    stateSha256: Sha256Schema,
+    learningRate: z.number().finite().nonnegative(),
+    weightDecay: z.number().finite().nonnegative(),
+    betas: z.tuple([
+      z.number().finite().nonnegative().max(1),
+      z.number().finite().nonnegative().max(1),
+    ]),
   })
   .strict();
 
@@ -84,8 +97,9 @@ export const TrainingRunManifestSchema = z
     dataset: TrainingRunDatasetSchema,
     seed: z.number().int(),
     stepCount: z.number().int().nonnegative(),
-    wallClockSec: z.number().nonnegative(),
+    wallClockSec: z.number().finite().nonnegative(),
     hardware: TrainingRunHardwareSchema,
+    optimizer: TrainingRunOptimizerSchema,
     evalSnapshots: z.array(TrainingRunEvalSnapshotSchema),
     checkpoint: TrainingRunCheckpointSchema,
     trainingConfig: TrainingRunConfigReferenceSchema.optional(),
@@ -117,6 +131,7 @@ export const TrainingRunManifestReferenceSchema = z
 export type TrainingSubprogram = z.infer<typeof TrainingSubprogramSchema>;
 export type TrainingRunDataset = z.infer<typeof TrainingRunDatasetSchema>;
 export type TrainingRunHardware = z.infer<typeof TrainingRunHardwareSchema>;
+export type TrainingRunOptimizer = z.infer<typeof TrainingRunOptimizerSchema>;
 export type TrainingRunEvalMetric = z.infer<typeof TrainingRunEvalMetricSchema>;
 export type TrainingRunEvalSnapshot = z.infer<typeof TrainingRunEvalSnapshotSchema>;
 export type TrainingRunCheckpoint = z.infer<typeof TrainingRunCheckpointSchema>;

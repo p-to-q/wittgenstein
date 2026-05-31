@@ -30,6 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from research.training.tokenizer.config import smoke_config
 from research.training.tokenizer.train import train
+from research.training._shared.manifest import assert_training_run_manifest_shape
 
 
 def main() -> int:
@@ -53,6 +54,12 @@ def main() -> int:
     manifests = list((run_dir / "ckpts").glob("*.manifest.json"))
     if not manifests:
         print("[smoke] FAIL: no manifest written")
+        return 1
+    try:
+        manifest_payload = json.loads(sorted(manifests)[-1].read_text(encoding="utf-8"))
+        assert_training_run_manifest_shape(manifest_payload)
+    except Exception as exc:
+        print(f"[smoke] FAIL: manifest shape invalid: {exc}")
         return 1
     acceptance = summary.get("acceptance", {})
     if summary.get("final_step") != cfg.max_steps:
