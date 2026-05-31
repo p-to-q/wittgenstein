@@ -10,13 +10,13 @@ anything under `research/` or `python/`.
 The directional rule (one-way only):
 
 ```
-research/training/  ──may import──▶  packages/<pkg>/src/
-packages/<pkg>/src/ ──MUST NOT────▶  research/training/
+training/research Python  ──may import──▶  packages/<pkg>/src/
+packages/<pkg>/src/       ──MUST NOT────▶  research/ or python/
 ```
 
 CI enforces the publish surface via
 `scripts/check-npm-publish-tarball.mjs` and prevents
-`packages/*/src` -> `research/` imports via
+`packages/*/src` -> training/research Python imports via
 `scripts/check-no-research-imports.mjs`.
 
 See the operating doctrine:

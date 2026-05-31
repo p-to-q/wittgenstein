@@ -43,27 +43,43 @@ class TrainNumpySmokeTest(unittest.TestCase):
             )
 
             script = Path(__file__).with_name("train_numpy.py")
-            subprocess.run(
-                [
-                    sys.executable,
-                    str(script),
-                    "--data",
-                    str(data_path),
-                    "--out",
-                    str(out_path),
-                    "--epochs",
-                    "2",
-                    "--batch-size",
-                    "2",
-                    "--hidden",
-                    "8",
-                    "--seed",
-                    "7",
-                ],
-                check=True,
-                text=True,
-                capture_output=True,
-            )
+            command = [
+                sys.executable,
+                str(script),
+                "--data",
+                str(data_path),
+                "--out",
+                str(out_path),
+                "--epochs",
+                "2",
+                "--batch-size",
+                "2",
+                "--hidden",
+                "8",
+                "--seed",
+                "7",
+            ]
+            try:
+                result = subprocess.run(
+                    command,
+                    check=False,
+                    text=True,
+                    capture_output=True,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired as error:
+                self.fail(
+                    "train_numpy.py timed out "
+                    f"after {error.timeout}s\nstdout:\n{error.stdout or ''}\n"
+                    f"stderr:\n{error.stderr or ''}",
+                )
+
+            if result.returncode != 0:
+                self.fail(
+                    "train_numpy.py failed "
+                    f"with exit {result.returncode}\nstdout:\n{result.stdout}\n"
+                    f"stderr:\n{result.stderr}",
+                )
 
             payload = json.loads(out_path.read_text(encoding="utf-8"))
 
