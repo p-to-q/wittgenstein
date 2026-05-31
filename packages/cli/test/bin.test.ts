@@ -33,4 +33,45 @@ describe("@wittgenstein/cli bin", () => {
       "error: option '--seed <number>' argument '12abc' is invalid. Seed must be an integer.",
     );
   });
+
+  it("rejects malformed positive numeric options before running a codec", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "./bin/wittgenstein.js",
+        "sensor",
+        "stable ECG trace",
+        "--dry-run",
+        "--duration-sec",
+        "12abc",
+      ],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      "error: option '--duration-sec <number>' argument '12abc' is invalid. Value must be a positive number.",
+    );
+  });
+
+  it("rejects malformed positive integer options before running a codec", () => {
+    const result = spawnSync(
+      process.execPath,
+      ["./bin/wittgenstein.js", "asciipng", "hello", "--columns", "10xyz"],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      "error: option '--columns <n>' argument '10xyz' is invalid. Value must be a positive integer.",
+    );
+  });
 });

@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import {
   runCodecCommand,
   parseOptionalSeed,
+  parsePositiveNumberOption,
   parseSeedOption,
   type CommandRuntimeOptions,
 } from "./shared.js";
@@ -12,7 +13,7 @@ export function registerTtsCommand(program: Command): void {
     .argument("<prompt>", "prompt for a spoken output")
     .description("Run the speech/TTS route of the audio codec")
     .option("--ambient <ambient>", "auto | silence | rain | wind | city | forest | electronic")
-    .option("--duration-sec <number>", "requested duration in seconds")
+    .option("--duration-sec <number>", "requested duration in seconds", parsePositiveNumberOption)
     .option("--out <path>", "output path")
     .option("--seed <number>", "seed", parseSeedOption)
     .option("--dry-run", "skip the remote model call and exercise the manifest spine")
@@ -22,7 +23,7 @@ export function registerTtsCommand(program: Command): void {
         prompt: string,
         options: CommandRuntimeOptions & {
           ambient?: string;
-          durationSec?: string;
+          durationSec?: number;
         },
       ) => {
         await runCodecCommand(
@@ -33,7 +34,7 @@ export function registerTtsCommand(program: Command): void {
             seed: parseOptionalSeed(options.seed),
             route: "speech",
             ambient: options.ambient,
-            durationSec: options.durationSec ? Number.parseFloat(options.durationSec) : undefined,
+            durationSec: options.durationSec,
           },
           "wittgenstein tts",
           process.argv.slice(2),
