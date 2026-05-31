@@ -24,6 +24,7 @@ import {
 } from "../src/decoders/runtime.js";
 import { SEED_DECODER_ID, loadSeedDecoderBridge } from "../src/decoders/seed.js";
 import type { ImageDecoderBridge, ImageDecoderCapabilities } from "../src/decoders/types.js";
+import { DecoderFamilySchema } from "../src/schema.js";
 
 describe("decoder bridge contract (M1B prep)", () => {
   it("loadLlamagenDecoderBridge throws LLAMAGEN_BRIDGE_NOT_IMPLEMENTED with blocker links", async () => {
@@ -116,6 +117,10 @@ describe("decoder bridge contract (M1B prep)", () => {
     expect(result.warnings).toEqual([]);
 
     await bridge.unload();
+  });
+
+  it("does not silently register TiTok before the RFC and license gates reopen", () => {
+    expect(DecoderFamilySchema.safeParse("titok").success).toBe(false);
   });
 
   it("ensureOnnxRuntime throws DECODER_RUNTIME_UNAVAILABLE with installHint when peer is missing", async () => {
