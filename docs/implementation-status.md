@@ -10,7 +10,7 @@
 > - `docs/agent-guides/`
 > - `docs/archive-policy.md` if a row here starts to drift into historical-only status
 >
-> Last updated: 2026-05-26. "Ships" = produces real output today. "Stub" = typed interface,
+> Last updated: 2026-05-31. "Ships" = produces real output today. "Stub" = typed interface,
 > throws `NotImplementedError`, waiting for a renderer. "Partial" = some routes work.
 
 ---
@@ -43,12 +43,12 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 ### @wittgenstein/schemas
 
-| Export                                          | Status   | Notes                          |
-| ----------------------------------------------- | -------- | ------------------------------ |
-| `WittgensteinCodec<Req,Parsed>` interface       | ✅ Ships | Full type contract             |
-| `RenderResult`, `RenderCtx`, `RunManifest`      | ✅ Ships |                                |
-| `Modality` enum                                 | ✅ Ships | image / audio / video / sensor |
-| `SensorRequest`, `AudioRequest`, `ImageRequest` | ✅ Ships | Zod schemas                    |
+| Export                                          | Status   | Notes                                           |
+| ----------------------------------------------- | -------- | ----------------------------------------------- |
+| `WittgensteinCodec<Req,Parsed>` interface       | ✅ Ships | Full type contract                              |
+| `RenderResult`, `RenderCtx`, `RunManifest`      | ✅ Ships |                                                 |
+| `Modality` enum                                 | ✅ Ships | image / audio / video / sensor / svg / asciipng |
+| `SensorRequest`, `AudioRequest`, `ImageRequest` | ✅ Ships | Zod schemas                                     |
 
 ### @wittgenstein/core
 
@@ -112,21 +112,53 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | Upstream CLI backend      | ⚠️ Opt-in | `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli` keeps an explicit parity / experiment path                 |
 | `videoRender` receipts    | ✅ Ships  | Records backend, FPS, quality, dimensions, frame count / duration, output kind, tool versions         |
 
+### @wittgenstein/codec-svg
+
+| Component                        | Status    | Notes                                                                |
+| -------------------------------- | --------- | -------------------------------------------------------------------- |
+| Schema + Zod validation          | ✅ Ships  | Validates `SvgRequest` and SVG artifact output                       |
+| Local deterministic renderer     | ✅ Ships  | `source: "local"` emits vector art without network calls             |
+| Grammar engine HTTP source       | ⚠️ Opt-in | `source: "engine"` delegates to the research grammar engine contract |
+| SVG artifact + manifest receipts | ✅ Ships  | Writes SVG bytes and deterministic local receipts                    |
+
+### @wittgenstein/codec-asciipng
+
+| Component                         | Status    | Notes                                                                 |
+| --------------------------------- | --------- | --------------------------------------------------------------------- |
+| Schema + Zod validation           | ✅ Ships  | Validates grid size, cell size, and source                            |
+| Local character-grid PNG renderer | ✅ Ships  | Deterministic text-to-grid raster path, no image generator dependency |
+| Minimax text post-process source  | ⚠️ Opt-in | Calls text chat, normalizes lines, then rasterizes local PNG bytes    |
+| PNG artifact + manifest receipts  | ✅ Ships  | Deterministic local source covered by golden tests                    |
+
 ### @wittgenstein/cli
 
-| Command               | Status     | Notes                                                                 |
-| --------------------- | ---------- | --------------------------------------------------------------------- |
-| `wittgenstein image`  | ✅ Ships   | Calls codec-image; renders with available adapter/decoder             |
-| `wittgenstein audio`  | ✅ Ships   | Full speech + soundscape + music routes                               |
-| `wittgenstein sensor` | ✅ Ships   | Full signal expand + Loupe dashboard                                  |
-| `wittgenstein video`  | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in |
-| `wittgenstein doctor` | ✅ Ships   | Checks node, pnpm, env vars, package links, optional video MP4 deps   |
+| Command                     | Status     | Notes                                                                    |
+| --------------------------- | ---------- | ------------------------------------------------------------------------ |
+| `wittgenstein init`         | ✅ Ships   | Writes starter project config                                            |
+| `wittgenstein image`        | ✅ Ships   | Calls codec-image; renders with available adapter/decoder                |
+| `wittgenstein audio`        | ✅ Ships   | Full speech + soundscape + music routes                                  |
+| `wittgenstein tts`          | ✅ Ships   | Convenience alias for the audio codec's speech route                     |
+| `wittgenstein sensor`       | ✅ Ships   | Full signal expand + Loupe dashboard                                     |
+| `wittgenstein svg`          | ✅ Ships   | Local deterministic SVG; grammar-engine source is opt-in                 |
+| `wittgenstein asciipng`     | ✅ Ships   | Local text-grid PNG; Minimax text source is opt-in                       |
+| `wittgenstein video`        | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in    |
+| `wittgenstein animate-html` | ✅ Ships   | Builds self-contained slideshow HTML from SVG inputs                     |
+| `wittgenstein replay`       | ⚠️ Partial | Byte-parity replay for sensor, svg-local, and asciipng-local routes      |
+| `wittgenstein doctor`       | ✅ Ships   | Checks node, pnpm, env vars, package links, and runtime tier readiness   |
+| `wittgenstein install`      | ⚠️ Partial | Dry-run tier plans ship; real image install preflights blessed manifests |
+
+### @wittgenstein/process-runner
+
+| Component                      | Status   | Notes                                                       |
+| ------------------------------ | -------- | ----------------------------------------------------------- |
+| `runProcess()`                 | ✅ Ships | Generic subprocess timeout + bounded stdout/stderr capture  |
+| Optional-runtime probe helpers | ✅ Ships | Shared `--version` probing and doctor receipt normalization |
 
 ### @wittgenstein/sandbox
 
-| Component                             | Status                    |
-| ------------------------------------- | ------------------------- |
-| `exec.ts` — `execProgram()` interface | ✅ Ships (typed boundary) |
+| Component                             | Status  | Notes                                                       |
+| ------------------------------------- | ------- | ----------------------------------------------------------- |
+| `exec.ts` — `execProgram()` interface | 🔴 Stub | Typed production boundary; throws `SANDBOX_NOT_IMPLEMENTED` |
 
 ---
 
