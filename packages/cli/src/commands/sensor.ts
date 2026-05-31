@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import {
   runCodecCommand,
   parseOptionalSeed,
+  parsePositiveNumberOption,
   parseSeedOption,
   type CommandRuntimeOptions,
 } from "./shared.js";
@@ -12,8 +13,8 @@ export function registerSensorCommand(program: Command): void {
     .argument("<prompt>", "user prompt")
     .description("Run the sensor codec")
     .option("--signal <signal>", "ecg | temperature | gyro")
-    .option("--sample-rate-hz <number>", "requested sample rate")
-    .option("--duration-sec <number>", "requested duration in seconds")
+    .option("--sample-rate-hz <number>", "requested sample rate", parsePositiveNumberOption)
+    .option("--duration-sec <number>", "requested duration in seconds", parsePositiveNumberOption)
     .option("--out <path>", "output path")
     .option("--seed <number>", "seed", parseSeedOption)
     .option("--dry-run", "skip the remote model call and exercise the manifest spine")
@@ -23,8 +24,8 @@ export function registerSensorCommand(program: Command): void {
         prompt: string,
         options: CommandRuntimeOptions & {
           signal?: string;
-          sampleRateHz?: string;
-          durationSec?: string;
+          sampleRateHz?: number;
+          durationSec?: number;
         },
       ) => {
         await runCodecCommand(
@@ -34,10 +35,8 @@ export function registerSensorCommand(program: Command): void {
             out: options.out,
             seed: parseOptionalSeed(options.seed),
             signal: options.signal,
-            sampleRateHz: options.sampleRateHz
-              ? Number.parseFloat(options.sampleRateHz)
-              : undefined,
-            durationSec: options.durationSec ? Number.parseFloat(options.durationSec) : undefined,
+            sampleRateHz: options.sampleRateHz,
+            durationSec: options.durationSec,
           },
           "wittgenstein sensor",
           process.argv.slice(2),

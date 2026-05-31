@@ -2,15 +2,16 @@ import type { Command } from "commander";
 import {
   runCodecCommand,
   parseOptionalSeed,
+  parsePositiveIntegerOption,
   parseSeedOption,
   type CommandRuntimeOptions,
 } from "./shared.js";
 import { ensureMinimaxApiKeyInteractive } from "./minimax-key.js";
 
 export interface AsciipngCommandOptions extends CommandRuntimeOptions {
-  columns?: string;
-  rows?: string;
-  cell?: string;
+  columns?: number;
+  rows?: number;
+  cell?: number;
   source?: string;
   minimaxModel?: string;
 }
@@ -24,9 +25,9 @@ export function registerAsciipngCommand(program: Command): void {
     )
     .option("--out <path>", "output path (default under artifacts/runs/…)")
     .option("--seed <number>", "seed", parseSeedOption)
-    .option("--columns <n>", "grid width in characters", "60")
-    .option("--rows <n>", "grid height in characters", "30")
-    .option("--cell <n>", "pixel size per character cell", "4")
+    .option("--columns <n>", "grid width in characters", parsePositiveIntegerOption, 60)
+    .option("--rows <n>", "grid height in characters", parsePositiveIntegerOption, 30)
+    .option("--cell <n>", "pixel size per character cell", parsePositiveIntegerOption, 4)
     .option(
       "--source <local|minimax>",
       "local: deterministic pseudo-glyph; minimax: call text chat, normalize lines, rasterize",
@@ -42,9 +43,6 @@ export function registerAsciipngCommand(program: Command): void {
     )
     .option("--config <path>", "config path")
     .action(async (prompt: string, options: AsciipngCommandOptions) => {
-      const columns = Number.parseInt(options.columns ?? "60", 10);
-      const rows = Number.parseInt(options.rows ?? "30", 10);
-      const cell = Number.parseInt(options.cell ?? "4", 10);
       const source = options.source === "minimax" ? "minimax" : "local";
 
       if (source === "minimax" && !options.dryRun) {
@@ -55,9 +53,9 @@ export function registerAsciipngCommand(program: Command): void {
         {
           modality: "asciipng",
           prompt,
-          columns: Number.isFinite(columns) ? columns : 60,
-          rows: Number.isFinite(rows) ? rows : 30,
-          cell: Number.isFinite(cell) ? cell : 4,
+          columns: options.columns ?? 60,
+          rows: options.rows ?? 30,
+          cell: options.cell ?? 4,
           source,
           ...(options.minimaxModel ? { minimaxModel: options.minimaxModel } : {}),
           out: options.out,

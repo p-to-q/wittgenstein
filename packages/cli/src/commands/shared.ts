@@ -84,6 +84,32 @@ export function parseSeedOption(seed: string): number {
   return parsed;
 }
 
+export function parsePositiveNumberOption(value: string): number {
+  if (!/^(?:\d+|\d*\.\d+)$/.test(value)) {
+    throw new InvalidArgumentError("Value must be a positive number.");
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new InvalidArgumentError("Value must be a positive number.");
+  }
+
+  return parsed;
+}
+
+export function parsePositiveIntegerOption(value: string): number {
+  if (!/^\d+$/.test(value)) {
+    throw new InvalidArgumentError("Value must be a positive integer.");
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new InvalidArgumentError("Value must be a positive safe integer.");
+  }
+
+  return parsed;
+}
+
 export function parseOptionalSeed(seed: number | undefined): number | null | undefined {
   if (seed === undefined) {
     return undefined;

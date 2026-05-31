@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
 import { buildPlayableSlideshowHtml } from "@wittgenstein/codec-video";
-import { resolveExecutionRoot } from "./shared.js";
+import { parsePositiveNumberOption, resolveExecutionRoot } from "./shared.js";
 
 function collectSvgPath(value: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), value];
@@ -10,7 +10,7 @@ function collectSvgPath(value: string, previous: string[] | undefined): string[]
 
 export interface AnimateHtmlCommandOptions {
   out?: string;
-  durationSec?: string;
+  durationSec?: number;
   title?: string;
   once?: boolean;
   svg?: string[];
@@ -32,8 +32,18 @@ export function registerAnimateHtmlCommand(program: Command): void {
       "Write a self-contained HTML file: SVG slides animate in the browser via CSS (looping), no HyperFrames CLI.",
     )
     .requiredOption("--out <path>", "output .html path")
-    .option("--svg <path>", "SVG file as one slide (repeatable, order preserved)", collectSvgPath, [])
-    .option("--duration-sec <number>", "total seconds split evenly across slides", "6")
+    .option(
+      "--svg <path>",
+      "SVG file as one slide (repeatable, order preserved)",
+      collectSvgPath,
+      [],
+    )
+    .option(
+      "--duration-sec <number>",
+      "total seconds split evenly across slides",
+      parsePositiveNumberOption,
+      6,
+    )
     .option("--title <text>", "document title")
     .option("--once", "play the timeline once instead of looping")
     .action(async (options: AnimateHtmlCommandOptions) => {
@@ -49,8 +59,7 @@ export function registerAnimateHtmlCommand(program: Command): void {
         inlineSvgs.push(await readFile(abs, "utf8"));
       }
 
-      const totalSec = Number.parseFloat(options.durationSec ?? "6");
-      const durationsSec = resolveSlideSeconds(inlineSvgs.length, Number.isFinite(totalSec) ? totalSec : undefined);
+      const durationsSec = resolveSlideSeconds(inlineSvgs.length, options.durationSec);
 
       const html = buildPlayableSlideshowHtml({
         svgs: inlineSvgs,

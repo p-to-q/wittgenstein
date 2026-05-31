@@ -4,6 +4,7 @@ import type { Command } from "commander";
 import {
   runCodecCommand,
   parseOptionalSeed,
+  parsePositiveNumberOption,
   parseSeedOption,
   resolveExecutionRoot,
   type CommandRuntimeOptions,
@@ -14,7 +15,7 @@ function collectSvgPath(value: string, previous: string[] | undefined): string[]
 }
 
 export interface VideoCommandOptions extends CommandRuntimeOptions {
-  durationSec?: string;
+  durationSec?: number;
   svg?: string[];
 }
 
@@ -25,7 +26,7 @@ export function registerVideoCommand(program: Command): void {
     .description(
       "Run the video codec. With `--svg` (repeatable), embeds those SVG files as timed slides and skips the LLM.",
     )
-    .option("--duration-sec <number>", "requested duration in seconds")
+    .option("--duration-sec <number>", "requested duration in seconds", parsePositiveNumberOption)
     .option("--out <path>", "output path")
     .option("--seed <number>", "seed", parseSeedOption)
     .option(
@@ -51,7 +52,7 @@ export function registerVideoCommand(program: Command): void {
           prompt,
           out: options.out,
           seed: parseOptionalSeed(options.seed),
-          durationSec: options.durationSec ? Number.parseFloat(options.durationSec) : undefined,
+          durationSec: options.durationSec,
           ...(inlineSvgs.length > 0 ? { inlineSvgs } : {}),
         },
         "wittgenstein video",

@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   parseOptionalSeed,
+  parsePositiveIntegerOption,
+  parsePositiveNumberOption,
   parseSeedOption,
   resolveExecutionRoot,
 } from "../src/commands/shared.js";
@@ -38,6 +40,38 @@ describe("parseSeedOption", () => {
 
   it("rejects numbers outside JavaScript's safe integer range", () => {
     expect(() => parseSeedOption("9007199254740992")).toThrow("Seed must be a safe integer.");
+  });
+});
+
+describe("parsePositiveNumberOption", () => {
+  it("parses integer and decimal positive numbers", () => {
+    expect(parsePositiveNumberOption("7")).toBe(7);
+    expect(parsePositiveNumberOption("1.25")).toBe(1.25);
+    expect(parsePositiveNumberOption(".5")).toBe(0.5);
+  });
+
+  it("rejects truncated, zero, negative, and non-numeric values", () => {
+    expect(() => parsePositiveNumberOption("12abc")).toThrow("Value must be a positive number.");
+    expect(() => parsePositiveNumberOption("0")).toThrow("Value must be a positive number.");
+    expect(() => parsePositiveNumberOption("-1")).toThrow("Value must be a positive number.");
+    expect(() => parsePositiveNumberOption("nope")).toThrow("Value must be a positive number.");
+  });
+});
+
+describe("parsePositiveIntegerOption", () => {
+  it("parses positive integers", () => {
+    expect(parsePositiveIntegerOption("1")).toBe(1);
+    expect(parsePositiveIntegerOption("120")).toBe(120);
+  });
+
+  it("rejects truncated, decimal, zero, negative, and unsafe integer values", () => {
+    expect(() => parsePositiveIntegerOption("10xyz")).toThrow("Value must be a positive integer.");
+    expect(() => parsePositiveIntegerOption("1.5")).toThrow("Value must be a positive integer.");
+    expect(() => parsePositiveIntegerOption("0")).toThrow("Value must be a positive safe integer.");
+    expect(() => parsePositiveIntegerOption("-1")).toThrow("Value must be a positive integer.");
+    expect(() => parsePositiveIntegerOption("9007199254740992")).toThrow(
+      "Value must be a positive safe integer.",
+    );
   });
 });
 
