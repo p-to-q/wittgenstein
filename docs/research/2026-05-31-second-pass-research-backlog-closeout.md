@@ -41,7 +41,7 @@ one of the four patterns above or a concrete successor issue.
 | Decoder bridge delivery | `koriyoshi2041` / image bridge reviewer | `docs/research/2026-05-31-horizontal-engineering-matrix.md`, `docs/research/2026-05-31-local-optima-first-pass.md`, #402          | The bridge stays codec-owned; remote model metadata cannot be truth; lazy fetch must preserve local SHA/license/runtime failures.               | #402 owns lazy fetch, cache layout, SHA verification, license refusal, and optional ONNX Runtime wiring.               |
 | Video M4                | video/rendering reviewer                | `docs/research/2026-05-26-video-mp4-renderer-validation.md`, `docs/research/2026-05-31-architecture-benchmark-prior-art.md`, #476 | HyperFrames is a reference shape, not a vendored dependency; same-platform byte parity and cross-machine structural parity are separate claims. | #476 owns cross-machine structural parity and receipt portability.                                                     |
 | Dependency/tooling      | release/package reviewer                | `docs/research/2026-05-31-reusable-module-radar.md`, #543, `docs/research/2026-05-31-retrospective-research-debt-ledger.md`       | The repo keeps local extracted helpers first; DVC/Aim/HF Hub are adapt-only in their owning issues; Execa/MCP/Remotion are not imported now.    | Future dependency proposals should cite #306/#477 and land through the issue that owns the surface, not this umbrella. |
-| Public/adopter surface  | maintainer/release reviewer             | `docs/release/m1b-closeout-ledger.md`, `docs/research/2026-05-31-research-presentation-audit.md`, #507, this PR's roadmap refresh | Release wording is constrained to audit delivery / receipts / review gates, not "M1B complete" or trained weights.                              | #507 owns release-readiness and prerelease framing.                                                                    |
+| Public/adopter surface  | maintainer/release reviewer             | `docs/release/m1b-closeout-ledger.md`, `docs/research/2026-05-31-research-presentation-audit.md`, #507, this PR's roadmap refresh | Release wording is constrained to audit delivery / receipts / review gates, not "M1B complete" or trained weights.                              | #507 closes the release-readiness umbrella; future public-release work should be a release PR or narrower successor.   |
 
 ## Remaining Open Gates
 
@@ -53,7 +53,10 @@ open:
 - #399/#400: experiment tracking plus DVC/GPU sweep infrastructure.
 - #263: sensor measurement and operator receipt gate.
 - #476: MP4 cross-machine structural parity.
-- #507: M1B release-readiness and prerelease criteria.
+
+The #507 release-readiness umbrella is no longer an execution gate once the
+final closeout ledger lands; it exists to constrain wording, not to carry
+decoder, training, or lab work.
 
 These are not failures of #440. They are the concrete issues #440 was meant to
 create or route toward.
