@@ -43,6 +43,13 @@ class TrainConfig:
     image_size: int = 256
     num_workers: int = 8
 
+    # Dataset license → checkpoint publishability. SAFE DEFAULT is
+    # "research-only": a checkpoint trained on borrowed/uncommitted data must
+    # NOT be published. Set to "permissive" ONLY when the corpus is verified
+    # license-clean (e.g. an Apache/CC-BY snapshot). This flows verbatim into
+    # the manifest's checkpoint.weightsLicense and gates downstream release.
+    dataset_license: str = "research-only"  # {"research-only", "permissive"}
+
     # Batch size:
     #   - LlamaGen recipe: 128 per-GPU at 256² on A100-80G is comfortable.
     #   - 8× A800-80GB single node → effective 1024 with DDP, no grad

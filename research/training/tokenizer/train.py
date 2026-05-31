@@ -580,7 +580,14 @@ def _write_checkpoint(
             discriminator.module if hasattr(discriminator, "module") else discriminator
         ).state_dict()
     torch.save(payload, ckpt_path)
-    weights_license = "permissive" if cfg.smoke or not cfg.train_data_root else "research-only"
+    # Smoke / synthetic data has no license encumbrance. For real data, the
+    # operator must declare the corpus license; default research-only keeps an
+    # undeclared run un-publishable. Anything other than "permissive" is
+    # treated as research-only (fail safe).
+    if cfg.smoke or not cfg.train_data_root:
+        weights_license = "permissive"
+    else:
+        weights_license = "permissive" if cfg.dataset_license == "permissive" else "research-only"
     manifest = TrainingRunManifest(
         schemaVersion=TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
         runId=run_id,
@@ -618,6 +625,21 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--smoke", action="store_true", help="Run smoke config (5 steps, synthetic)")
     p.add_argument("--num-workers", type=int, default=8)
+    p.add_argument("--val-data-root", default="", help="Validation image folder for end-of-run eval")
+    p.add_argument(
+        "--dataset-license",
+        default="research-only",
+        choices=["research-only", "permissive"],
+        help="Corpus license. 'permissive' marks the checkpoint publishable; "
+             "use ONLY for verified license-clean data. Default research-only.",
+    )
+    gan_group = p.add_mutually_exclusive_group()
+    gan_group.add_argument("--gan", dest="gan_enabled", action="store_true", default=None,
+                           help="Enable the PatchGAN adversarial term.")
+    gan_group.add_argument("--no-gan", dest="gan_enabled", action="store_false",
+                           help="Disable the GAN term (reconstruction-only).")
+    p.add_argument("--gan-on-step", type=int, default=None,
+                   help="Step at which the GAN term turns on (warmup recon-only before).")
     return p
 
 
@@ -628,15 +650,21 @@ def main():
     else:
         cfg = TrainConfig(
             train_data_root=args.train_data_root,
+            val_data_root=args.val_data_root,
             out_root=args.out_root,
             max_steps=args.max_steps,
             batch_size_per_gpu=args.batch_size_per_gpu,
             image_size=args.image_size,
             seed=args.seed,
             num_workers=args.num_workers,
+            dataset_license=args.dataset_license,
         )
         cfg.tokenizer = TokenizerConfig(codebook_embed_dim=args.codebook_embed_dim, image_size=args.image_size)
         cfg.optim = OptimConfig(lr=args.lr)
+        if args.gan_enabled is not None:
+            cfg.gan_enabled = args.gan_enabled
+        if args.gan_on_step is not None:
+            cfg.gan_on_step = args.gan_on_step
     train(cfg)
 
 
