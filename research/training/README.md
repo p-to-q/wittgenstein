@@ -1,11 +1,11 @@
 # Wittgenstein training stack
 
-This folder hosts the **GPU training programs** for Wittgenstein-native
-models: tokenizers, learned adapters, and the native LLM head distilled from
-a teacher. It is **not** part of the TypeScript build graph and is **not**
-shipped in any npm tarball. The published packages depend on
-`@wittgenstein/core` and `@wittgenstein/codec-*` only — never on anything
-under `research/`.
+This folder hosts the canonical **GPU training programs** for
+Wittgenstein-native models: tokenizers, learned adapters, and the native LLM
+head distilled from a teacher. It is **not** part of the TypeScript build
+graph and is **not** shipped in any npm tarball. The published packages
+depend on `@wittgenstein/core` and `@wittgenstein/codec-*` only — never on
+anything under `research/` or `python/`.
 
 The directional rule (one-way only):
 
@@ -26,6 +26,29 @@ See the operating doctrine:
 - [docs/research/2026-05-13-m1b-prep-research.md](../../docs/research/2026-05-13-m1b-prep-research.md) — Phase-0 literature floor (LlamaGen, Open-MAGVIT2, TiTok, VAR)
 - [docs/research/2026-05-27-pre-training-readiness.md](../../docs/research/2026-05-27-pre-training-readiness.md) — engineering-readiness audit run right before specialist kickoff (Tier-0 self-check, latent bugs found + fixed, open handoff issues)
 - [docs/contributing/training-setup.md](../../docs/contributing/training-setup.md) — environment setup for contributors
+
+## Relationship to `python/image_adapter/`
+
+`python/image_adapter/` is a recognized but narrow M1B adapter-training
+surface, not a second general home for Phase-1 GPU training. It owns the
+scene-spec-to-VQ-latent MLP bridge and its small NumPy/PyTorch parity
+scripts. This directory remains the canonical home for the larger Phase-1
+GPU programs.
+
+Use the names precisely:
+
+- `research/training/adapter/`: learned MaskGIT-style L4 seed-code adapter.
+- `python/image_adapter/`: scene-spec-to-discrete-latent MLP bridge.
+
+If the image-adapter trainer grows into shared datasets, training manifests,
+or multi-GPU/lab execution, move or split that grown surface under
+`research/training/image-adapter/` through a focused PR. Until then, the
+publish guard and CI smoke cover it as a separate training/research Python
+surface.
+
+See the [training homes placement decision][training-homes-decision] for #519.
+
+[training-homes-decision]: ../../docs/research/2026-05-31-training-homes-decision.md
 
 ## Subprograms
 

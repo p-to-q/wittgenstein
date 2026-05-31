@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 // CI guard: verify no file under packages/<pkg>/src/ imports from
-// research/. The training stack lives in research/training/ and MUST
-// stay outside the npm publish surface — packages depend on
-// core/codec-* only, never on training code.
+// training/research Python surfaces. The training stack lives in
+// research/training/ plus the narrow python/image_adapter trainer and MUST
+// stay outside the npm publish surface — packages depend on core/codec-*
+// only, never on training code.
 //
 // Per the delivery doctrine
 // (docs/research/2026-05-13-delivery-and-componentization.md):
 //
 //     Training scripts may import from packages/<pkg> (one-way dep,
 //     contributor uses the harness inside training jobs). No file
-//     under packages/<pkg>/src/ may import from research/.
+//     under packages/<pkg>/src/ may import from training/research Python.
 //
 // Run: node scripts/check-no-research-imports.mjs
 // Exits 0 on clean, 1 on any forbidden import.
@@ -59,28 +60,41 @@ function normalizeRel(path) {
   return path.split("\\").join("/");
 }
 
-function isResearchRel(rel) {
+function isTrainingSurfaceRel(rel) {
   const normalized = normalizeRel(rel);
-  return normalized === "research" || normalized.startsWith("research/");
+  return (
+    normalized === "research" ||
+    normalized.startsWith("research/") ||
+    normalized === "python" ||
+    normalized.startsWith("python/")
+  );
 }
 
-function importsResearch(specifier, filePath) {
-  // Relative imports: resolve and check if the target lands inside research/.
+function importsTrainingSurface(specifier, filePath) {
+  // Relative imports: resolve and check if the target lands inside a
+  // training/research Python surface.
   if (specifier.startsWith(".")) {
     const targetAbs = resolve(dirname(filePath), specifier);
-    return isResearchRel(relative(repoRoot, targetAbs));
+    return isTrainingSurfaceRel(relative(repoRoot, targetAbs));
   }
-  // Absolute import specifiers: catch repo-root `/research/...` imports and
-  // absolute filesystem paths that resolve inside this checkout's research/.
+  // Absolute import specifiers: catch repo-root `/research/...` or
+  // `/python/...` imports and absolute filesystem paths that resolve inside
+  // this checkout's training/research Python surfaces.
   if (specifier.startsWith("/")) {
-    if (specifier === "/research" || specifier.startsWith("/research/")) {
+    if (
+      specifier === "/research" ||
+      specifier.startsWith("/research/") ||
+      specifier === "/python" ||
+      specifier.startsWith("/python/")
+    ) {
       return true;
     }
-    return isResearchRel(relative(repoRoot, specifier));
+    return isTrainingSurfaceRel(relative(repoRoot, specifier));
   }
-  // Package names: look for any hint at "research" — we don't publish a
-  // @wittgenstein/research package, so any such bare specifier is a leak.
-  return /^research\/|^@wittgenstein\/training\//.test(specifier);
+  // Package names: look for any hint at the training surfaces — we don't
+  // publish @wittgenstein/research, @wittgenstein/training, or repo-root
+  // python packages, so any such bare specifier is a leak.
+  return /^research\/|^python\/|^@wittgenstein\/(?:research|training)\//.test(specifier);
 }
 
 async function main() {
@@ -106,7 +120,7 @@ async function main() {
       const text = await readFile(file, "utf8");
       const imports = findImports(text);
       for (const spec of imports) {
-        if (importsResearch(spec, file)) {
+        if (importsTrainingSurface(spec, file)) {
           violations.push({
             file: relative(repoRoot, file),
             spec,
@@ -117,17 +131,22 @@ async function main() {
   }
 
   if (violations.length === 0) {
-    process.stdout.write("✓ no packages/*/src file imports from research/.\n");
+    process.stdout.write(
+      "✓ no packages/*/src file imports from training/research Python surfaces.\n",
+    );
     process.exit(0);
   }
 
-  process.stderr.write(`✗ ${violations.length} forbidden research/ import(s):\n\n`);
+  const violationSummary =
+    `✗ ${violations.length} forbidden training/research ` + "Python import(s):\n\n";
+  process.stderr.write(violationSummary);
   for (const v of violations) {
     process.stderr.write(`  ${v.file}\n    imports: ${v.spec}\n`);
   }
   process.stderr.write(
-    "\nTraining code lives in research/training/ and stays outside the\n" +
-      "npm publish surface. See docs/research/2026-05-13-delivery-and-componentization.md.\n",
+    "\nTraining code lives in research/training/ or python/image_adapter/ and stays\n" +
+      "outside the npm publish surface. See " +
+      "docs/research/2026-05-13-delivery-and-componentization.md.\n",
   );
   process.exit(1);
 }

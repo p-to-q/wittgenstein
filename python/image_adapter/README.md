@@ -1,6 +1,21 @@
 # Image adapter (Python)
 
+Status: recognized narrow training surface for #519. It is intentionally
+separate from `research/training/` while it remains a scene-spec-to-VQ-latent
+MLP bridge with small parity scripts. It is not a second generic training
+home.
+
 Trains a **small MLP** that maps a canonical `ImageSceneSpec` (JSON, no `providerLatents`) to discrete latent indices. No LLM fine-tuning.
+
+Naming boundary:
+
+- `python/image_adapter/`: scene-spec-to-discrete-latent MLP bridge.
+- `research/training/adapter/`: learned MaskGIT-style L4 seed-code adapter.
+
+If this surface grows into shared manifests, lab/GPU execution, or a common
+Phase-1 dataset pipeline, move or split that grown part under
+`research/training/image-adapter/` instead of letting `python/` become a
+second training tree.
 
 ## Requirements
 
@@ -21,6 +36,17 @@ Apple Silicon: PyTorch uses MPS when available.
 | `eval_all.py` | one-shot runner: token metrics + spectrum health checks |
 | `spectrum_check.py` | singular-value spectrum + effective-rank health checks for adapter weights (detect rank-collapse) |
 | `build_natural_dataset.py` | optional: generate or download a larger, category-bounded dataset |
+
+CI owns only the stdlib compile pass plus the pure-NumPy smoke:
+
+```bash
+python3 -m compileall python/image_adapter
+python3 -m unittest discover -s python/image_adapter -p 'test_*.py' -v
+```
+
+That proves the exported `witt.image.adapter.mlp/v0.1` JSON contract stays
+loadable. It does not claim the PyTorch trainer, real dataset build, or model
+quality gate has run.
 
 ## Environment (runtime)
 
