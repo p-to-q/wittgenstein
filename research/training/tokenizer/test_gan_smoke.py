@@ -1,11 +1,13 @@
 """End-to-end smoke test for GAN-enabled tokenizer training (CPU, synthetic).
 
-Proves the PatchGAN discriminator is actually wired into the train loop:
+Proves the PatchGAN discriminator AND the eval harness are wired into the
+train loop:
   - a GAN-on run completes without error on synthetic data,
   - the discriminator trains (d_loss appears once past gan_on_step),
   - the checkpoint carries BOTH the generator ("model") and "discriminator"
     state, while keeping the "model"/"step" keys that recon_check.py and
-    integrity_check.py depend on.
+    integrity_check.py depend on,
+  - the final manifest carries an eval snapshot (reconstruction metrics).
 
 Run:  python -m research.training.tokenizer.test_gan_smoke
 Exit 0 = pass. Single-process / CPU; the DDP path is exercised on the cluster.
@@ -13,6 +15,7 @@ Exit 0 = pass. Single-process / CPU; the DDP path is exercised on the cluster.
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -69,11 +72,25 @@ def main() -> int:
         for key in ("model", "step", "discriminator"):
             assert key in payload, f"checkpoint missing '{key}'; keys={list(payload)}"
 
+        # Eval harness ran and reached the manifest.
+        assert summary["acceptance"].get("eval_snapshot_count", 0) >= 1, (
+            f"eval snapshot not produced; acceptance={summary['acceptance']}"
+        )
+        manifest_path = Path(summary["run_dir"]) / "ckpts" / "final.manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        snaps = manifest.get("evalSnapshots", [])
+        assert snaps, f"manifest has no evalSnapshots; keys={list(manifest)}"
+        metric_names = [m["name"] for m in snaps[0]["metrics"]]
+        assert "n_images_evaluated" in metric_names or metric_names, (
+            f"eval snapshot has no metrics; snapshot={snaps[0]}"
+        )
+
         print(f"[gan-smoke] steps={summary['final_step']} "
               f"d_loss={comps['d_loss']:.4f} gan_g={comps['gan_g']:.4f} "
               f"l2={comps.get('l2', float('nan')):.4f}")
         print(f"[gan-smoke] checkpoint keys={sorted(payload)} "
               f"disc_tensors={len(payload['discriminator'])}")
+        print(f"[gan-smoke] eval snapshot metrics={metric_names}")
         print("[gan-smoke] PASS")
         return 0
 

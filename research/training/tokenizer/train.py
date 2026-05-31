@@ -50,6 +50,9 @@ from research.training._shared.experiment_tracking import (  # noqa: E402
 from research.training._shared.manifest import (  # noqa: E402
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
     TrainingRunManifest,
+    TrainingRunEvalDataset,
+    TrainingRunEvalMetric,
+    TrainingRunEvalSnapshot,
     capture_dataset_fingerprint,
     capture_docker_image_sha,
     capture_git_sha,
@@ -62,6 +65,10 @@ from research.training._shared.manifest import (  # noqa: E402
     utc_now_iso,
     write_training_config_snapshot,
     write_training_run_manifest,
+)
+from research.training._shared.eval import (  # noqa: E402
+    TokenizerEvalConfig,
+    evaluate_tokenizer_reconstruction,
 )
 from research.training._shared.dataset import (  # noqa: E402
     ImageFolderDataset,
@@ -421,8 +428,14 @@ def train(cfg: TrainConfig) -> dict:
 
     summary["final_step"] = step
 
-    # ---- Final checkpoint + manifest ----
+    # ---- Final eval (best-effort) + checkpoint + manifest ----
     if is_main(rank):
+        eval_snapshots = _maybe_run_eval(cfg, model, device, step, world)
+        summary["acceptance"]["eval_snapshot_count"] = len(eval_snapshots)
+        if eval_snapshots:
+            summary["final_eval_metrics"] = {
+                m.name: m.value for m in eval_snapshots[0].metrics
+            }
         final_manifest_path = _write_checkpoint(
             run_dir,
             model,
@@ -439,6 +452,7 @@ def train(cfg: TrainConfig) -> dict:
             dataset_fp,
             config_ref,
             discriminator=discriminator,
+            eval_snapshots=eval_snapshots,
             final=True,
         )
         final_ckpt = run_dir / "ckpts" / "final.pt"
@@ -467,6 +481,78 @@ def train(cfg: TrainConfig) -> dict:
     return summary
 
 
+# Metric direction for manifest snapshots: True = higher is better.
+_EVAL_METRIC_HIGHER_BETTER = {
+    "psnr": True,
+    "ssim": True,
+    "lpips": False,
+    "rfid": False,
+    "codebook_used_pct": True,
+}
+
+
+def _maybe_run_eval(cfg, model, device, step, world) -> list:
+    """Run reconstruction eval on a val set; return [] on any failure.
+
+    Eval must never kill a training run, so every path is guarded. Uses
+    `val_data_root` when set, else a small synthetic set for smoke. Heavy
+    metrics (rFID) are left to the eval harness's own dependency degradation.
+    """
+    try:
+        if cfg.val_data_root:
+            val_ds = ImageFolderDataset(
+                Path(cfg.val_data_root), image_size=cfg.image_size, with_labels=False
+            )
+            split = "val"
+            ds_name = Path(cfg.val_data_root).name
+        elif cfg.smoke or not cfg.train_data_root:
+            val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
+            split = "synthetic-val"
+            ds_name = "synthetic"
+        else:
+            return []  # real training run with no val set declared — skip
+
+        loader = DataLoader(
+            val_ds,
+            batch_size=cfg.batch_size_per_gpu,
+            shuffle=False,
+            num_workers=0,
+            drop_last=False,
+        )
+        eval_cfg = TokenizerEvalConfig(
+            eval_set_name=ds_name,
+            batch_size=cfg.batch_size_per_gpu,
+            compute_rfid=not cfg.smoke,  # rFID is slow + needs clean-fid; skip in smoke
+        )
+        core = model.module if world > 1 else model
+        was_training = core.training
+        core.eval()
+        metrics = evaluate_tokenizer_reconstruction(core, loader, device, eval_cfg)
+        if was_training:
+            core.train()
+
+        metric_objs = [
+            TrainingRunEvalMetric(
+                name=k,
+                value=float(v),
+                higherIsBetter=_EVAL_METRIC_HIGHER_BETTER.get(k),
+            )
+            for k, v in metrics.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+        ]
+        snapshot = TrainingRunEvalSnapshot(
+            modality="image",
+            dataset=TrainingRunEvalDataset(name=ds_name, split=split, sha256="pending"),
+            step=step,
+            generatedAt=utc_now_iso(),
+            metrics=metric_objs,
+        )
+        return [snapshot]
+    except Exception as exc:  # eval is best-effort; never fail the run
+        print(f"[eval] skipped due to error: {type(exc).__name__}: {exc}")
+        return []
+
+
 def _write_checkpoint(
     run_dir,
     model,
@@ -483,6 +569,7 @@ def _write_checkpoint(
     dataset_fp,
     config_ref,
     discriminator=None,
+    eval_snapshots=None,
     final=False,
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
@@ -510,7 +597,7 @@ def _write_checkpoint(
         wallClockSec=time.perf_counter() - t0,
         hardware=hardware,
         optimizer=capture_optimizer_checkpoint(optim, name="AdamW"),
-        evalSnapshots=[],
+        evalSnapshots=eval_snapshots or [],
         checkpoint=capture_training_checkpoint(ckpt_path, weights_license=weights_license),
         trainingConfig=config_ref,
     )
