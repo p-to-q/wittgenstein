@@ -91,6 +91,7 @@ from research.training.tokenizer.model import (  # noqa: E402
     latent_grid,
     param_count,
 )
+from research.training.tokenizer.resume import resume_start_step  # noqa: E402
 
 
 # ---------- DDP plumbing ----------
@@ -165,6 +166,17 @@ def warmup_then_constant(step: int, warmup: int, base_lr: float) -> float:
     return base_lr
 
 
+def _unwrap(module):
+    return module.module if hasattr(module, "module") else module
+
+
+def _optimizer_to_device(optimizer, device: torch.device) -> None:
+    for state in optimizer.state.values():
+        for key, value in state.items():
+            if torch.is_tensor(value):
+                state[key] = value.to(device)
+
+
 # ---------- Train loop ----------
 
 
@@ -216,9 +228,6 @@ def train(cfg: TrainConfig) -> dict:
             f"K={cfg.tokenizer.codebook_size} D={cfg.tokenizer.codebook_embed_dim}"
         )
 
-    if world > 1:
-        model = _ddp_wrap(model, device, local_rank, find_unused_parameters=False)
-
     # ---- Loss ----
     lpips_mod = None
     if cfg.lpips_enabled and not cfg.smoke:
@@ -247,15 +256,55 @@ def train(cfg: TrainConfig) -> dict:
             lr=cfg.disc_lr,
             betas=(cfg.optim.beta1, cfg.optim.beta2),
         )
-        discriminator = (
-            _ddp_wrap(disc_core, device, local_rank)
-            if world > 1
-            else disc_core
-        )
+        discriminator = disc_core
         if is_main(rank):
             dn = sum(p.numel() for p in disc_core.parameters())
             print(f"[gan] PatchGAN discriminator params={dn:,} gan_on_step={gan_on_step} "
                   f"gan_weight={cfg.gan_weight}")
+
+    # ---- Optimizer ----
+    optim = torch.optim.AdamW(
+        model.parameters(),
+        lr=cfg.optim.lr,
+        betas=(cfg.optim.beta1, cfg.optim.beta2),
+        weight_decay=cfg.optim.weight_decay,
+    )
+
+    resumed_step = 0
+    resume_from = Path(cfg.resume_from) if cfg.resume_from else None
+    if resume_from is not None:
+        if not resume_from.exists():
+            raise FileNotFoundError(f"--resume-from checkpoint not found: {resume_from}")
+        ckpt = torch.load(resume_from, map_location="cpu", weights_only=True)
+        model.load_state_dict(ckpt["model"])
+        checkpoint_step = int(ckpt.get("step", 0))
+        resumed_step = resume_start_step(checkpoint_step, resume_from)
+        if "optimizer" in ckpt:
+            optim.load_state_dict(ckpt["optimizer"])
+            _optimizer_to_device(optim, device)
+        if discriminator is not None and "discriminator" in ckpt:
+            _unwrap(discriminator).load_state_dict(ckpt["discriminator"])
+        if discriminator is not None and d_optim is not None and "disc_optimizer" in ckpt:
+            d_optim.load_state_dict(ckpt["disc_optimizer"])
+            _optimizer_to_device(d_optim, device)
+        if is_main(rank):
+            restored = ["model", "step"]
+            if "optimizer" in ckpt:
+                restored.append("optimizer")
+            if discriminator is not None and "discriminator" in ckpt:
+                restored.append("discriminator")
+            if discriminator is not None and "discriminator" not in ckpt:
+                print("[resume] checkpoint has no discriminator state; discriminator starts fresh", flush=True)
+            print(
+                f"[resume] loaded {resume_from} checkpoint_step={checkpoint_step} "
+                f"next_step={resumed_step} ({', '.join(restored)})",
+                flush=True,
+            )
+
+    if world > 1:
+        model = _ddp_wrap(model, device, local_rank, find_unused_parameters=False)
+        if discriminator is not None:
+            discriminator = _ddp_wrap(discriminator, device, local_rank)
 
     loss_fn = TokenizerLoss(
         weights=LossWeights(gan=cfg.gan_weight),
@@ -263,14 +312,6 @@ def train(cfg: TrainConfig) -> dict:
         discriminator=discriminator,
         gan_on_step=gan_on_step,
     ).to(device)
-
-    # ---- Optimizer ----
-    optim = torch.optim.AdamW(
-        (model.module if world > 1 else model).parameters(),
-        lr=cfg.optim.lr,
-        betas=(cfg.optim.beta1, cfg.optim.beta2),
-        weight_decay=cfg.optim.weight_decay,
-    )
 
     # ---- Output paths ----
     # In DDP, only rank 0 invents the run_id; broadcast so all ranks agree
@@ -323,8 +364,10 @@ def train(cfg: TrainConfig) -> dict:
 
     # ---- Train loop ----
     t0 = time.perf_counter()
-    step = 0
+    step = resumed_step
     model.train()
+    if world > 1 and sampler is not None:
+        sampler.set_epoch(int(step // max(1, len(train_loader))))
     epoch_iter = iter(train_loader)
     last_log_t = t0
 
@@ -440,6 +483,7 @@ def train(cfg: TrainConfig) -> dict:
                 dataset_fp,
                 config_ref,
                 discriminator=discriminator,
+                d_optim=d_optim,
             )
 
         step += 1
@@ -470,6 +514,7 @@ def train(cfg: TrainConfig) -> dict:
             dataset_fp,
             config_ref,
             discriminator=discriminator,
+            d_optim=d_optim,
             eval_snapshots=eval_snapshots,
             final=True,
         )
@@ -628,16 +673,17 @@ def _write_checkpoint(
     dataset_fp,
     config_ref,
     discriminator=None,
+    d_optim=None,
     eval_snapshots=None,
     final=False,
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
-    state = (model.module if hasattr(model, "module") else model).state_dict()
-    payload = {"model": state, "step": step}
+    state = _unwrap(model).state_dict()
+    payload = {"model": state, "step": step, "optimizer": optim.state_dict()}
     if discriminator is not None:
-        payload["discriminator"] = (
-            discriminator.module if hasattr(discriminator, "module") else discriminator
-        ).state_dict()
+        payload["discriminator"] = _unwrap(discriminator).state_dict()
+    if d_optim is not None:
+        payload["disc_optimizer"] = d_optim.state_dict()
     torch.save(payload, ckpt_path)
     # Smoke / synthetic data has no license encumbrance. For real data, the
     # operator must declare the corpus license; default research-only keeps an
@@ -680,10 +726,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--batch-size-per-gpu", type=int, default=128)
     p.add_argument("--image-size", type=int, default=256)
     p.add_argument("--codebook-embed-dim", type=int, default=32)
+    p.add_argument("--entropy-loss-ratio", type=float, default=None,
+                   help="Codebook entropy-loss weight (>0 fights codebook collapse).")
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--smoke", action="store_true", help="Run smoke config (5 steps, synthetic)")
     p.add_argument("--num-workers", type=int, default=8)
+    p.add_argument("--checkpoint-every", type=int, default=None,
+                   help="Write a checkpoint + manifest every N steps.")
+    p.add_argument("--no-lpips", dest="lpips_enabled", default=None, action="store_false",
+                   help="Disable LPIPS perceptual loss (default: enabled).")
     p.add_argument("--val-data-root", default="", help="Validation image folder for end-of-run eval")
     p.add_argument(
         "--dataset-license",
@@ -699,6 +751,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                            help="Disable the GAN term (reconstruction-only).")
     p.add_argument("--gan-on-step", type=int, default=None,
                    help="Step at which the GAN term turns on (warmup recon-only before).")
+    p.add_argument("--resume-from", default="",
+                   help="Checkpoint .pt to resume model weights + step from.")
     return p
 
 
@@ -706,6 +760,9 @@ def main():
     args = _build_arg_parser().parse_args()
     if args.smoke:
         cfg = smoke_config()
+        cfg.resume_from = args.resume_from
+        if args.checkpoint_every is not None:
+            cfg.checkpoint_every = args.checkpoint_every
     else:
         cfg = TrainConfig(
             train_data_root=args.train_data_root,
@@ -717,9 +774,16 @@ def main():
             seed=args.seed,
             num_workers=args.num_workers,
             dataset_license=args.dataset_license,
+            resume_from=args.resume_from,
         )
         cfg.tokenizer = TokenizerConfig(codebook_embed_dim=args.codebook_embed_dim, image_size=args.image_size)
         cfg.optim = OptimConfig(lr=args.lr)
+        if args.entropy_loss_ratio is not None:
+            cfg.tokenizer.entropy_loss_ratio = args.entropy_loss_ratio
+        if args.checkpoint_every is not None:
+            cfg.checkpoint_every = args.checkpoint_every
+        if args.lpips_enabled is not None:
+            cfg.lpips_enabled = args.lpips_enabled
         if args.gan_enabled is not None:
             cfg.gan_enabled = args.gan_enabled
         if args.gan_on_step is not None:
