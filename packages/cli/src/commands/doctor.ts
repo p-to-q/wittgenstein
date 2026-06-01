@@ -19,6 +19,9 @@ import { runtimeTierReadiness } from "../tiers.js";
 
 type DoctorCheck = RuntimeProbeReceipt;
 
+const NODE_ENGINE_MINIMUM = [20, 19, 0] as const;
+const HYPERFRAMES_CLI_NODE_MINIMUM = [22, 0, 0] as const;
+
 interface DoctorFileCheck {
   status: "ok" | "missing" | "invalid" | "skipped";
   path?: string;
@@ -72,14 +75,14 @@ export function registerDoctorCommand(program: Command): void {
         cwd: workspaceRoot,
         ...(options.config ? { configPath: options.config } : {}),
       });
-      const nodeMajor = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
+      const nodeSatisfied = isNodeVersionAtLeast(process.versions.node, NODE_ENGINE_MINIMUM);
 
       console.log(
         JSON.stringify(
           {
-            ok: nodeMajor >= 20,
+            ok: nodeSatisfied,
             nodeVersion: process.version,
-            nodeSatisfied: nodeMajor >= 20,
+            nodeSatisfied,
             hasApiKey: Boolean(process.env[config.llm.apiKeyEnv]),
             llmProvider: config.llm.provider,
             llmModel: config.llm.model,
@@ -138,8 +141,7 @@ function checkVideoRenderDependencies(): VideoRenderDoctor {
 }
 
 function checkNodeForHyperframesCli(): DoctorCheck {
-  const major = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
-  if (major >= 22) {
+  if (isNodeVersionAtLeast(process.versions.node, HYPERFRAMES_CLI_NODE_MINIMUM)) {
     return createRuntimeProbeReceipt({
       status: "ok",
       runtime: "node",
@@ -155,6 +157,42 @@ function checkNodeForHyperframesCli(): DoctorCheck {
     message:
       "HyperFrames CLI currently requires Node.js >=22. Use the distilled internal backend on Node 20, or run the npx backend under Node 22+.",
   });
+}
+
+export function isNodeVersionAtLeast(
+  version: string,
+  minimum: readonly [number, number, number],
+): boolean {
+  const parsed = parseNodeVersion(version);
+  if (!parsed) {
+    return false;
+  }
+
+  const [major, minor, patch] = parsed;
+  const [minimumMajor, minimumMinor, minimumPatch] = minimum;
+
+  if (major !== minimumMajor) {
+    return major > minimumMajor;
+  }
+  if (minor !== minimumMinor) {
+    return minor > minimumMinor;
+  }
+
+  return patch >= minimumPatch;
+}
+
+function parseNodeVersion(version: string): readonly [number, number, number] | null {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = match.slice(1).map((part) => Number(part));
+  if (parsed.some((part) => !Number.isSafeInteger(part))) {
+    return null;
+  }
+
+  return parsed as [number, number, number];
 }
 
 function readVideoBackend(): "distilled-internal" | "npx-cli" {
