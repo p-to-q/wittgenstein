@@ -81,6 +81,7 @@ class TrainConfig:
 
     # Logging / output
     out_root: str = ""           # required; ends up as research/training/_shared/runs/<run-id>/
+    resume_from: str = ""        # optional checkpoint .pt path; loads model weights + step
     aim_repo: str = ""           # optional aim tracker repo; "" = disabled
     seed: int = 0
 
