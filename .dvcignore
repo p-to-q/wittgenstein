@@ -1,0 +1,5 @@
+# DVC itself should not scan generated run artifacts or package caches.
+artifacts/runs/
+artifacts/benchmarks/
+node_modules/
+research/training/_shared/runs/

@@ -44,6 +44,9 @@ describe("@wittgenstein/schemas — trackers (#487 item 2)", () => {
       "https://github.com/p-to-q/wittgenstein/issues/402",
     );
     expect(TRACKERS.installTierCli).toBe("https://github.com/p-to-q/wittgenstein/issues/403");
+    expect(TRACKERS.trainingDataSweepInfra).toBe(
+      "https://github.com/p-to-q/wittgenstein/issues/400",
+    );
     expect(CLOSED_TRACKERS.adr0020Implementation).toBe(
       "https://github.com/p-to-q/wittgenstein/issues/376",
     );

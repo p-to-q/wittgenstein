@@ -24,6 +24,7 @@ See the operating doctrine:
 - [docs/research/2026-05-13-wittgenstein-research-program.md](../../docs/research/2026-05-13-wittgenstein-research-program.md) — three-track framing (engineering / research / hacker)
 - [docs/research/2026-05-13-delivery-and-componentization.md](../../docs/research/2026-05-13-delivery-and-componentization.md) — tier doctrine + why training stays outside the publish surface
 - [docs/training/experiment-tracking.md](../../docs/training/experiment-tracking.md) — #399 tracker receipt contract and shared-Aim boundary
+- [docs/training/data.md](../../docs/training/data.md) — #400 dataset snapshot + sweep receipt contract
 - [docs/research/2026-05-13-m1b-prep-research.md](../../docs/research/2026-05-13-m1b-prep-research.md) — Phase-0 literature floor (LlamaGen, Open-MAGVIT2, TiTok, VAR)
 - [docs/research/2026-05-31-training-stack-re-audit-closeout.md](../../docs/research/2026-05-31-training-stack-re-audit-closeout.md) — #441 closeout: schema-aligned receipt floor + GPU wait lines
 - [docs/research/2026-05-27-pre-training-readiness.md](../../docs/research/2026-05-27-pre-training-readiness.md) — engineering-readiness audit run right before specialist kickoff (Tier-0 self-check, latent bugs found + fixed, open handoff issues)
@@ -108,6 +109,20 @@ This is the receipt floor for #435 / #441. It does not claim that tokenizer,
 adapter, or LLM-head training has run; it only proves that future training
 programs can emit the required manifest and tracker-receipt shape before GPU
 work starts.
+
+## Data snapshot + sweep smoke
+
+The #400 data/sweep floor has a local synthetic DVC pointer and a maintainer-run
+sweep manifest writer:
+
+```bash
+python3 bench/gpu/sweep.py --spec bench/gpu/smoke-sweep.yaml
+```
+
+The command writes generated receipts under `artifacts/benchmarks/` and indexes
+the smoke dataset snapshot, training manifest, checkpoint, and JSONL tracker
+receipt. It is not managed GPU CI and does not claim ImageNet / CC12M / COCO are
+available.
 
 ## M1B audit receipts
 

@@ -167,8 +167,10 @@ produced it.
 - **Aim/W&B tracker integration** — tracker links belong in the training config
   or an issue-owned tracker receipt; they are not freeform top-level manifest
   fields.
-- **DVC dataset pin** — train script reads dataset SHA from a DVC
-  `.dvc` file rather than the cheap file-enumeration fingerprint.
+- **DVC dataset pin** — train script records the dataset SHA in the
+  training manifest; #400 now provides the smoke DVC pointer and sweep receipt
+  shape, while real ImageNet / CC12M / COCO pointers still need model-owner
+  review before full training.
 - **FSDP2 sharding** — only needed if larger tokenizer variants are
   trained. The current 72M model fits comfortably on one A800.
 
