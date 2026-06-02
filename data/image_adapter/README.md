@@ -2,6 +2,25 @@
 
 Provide a **narrow-domain** captioned image set for v1 adapter training (no LLM weights required).
 
+## Current tracked snapshot
+
+The checked-in `raw/images/` files are hackathon-era archive material, not the
+current M1B training corpus:
+
+- `1.jpg` through `24.jpg` are downloaded web samples that were used as early
+  image-training examples. A few are still used by the TypeScript
+  placeholder/reference decoder bridge.
+- `nat_*.jpg` are very early trained/generated outputs from the same period,
+  likely paired with prompt-like captions in `metadata.jsonl`. They are useful
+  as provenance for the early adapter experiments, not as current training
+  evidence.
+- `metadata.jsonl` only records a subset of the files in `raw/images/`; it is
+  not a complete dataset manifest.
+
+Keep this directory as a hackathon archive / smoke fixture unless a future
+DVC-pinned dataset replaces it. Do not describe these files as recent adapter
+training data or as evidence that M1B has a publishable image adapter.
+
 ## Layout
 
 ```

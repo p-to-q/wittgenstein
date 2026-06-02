@@ -10,6 +10,19 @@ from pathlib import Path
 from PIL import Image
 
 CODEBOOK_SIZE = 8192
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_image_path(value: str) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+
+    cwd_path = Path.cwd() / path
+    if cwd_path.is_file():
+        return cwd_path
+
+    return REPO_ROOT / path
 
 
 def encode_image(path: Path, grid_w: int, grid_h: int) -> list[int]:
@@ -51,7 +64,7 @@ def main() -> None:
             spec = row["image_scene_spec"]
             dec = spec["decoder"]
             w, h = dec["latentResolution"]
-            img_path = Path(row["image_path"])
+            img_path = resolve_image_path(row["image_path"])
             if not img_path.is_file():
                 print(f"skip missing image: {img_path}")
                 continue

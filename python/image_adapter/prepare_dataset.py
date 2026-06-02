@@ -7,6 +7,16 @@ import argparse
 import json
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def portable_image_path(raw_dir: Path, rel: str) -> str:
+    path = raw_dir / rel
+    try:
+        return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
 
 def default_scene(caption: str, subject: str | None, negatives: list[str] | None) -> dict:
     subj = (subject or caption[:120]).strip()
@@ -72,7 +82,7 @@ def main() -> None:
             scene = default_scene(caption, subject, neg)
             out = {
                 "id": cid,
-                "image_path": str(args.raw_dir / rel),
+                "image_path": portable_image_path(args.raw_dir, rel),
                 "image_scene_spec": scene,
             }
             fout.write(json.dumps(out, ensure_ascii=False) + "\n")
