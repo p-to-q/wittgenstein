@@ -1,9 +1,7 @@
 packages:
   - "packages/*"
   # Explicit app allowlist instead of `apps/*`: ad-hoc or build-output dirs
-  # (gitignored `apps/_vercel-kimi-out/`, a stray Finder `apps/site copy/`)
-  # must not get pulled into the workspace and trip
-  # `pnpm install --frozen-lockfile`. `apps/wittgenstein-kimi` is
-  # intentionally omitted (standalone Kimi deck, not a workspace member).
+  # (gitignored ad-hoc Vercel output dirs, a stray Finder `apps/site copy/`)
+  # must not get pulled into the workspace and trip `pnpm install --frozen-lockfile`.
   - "apps/presentation"
   - "apps/site"

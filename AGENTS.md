@@ -128,7 +128,6 @@ The RFC-0003 alternatives (Loom / Transducer / Score / Handoff) were rejected. U
 
 - `packages/codec-asciipng/` — ASCII-PNG codec (added after the original map was written)
 - `apps/presentation/` — slide deck app (Hackathon launch + v0.2 narrative)
-- `apps/wittgenstein-kimi/` — Kimi-flavored agent demo
 - `docs/exec-plans/active/` — live execution plans (M0 → M5b lives here)
 - `docs/agent-guides/` — per-port execution briefs (audio, sensor, image-to-audio)
 - `docs/rfcs/` and `docs/adrs/` — engineering decisions and ratified records

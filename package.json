@@ -43,8 +43,7 @@
     "smoke:cli": "pnpm --filter @wittgenstein/cli run smoke",
     "reviewer-bench": "node --import tsx examples/reviewer-bench/run.ts",
     "dev:site": "pnpm --filter @wittgenstein/site dev",
-    "dev:presentation": "pnpm --filter @wittgenstein/presentation dev",
-    "dev:wittgenstein-kimi": "cd apps/wittgenstein-kimi && pnpm dev"
+    "dev:presentation": "pnpm --filter @wittgenstein/presentation dev"
   },
   "pnpm": {
     "overrides": {

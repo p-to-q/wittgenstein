@@ -43,7 +43,7 @@ This runs lint plus a full production build.
 
 ## Vercel Deployment
 
-The monorepo root [`vercel.json`](../../vercel.json) now builds `@wittgenstein/site` and emits `apps/site/dist`. This keeps the default root-level Vercel project aligned with the canonical website instead of the older `apps/wittgenstein-kimi` demo.
+The monorepo root [`vercel.json`](../../vercel.json) now builds `@wittgenstein/site` and emits `apps/site/dist`. This keeps the default root-level Vercel project aligned with the canonical website.
 
 This app also includes [`vercel.json`](./vercel.json) for a Vercel project whose root directory is set to `apps/site`. Vercel Git Source is still a manual follow-up step: the production project may still point at the old external repository ([`Jah-yee/wittgenstein-www`](https://github.com/Jah-yee/wittgenstein-www)) until a maintainer switches it.
 
