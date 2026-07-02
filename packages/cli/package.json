@@ -57,7 +57,7 @@
     "@wittgenstein/core": "workspace:*",
     "@wittgenstein/process-runner": "workspace:*",
     "@wittgenstein/schemas": "workspace:*",
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "tsx": "^4.22.4"
   },
   "devDependencies": {
