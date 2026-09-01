@@ -3,7 +3,7 @@
 # Core numeric/image stack (usually pre-installed in ML environments)
 numpy>=2.4.6
 scipy>=1.18.0
-Pillow>=10.0
+Pillow>=12.3.0
 matplotlib>=3.11.1
 
 # Optional — only needed for GPU-accelerated or extended audio paths
