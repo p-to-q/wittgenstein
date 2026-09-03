@@ -48,14 +48,14 @@
   "pnpm": {
     "overrides": {
       "@types/react": "^19.2.18",
-      "@types/react-dom": "^19.2.4"
+      "@types/react-dom": "^19.2.5"
     }
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
     "@wittgenstein/cli": "workspace:*",
