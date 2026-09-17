@@ -58,7 +58,7 @@
     "@wittgenstein/process-runner": "workspace:*",
     "@wittgenstein/schemas": "workspace:*",
     "commander": "^14.0.3",
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.13"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
