@@ -180,3 +180,66 @@ numpy smoke OK. No push to mirror/GitHub yet.
 remain stale (mid-2026 model rotations — the hint now tells operators exactly which pair is
 unpriced, but the table refresh needs current vendor pages); sandbox remains a typed stub;
 M1B delivery (#402/#403/#441) stays blocked on compute/lazy-fetch work, unchanged.
+
+
+## 7. Addendum — Stage C code slices landed (2026-10-16, continued session)
+
+No training, no compute: three delivery slices landed as local commits, all gates green.
+
+- `397a0d1` **#402 loader contract-fill (codec-image)**: the `LLAMAGEN_BRIDGE_NOT_IMPLEMENTED`
+  stub is replaced by the full loader — bundled pin record parsed at load, weights-first-then-runtime
+  order (a cache miss fails as `WEIGHTS_NOT_INSTALLED` even without the ONNX peer), cache-only by
+  default with a HF-style fetch lane behind `options.weightsBaseUrl` / `WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL`,
+  capability advertisement, int64 `BigInt64Array` feeds `[1,16,16]`, and `onnxOutputToPng`. Decode math
+  is evidence-pinned against upstream commit `ce98ec4`: `torch.clamp(127.5*x+128, 0, 255)` then a
+  **truncating** `dtype=torch.uint8` cast (verified against `vq_demo.py` + `reconstruction_vq_ddp.py`;
+  implementation uses `Math.trunc`, not `Math.round`). `encodeRgbaAsPng` was extracted into
+  `src/png.ts` so bridge and pipeline share one RGBA→PNG definition. `decoder-bridge-contract.test.ts`
+  now expects the honest `WEIGHTS_NOT_INSTALLED`; new `llamagen-decoder.test.ts` (18 tests) verifies
+  the conversion by zlib-inflating the produced IDAT — an independent decode, not a second encoder copy.
+- `2ce1812` **#403 install CLI + doctor tier readiness (cli)**: `wittgenstein install image` now has a
+  real fetch lane — same `resolveDecoderWeights` + `buildHuggingFaceAssetFetcher` the bridge uses
+  (exported from codec-image so install and loader cannot diverge). Cache-only by default;
+  `--weights-base-url` / env activates `<base>/<repoId>/resolve/<revision>/<filename>` fetch +
+  sha256-verify + atomic cache promotion. Missing weights with no base URL → `TIER_INSTALL_NEEDS_WEIGHTS_URL`
+  citing #402/#435; GPU tier → `TIER_INSTALL_GPU_UNSUPPORTED`; ADR-0020 opt-in stays enforced. Install
+  writes `~/.config/wittgenstein/installed-tiers.json` (override `WITTGENSTEIN_INSTALL_RECEIPT_PATH`);
+  re-runs are idempotent no-ops; doctor reads the receipt (corrupt → `invalid`, never "ready") and
+  derives tier1 readiness from live preflight. End-to-end fetch is covered by a flow test running a
+  real local HTTP server against the spawned CLI, including the second-run no-op.
+- `1569564` **pricing table refresh (core)**: current vendor rates from primary sources
+  (platform.claude.com model pages; platform.minimax.io/docs/pricing/overview) + two agreeing
+  aggregators for OpenAI. Anthropic current lineup (opus-5-5 $4/$20, sonnet-5-5 $2/$10,
+  haiku-5-5 from $0.10/$0.50, fable-5-1 $10/$50), OpenAI gpt-4.1/4.1-mini/4.1-nano + gpt-5/mini/nano,
+  MiniMax M2/M2.7/M3 ($0.30/$1.20). Newest OpenAI tiers (5.4/5.5/5.6/6.x) are deliberately **not**
+  pinned because aggregator sources conflict — unknown-model receipts stay honest (pin test enforces).
+
+**Validation record (this addendum):** codec-image 142/142 · cli 61/61 · core 104/104 ·
+typecheck + lint clean for all three packages. Still no push to mirror/GitHub.
+
+### Pre-training checklist (derived from the #441 closeout "Safe Before GPU" list)
+
+Everything below is code/process work that needs no GPU. Items are ordered as Stage C intends.
+
+1. **Receipt floor (safe now, most already merged):** canonical `TrainingRunManifestSchema` receipts,
+   `gpuCount: 0` CPU-smoke honesty, optimizer-state SHA, experiment-tracker sibling receipt —
+   already the #441 closeout baseline. Verify against `research/training/_shared` when slices start.
+2. **#399 tracker infra:** shared experiment tracker + Aim deployment evidence; the local JSONL
+   tracker is the smoke floor.
+3. **#400 data policy:** ImageNet/CC12M snapshot + DVC remote provider/credentials — maintainer/model-
+   owner decision (cannot be defaulted autonomously).
+4. **#393/#394/#396/#397/#398 slices:** tokenizer/adapter/LLM-head training + eval scaffolding, each
+   emitting the canonical manifest; no quality claims until real runs.
+5. **Reuse gate:** LlamaGen vendored shim only. TiTok / Open-MAGVIT2 / MaskGIT reuse needs license +
+   model-owner review before becoming training code (#435 hub).
+6. **Delivery wiring left for M1B closeout:** bridge → image pipeline `decode()` swap (the loader is
+   ready; the pipeline still runs the procedural placeholder), `wittgenstein replay` verification
+   (#384), canonical ONNX hosting decision (#435), then issue closeout review.
+7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
+
+### Open-risk ledger (unchanged, restated)
+
+- The shipped ONNX remains a derivative export with no canonical SHA-pinnable URL: install is
+  cache-only until #435 lands. Honest, no silent fallback.
+- svg/asciipng remain frozen v1: unfreeze needs M1B closeout (issues actually closed) + v2 protocol
+  exit from experimental.

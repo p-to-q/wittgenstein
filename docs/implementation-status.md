@@ -167,7 +167,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Codec                | Protocol | Notes |
 | -------------------- | -------- | ----- |
-| image                | v2       | `produce()` + `manifestRows()`; M1B bridge delivery still blocked on #402/#403/#441 |
+| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16); delivery left: pipeline `decode()` wiring, canonical ONNX URL (#435), issue closeout |
 | audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
 | sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
 | video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
@@ -177,10 +177,12 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 **svg / asciipng v1→v2 port: frozen, not scheduled.** Rationale: both are the most stable shipped
 surface (tier0), their non-local sources (svg engine, asciipng minimax) are LLM-generation paths a
 v2 port must move into codec-owned `produce()`, and #300 (v1-compat retirement) is closed so the
-legacy pipeline is not scheduled for removal. Un-freeze criteria: (a) M1B audit delivery closeout
-(#402/#403/#441) lands, and (b) the v2 protocol exits experimental. Then port svg-local first
+legacy pipeline is not scheduled for removal. Un-freeze criteria: (a) M1B audit delivery closeout —
+#441 closed 2026-05-31 and the #402/#403 code contract-fill landed 2026-10-16, but the issues stay
+open until the canonical ONNX hosting decision (#435), pipeline `decode()` wiring, and closeout
+review land, and (b) the v2 protocol exits experimental. Then port svg-local first
 (pure-local, smallest), then asciipng — the sibling-port order already in
-`docs/exec-plans/active/codec-v2-port.md`. Full rationale: research note §6, 2026-10-16.
+`docs/exec-plans/active/codec-v2-port.md`. Full rationale: research note §6 + §7, 2026-10-16.
 
 ## Loupe dashboard renderer
 
