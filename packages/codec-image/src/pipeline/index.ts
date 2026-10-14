@@ -1,7 +1,11 @@
 import type { RenderCtx, RenderResult } from "@wittgenstein/schemas";
 import { expandSceneSpec } from "./expand.js";
 import { adaptSceneToLatents } from "./adapter.js";
-import { decodeLatentsToRaster } from "./decoder.js";
+import {
+  decodeLatentsToRaster,
+  toImageDecoderReceipt,
+  type DecodeLatentsToRasterOptions,
+} from "./decoder.js";
 import { packageRasterAsPng, toRenderResult } from "./package.js";
 import { imageCodeReceipt } from "../image-code-receipt.js";
 import type { ImageSceneSpec } from "../schema.js";
@@ -10,10 +14,11 @@ import type { ImageArtifact } from "../types.js";
 export async function renderImagePipeline(
   parsed: ImageSceneSpec,
   ctx: RenderCtx,
+  options?: DecodeLatentsToRasterOptions,
 ): Promise<RenderResult> {
   const expanded = await expandSceneSpec(parsed, ctx);
   const { latents, outcome, receipt } = await adaptSceneToLatents(expanded, ctx);
-  const raster = await decodeLatentsToRaster(latents, ctx);
+  const raster = await decodeLatentsToRaster(latents, ctx, options);
   const imageCode = imageCodeReceipt(parsed);
   const artifact: ImageArtifact = {
     outPath: ctx.outPath,
@@ -24,7 +29,7 @@ export async function renderImagePipeline(
     metadata: {
       codec: "image",
       route: "raster",
-      warnings: [],
+      warnings: raster.bridge ? [...raster.bridge.warnings] : [],
       llmTokens: { input: 0, output: 0 },
       costUsd: 0,
       durationMs: 0,
@@ -48,11 +53,10 @@ export async function renderImagePipeline(
         },
       },
       adapterHash: "legacy-v1",
-      decoderHash: {
-        value: "legacy-v1",
-        frozen: true,
-        slot: "LFQ-family-decoder",
-      },
+      decoderHash: raster.bridge
+        ? { value: raster.bridge.decoderHash, frozen: true, slot: raster.bridge.decoderId }
+        : { value: "legacy-v1", frozen: true, slot: "LFQ-family-decoder" },
+      ...(raster.bridge ? { decoderReceipt: toImageDecoderReceipt(raster.bridge) } : {}),
       artifactSha256: null,
     },
   };

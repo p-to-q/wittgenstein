@@ -31,6 +31,7 @@ export type {
   ImageArtifact,
   ImageArtifactMetadata,
   ImageCodeReceipt,
+  ImageDecoderReceipt,
   ImageCodePath,
   ImageAdapterOutcome,
   ImageSemanticSource,

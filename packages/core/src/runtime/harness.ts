@@ -495,6 +495,9 @@ const CODEC_MANIFEST_ROW_KEYS: ReadonlySet<string> = new Set([
   "audioPlan",
   "image.code",
   "image.adapter",
+  // S7b: decoder lane + bridge identity, emitted only when an injected
+  // decoder bridge produced the raster (placeholder runs omit the row).
+  "image.decoder",
   "quality.structural",
   "quality.partial",
   "metadata.warnings",

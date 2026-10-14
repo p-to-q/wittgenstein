@@ -17,7 +17,12 @@ import {
 } from "./schema.js";
 import { renderImagePipeline } from "./pipeline/index.js";
 import { adaptSceneToLatents } from "./pipeline/adapter.js";
-import { decodeLatentsToRaster } from "./pipeline/decoder.js";
+import {
+  decodeLatentsToRaster,
+  toImageDecoderReceipt,
+  type DecodeLatentsToRasterOptions,
+} from "./pipeline/decoder.js";
+import type { ImageDecoderBridge } from "./decoders/types.js";
 import { packageRasterAsPng } from "./pipeline/package.js";
 import { imageCodeReceipt } from "./image-code-receipt.js";
 import type { ImageAdapterOutcome, ImageAdapterReceipt, ImageArtifact } from "./types.js";
@@ -51,6 +56,14 @@ interface ImageCodecServices {
   readonly llm?: ImageCodecLlmService;
   readonly telemetry?: ImageCodecTelemetryService;
   readonly dryRun?: boolean;
+  /**
+   * S7b DI seam: an already-loaded `ImageDecoderBridge` the caller
+   * (CLI / entry layer) resolved and wants this decode to run through.
+   * The codec never loads bridges itself and never parses env/config;
+   * an injected bridge failure is a typed error, not a placeholder
+   * fallback. Absent → the procedural placeholder lane runs as before.
+   */
+  readonly decoderBridge?: ImageDecoderBridge;
 }
 
 interface AdaptedImagePayload {
@@ -311,10 +324,23 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     const startedAt = ctx.clock.now();
     const payload = asPayload(ir.latent);
     const imageCode = imageCodeReceipt(payload.scene);
+    const services = asServices(ctx.services);
+    const bridge = services.decoderBridge;
     const raster = await decodeLatentsToRaster(
       payload.latents,
       this.createRenderCtx(ctx, codecV2.CodecPhase.Decode),
+      bridge ? { bridge } : undefined,
     );
+    if (raster.bridge) {
+      for (const warning of raster.bridge.warnings) {
+        ctx.sidecar.warnings.push({
+          code: warning.code,
+          message: warning.message,
+          ...(warning.detail !== undefined ? { detail: warning.detail } : {}),
+          phase: codecV2.CodecPhase.Decode,
+        });
+      }
+    }
 
     return {
       outPath: ctx.outPath,
@@ -350,11 +376,10 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
           },
         },
         adapterHash: hashString("image-adapter-stub"),
-        decoderHash: {
-          value: hashString("LFQ-family-decoder"),
-          frozen: true,
-          slot: "LFQ-family-decoder",
-        },
+        decoderHash: raster.bridge
+          ? { value: raster.bridge.decoderHash, frozen: true, slot: raster.bridge.decoderId }
+          : { value: hashString("LFQ-family-decoder"), frozen: true, slot: "LFQ-family-decoder" },
+        ...(raster.bridge ? { decoderReceipt: toImageDecoderReceipt(raster.bridge) } : {}),
         artifactSha256: hashBytes(raster.pngBytes),
       },
     };
@@ -378,6 +403,12 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
       { key: "metadata.warnings", value: art.metadata.warnings.length },
       { key: "L4.adapterHash", value: art.metadata.adapterHash },
       { key: "L5.decoderHash", value: art.metadata.decoderHash },
+      // S7b: lane + bridge identity row, emitted only for bridge-backed
+      // runs so the placeholder lane's row set stays byte-identical
+      // (golden untouched).
+      ...(art.metadata.decoderReceipt
+        ? [{ key: "image.decoder" as const, value: art.metadata.decoderReceipt }]
+        : []),
       { key: "artifact.sha256", value: art.metadata.artifactSha256 },
     ];
   }
@@ -439,7 +470,11 @@ export const imageCodec: WittgensteinCodec<ImageRequest, ImageSceneSpec> = {
   requestSchema: ImageRequestSchema,
   outputSchema: ImageSceneSpecSchema,
   parse: parseImageSceneSpec,
-  async render(parsed: ImageSceneSpec, ctx: RenderCtx): Promise<RenderResult> {
-    return renderImagePipeline(parsed, ctx);
+  async render(
+    parsed: ImageSceneSpec,
+    ctx: RenderCtx,
+    options?: DecodeLatentsToRasterOptions,
+  ): Promise<RenderResult> {
+    return renderImagePipeline(parsed, ctx, options);
   },
 };

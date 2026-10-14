@@ -1,4 +1,5 @@
 import type { ImageSceneSpec } from "./schema.js";
+import type { DecoderDeterminismClass } from "./decoders/types.js";
 import type { CostUsdReason, codecV2 } from "@wittgenstein/schemas";
 
 export type ImageCodePath =
@@ -44,6 +45,23 @@ export interface ImageAdapterReceipt {
 }
 
 export type ImageSemanticSource = "emitted" | "legacy-top-level" | "absent";
+
+/**
+ * Decoder-lane receipt for a raster produced by an injected decoder
+ * bridge (S7b wiring). Surfaced as the `image.decoder` manifest row;
+ * absence of the receipt means the procedural placeholder lane
+ * produced the raster.
+ */
+export interface ImageDecoderReceipt {
+  /** Lane marker: which decoder path produced the raster. */
+  readonly lane: "injected-bridge";
+  /** Stable decoder identifier (`ImageDecoderCapabilities.decoderId`). */
+  readonly decoderId: string;
+  /** Weights/tokenizer/adapter hash stamped by the bridge (Issue #384 replay). */
+  readonly decoderHash: string;
+  /** Determinism contract the bridge advertises. */
+  readonly determinismClass: DecoderDeterminismClass;
+}
 
 export interface ImageCodeReceipt {
   readonly mode: NonNullable<ImageSceneSpec["mode"]>;
@@ -98,8 +116,11 @@ export interface ImageArtifactMetadata extends codecV2.BaseArtifactMetadata {
   readonly decoderHash: {
     readonly value: string;
     readonly frozen: true;
-    readonly slot: "LFQ-family-decoder";
+    /** Which decoder filled the frozen-decoder slot. */
+    readonly slot: string;
   };
+  /** Present only when an injected decoder bridge produced the raster (S7b). */
+  readonly decoderReceipt?: ImageDecoderReceipt;
   artifactSha256: string | null;
 }
 

@@ -3,8 +3,9 @@
  *
  * Every image decoder bridge — `llamagen`, future `seed`, future `dvae` etc. —
  * conforms to `ImageDecoderBridge`. The contract is the seam the procedural
- * placeholder renderer (`../pipeline/decoder.ts`) will swap out once M1B's
- * radar audits (#283) clear empirical Gates C+D for at least one candidate.
+ * placeholder renderer (`../pipeline/decoder.ts`) swaps out when a caller
+ * injects a loaded bridge (S7b wiring, landed 2026-10-16); the placeholder
+ * lane remains the default until the CLI / entry layer opts a bridge in.
  *
  * Pinning the interface BEFORE the first real impl lands means the wiring PR
  * for M1B is a contract-fill, not a contract-design — keeps the load-bearing
