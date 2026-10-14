@@ -1,7 +1,10 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { RunManifest } from "@wittgenstein/schemas";
 import { describe, expect, it } from "vitest";
 import { createProgram } from "../src/index.js";
-import { imageInspectionPayload } from "../src/commands/image.js";
+import { imageInspectionPayload, loadImageDecoderBridgeForRun } from "../src/commands/image.js";
 
 describe("image command inspection flags", () => {
   it("registers the image receipt inspection surface", () => {
@@ -9,6 +12,7 @@ describe("image command inspection flags", () => {
     expect(image?.options.map((option) => option.long).sort()).toEqual([
       "--allow-research-weights",
       "--config",
+      "--decoder",
       "--dry-run",
       "--out",
       "--seed",
@@ -113,3 +117,31 @@ function baseManifest(): RunManifest {
     },
   } as RunManifest;
 }
+
+
+describe("image --decoder opt-in lane (S7c entry layer)", () => {
+  it("loads no bridge when --decoder is not passed", async () => {
+    const outcome = await loadImageDecoderBridgeForRun({});
+    expect(outcome.bridge).toBeUndefined();
+    expect(outcome.error).toBeUndefined();
+  });
+
+  it("refuses unknown decoder families with a typed CLI error", async () => {
+    const outcome = await loadImageDecoderBridgeForRun({ decoder: "dvae" });
+    expect(outcome.bridge).toBeUndefined();
+    expect(outcome.error?.code).toBe("INVALID_IMAGE_DECODER");
+    expect(outcome.error?.message).toContain("dvae");
+  });
+
+  it("surfaces WEIGHTS_NOT_INSTALLED with the install hint when the cache is empty", async () => {
+    const cacheDir = mkdtempSync(join(tmpdir(), "witt-cli-decoder-"));
+    try {
+      const outcome = await loadImageDecoderBridgeForRun({ decoder: "llamagen", cacheDir });
+      expect(outcome.bridge).toBeUndefined();
+      expect(outcome.error?.code).toBe("WEIGHTS_NOT_INSTALLED");
+      expect(outcome.error?.installHint).toBe("wittgenstein install image");
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+});

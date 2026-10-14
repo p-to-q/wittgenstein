@@ -28,6 +28,8 @@ export async function runCodecCommand(
   args: string[],
   options: CommandRuntimeOptions,
   outputOptions: CommandOutputOptions = {},
+  /** Additional v2 codec services for `HarnessCtx` (S7b/S7c entry-layer injection). */
+  harnessServices?: Readonly<Record<string, unknown>>,
 ): Promise<void> {
   const workspaceRoot = resolveExecutionRoot();
   const harness = await Wittgenstein.bootstrap({
@@ -42,6 +44,7 @@ export async function runCodecCommand(
     dryRun: options.dryRun ?? false,
     ...(options.out ? { outPath: resolve(workspaceRoot, options.out) } : {}),
     ...(options.config ? { configPath: options.config } : {}),
+    ...(harnessServices ? { services: harnessServices } : {}),
   });
 
   const extra = outputOptions.inspect?.({

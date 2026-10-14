@@ -60,6 +60,13 @@ export {
   loadLlamagenDecoderBridge,
   LLAMAGEN_DECODER_ID,
 } from "./decoders/llamagen.js";
+// Bridge contract types an entry layer (CLI) needs to type its
+// injection seam (S7b/S7c): the loader returns these, the caller
+// passes them straight into `services.decoderBridge`.
+export type {
+  ImageDecoderBridge,
+  LoadDecoderBridgeOptions,
+} from "./decoders/types.js";
 export {
   DecoderWeightsFetchFailedError,
   DecoderWeightsNotInstalledError,

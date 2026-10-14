@@ -40,6 +40,15 @@ export interface HarnessRunOptions {
   dryRun?: boolean;
   outPath?: string;
   configPath?: string;
+  /**
+   * Additional v2 codec services folded into `HarnessCtx.services`
+   * (S7b/S7c entry-layer injection — e.g. an already-loaded decoder
+   * bridge the CLI loaded via `loadLlamagenDecoderBridge`). Core
+   * stays type-agnostic: each codec owns the shape of its services
+   * and core-owned keys (`llm` / `telemetry` / `dryRun`) win on
+   * conflicts.
+   */
+  services?: Readonly<Record<string, unknown>>;
 }
 
 export interface HarnessOutcome {
@@ -159,6 +168,7 @@ export class Wittgenstein {
           dryRun: options.dryRun === true,
           telemetry,
           budget,
+          ...(options.services ? { services: options.services } : {}),
         });
 
         const art = await codec.produce(validated.value, harnessCtx);
@@ -430,6 +440,8 @@ function createHarnessCtx(options: {
   dryRun: boolean;
   telemetry: RunTelemetry;
   budget: BudgetTracker;
+  /** Entry-layer injected codec services (S7b/S7c); merged under core-owned keys. */
+  services?: Readonly<Record<string, unknown>>;
 }): codecV2.HarnessCtx {
   const ctx: codecV2.HarnessCtx = {
     runId: options.runId,
@@ -444,6 +456,9 @@ function createHarnessCtx(options: {
     },
     sidecar: codecV2Ns.createRunSidecar(),
     services: {
+      // Entry-layer injected services first; core-owned
+      // llm/telemetry/dryRun win on key conflicts.
+      ...(options.services ?? {}),
       llm: options.llmAdapter
         ? {
             provider: options.llmAdapter.provider,
