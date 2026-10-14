@@ -46,7 +46,7 @@ raster`; encoders are offline tooling for adapter training only.
 | `codeLicense`      | `"MIT"`                                                            | manifest                                              |
 | `weightsLicense`   | `"permissive"`                                                     | manifest                                              |
 
-## ONNX hosting — pending
+## ONNX hosting — cache-only until the canonical URL lands
 
 The shipped `.onnx` is a derivative artifact (we exported it from the
 upstream `.pt`; the upstream repo does not publish ONNX). For the
@@ -55,16 +55,27 @@ URL.
 
 Until that URL is decided (tracked by [#402](https://github.com/p-to-q/wittgenstein/issues/402) —
 decoder-delivery; [#435](https://github.com/p-to-q/wittgenstein/issues/435) —
-model-owner review hub), the bridge runs in **cache-only mode**:
-`loadLlamagenDecoderBridge()` does NOT supply a fetcher to
-`resolveDecoderWeights()`. A cache miss surfaces as
+model-owner review hub), the bridge runs in **cache-only mode by
+default**: `loadLlamagenDecoderBridge()` supplies no fetcher to
+`resolveDecoderWeights()`, and weight resolution deliberately runs
+before `ensureOnnxRuntime()` — so a cache miss surfaces as
 `WEIGHTS_NOT_INSTALLED` with `installHint: "wittgenstein install image"`
-(the install CLI itself is tracked by [#403](https://github.com/p-to-q/wittgenstein/issues/403)).
+deterministically, even on machines without the `onnxruntime-node`
+peer (the install CLI for both is tracked by
+[#403](https://github.com/p-to-q/wittgenstein/issues/403)).
 
-Once the URL lands, wiring a fetcher is a small follow-up: pass a
-`fetcher: async (asset, manifest) => fetch(url).then(r =>
-new Uint8Array(await r.arrayBuffer()))` into the resolver — the
-SHA-pinning + atomic-write logic already in `weights.ts` does the rest.
+The fetcher already exists behind a config switch, so blessing a URL
+later is a default flip, not a code change: pass
+`weightsBaseUrl: "https://huggingface.co"` in
+`LoadDecoderBridgeOptions` or set `WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL`
+to a HuggingFace-style base. The bridge then resolves
+`<base>/<repoId>/resolve/<revision>/<filename>` through
+`buildHuggingFaceAssetFetcher` (AbortController + unref'ed timeout,
+mirroring the core harness fetch-with-timeout contract) and hands the
+bytes to `resolveDecoderWeights()`, which sha256-verifies them before
+atomic cache promotion — mismatched bytes are never cached or loaded.
+Both lanes are regression-pinned in `test/decoder-weights.test.ts` and
+`test/llamagen-decoder.test.ts`.
 
 ## Phase relationship
 

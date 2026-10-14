@@ -3,20 +3,23 @@
  *
  * Two goals:
  *
- * 1. **Stub current behavior** — the canonical M1B loader
- *    (`loadLlamagenDecoderBridge`) and the alternate (`loadSeedDecoderBridge`)
- *    today MUST throw a typed error with a stable error code citing the
- *    blocker tracker issues. The CLI / pipeline reads `error.code` to surface
- *    the structured failure with a receipt; that contract is brittle without a
- *    regression baseline.
+ * 1. **Loader behavior** — the canonical M1B loader
+ *    (`loadLlamagenDecoderBridge`) is a contract-fill (#402): cache-only
+ *    weight resolution, typed errors with stable codes the CLI / pipeline
+ *    read for structured receipts. The alternate (`loadSeedDecoderBridge`)
+ *    still throws its typed not-implemented error citing the blocker
+ *    trackers. Both contracts are regression-baselined here.
  *
  * 2. **Prove the contract is implementable** — a tiny test-only conforming
  *    bridge (`StubBridge`) satisfies `ImageDecoderBridge`. This catches
  *    type-level drift when someone widens the interface without updating
  *    the impl checklist in `packages/codec-image/src/decoders/README.md`.
  */
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LLAMAGEN_DECODER_ID, loadLlamagenDecoderBridge } from "../src/decoders/llamagen.js";
+import { loadLlamagenDecoderBridge } from "../src/decoders/llamagen.js";
 import {
   RuntimeUnavailableDetailsSchema,
   WittgensteinRuntimeUnavailableError,
@@ -27,21 +30,31 @@ import type { ImageDecoderBridge, ImageDecoderCapabilities } from "../src/decode
 import { DecoderFamilySchema } from "../src/schema.js";
 
 describe("decoder bridge contract (M1B prep)", () => {
-  it("loadLlamagenDecoderBridge throws LLAMAGEN_BRIDGE_NOT_IMPLEMENTED with blocker links", async () => {
-    let caught: unknown;
+  it("loadLlamagenDecoderBridge resolves weights cache-only and reports honest not-installed", async () => {
+    // The bridge is no longer a NOT_IMPLEMENTED stub (#402 contract-fill):
+    // cache-only load without installed weights surfaces the install hint,
+    // and the failure happens BEFORE any runtime check — deterministic in
+    // every environment (onnxruntime-node present or not).
+    const tmp = await mkdtemp(join(tmpdir(), "witt-llamagen-contract-"));
     try {
-      await loadLlamagenDecoderBridge();
-    } catch (error) {
-      caught = error;
+      let caught: unknown;
+      try {
+        await loadLlamagenDecoderBridge({ cacheDir: tmp });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      const err = caught as Error & { code?: string; details?: Record<string, unknown> };
+      expect(err.code).toBe("WEIGHTS_NOT_INSTALLED");
+      expect(err.details?.family).toBe("llamagen");
+      expect(err.details?.decoderId).toBeUndefined(); // resolver-level error carries family + asset facts
+      expect(err.details?.installHint).toBe("wittgenstein install image");
+      expect(err.details?.assetSha256).toBe(
+        "fd6800b3df8193968656e3e6b01ab48bd8899ebede829dfd1166da5f5b9f9389",
+      );
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
     }
-    expect(caught).toBeInstanceOf(Error);
-    const err = caught as Error & { code?: string; details?: Record<string, unknown> };
-    expect(err.code).toBe("LLAMAGEN_BRIDGE_NOT_IMPLEMENTED");
-    expect(err.details?.family).toBe("llamagen");
-    expect(err.details?.decoderId).toBe(LLAMAGEN_DECODER_ID);
-    const blockers = err.details?.blockers as Record<string, string> | undefined;
-    expect(blockers?.gateC).toMatch(/issues\/334/);
-    expect(blockers?.gateD).toMatch(/issues\/335/);
   });
 
   it("loadSeedDecoderBridge throws SEED_BRIDGE_NOT_IMPLEMENTED with audit link", async () => {

@@ -35,7 +35,11 @@ export interface OnnxRuntime {
   readonly InferenceSession: {
     readonly create: (path: string | Uint8Array, options?: unknown) => Promise<unknown>;
   };
-  readonly Tensor: new (type: string, data: ArrayLike<number>, dims: readonly number[]) => unknown;
+  readonly Tensor: new (
+    type: string,
+    data: ArrayLike<number> | ArrayLike<bigint>,
+    dims: readonly number[],
+  ) => unknown;
 }
 
 export interface RuntimeUnavailableDetails {

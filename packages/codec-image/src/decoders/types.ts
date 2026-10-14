@@ -17,6 +17,7 @@
  */
 import type { DecoderFamily, ImageLatentCodes } from "../schema.js";
 import type { DecodedRaster } from "../pipeline/decoder.js";
+import type { DecoderWeightsAsset, DecoderWeightsManifest } from "./weights.js";
 
 /**
  * Determinism class of a decoder bridge's output.
@@ -195,4 +196,28 @@ export interface LoadDecoderBridgeOptions {
    * sandbox to be present.
    */
   readonly runtimeTier?: DecoderRuntimeTier;
+
+  /**
+   * Override the bundled pin record. Tests and alternate-artifact lanes use
+   * this to exercise the loader without the shipped weights; production
+   * callers should leave it unset and let the bridge read its own manifest.
+   */
+  readonly manifest?: DecoderWeightsManifest;
+
+  /**
+   * Base URL for HuggingFace-style asset resolution
+   * (`<base>/<repoId>/resolve/<revision>/<filename>`). When set, cache misses
+   * fetch + sha256-verify; when unset the loader is cache-only and a miss
+   * surfaces `WEIGHTS_NOT_INSTALLED`. Until the canonical asset URL is
+   * blessed (#402) production runs stay cache-only.
+   */
+  readonly weightsBaseUrl?: string;
+
+  /**
+   * Injection point replacing the default HuggingFace fetcher (diagnostics,
+   * offline tests, mirrors). Receives the asset to fetch and the manifest;
+   * returns raw bytes — sha256 verification + atomic cache promotion happen
+   * in the resolver regardless of who fetched.
+   */
+  readonly fetcher?: (asset: DecoderWeightsAsset, manifest: DecoderWeightsManifest) => Promise<Uint8Array>;
 }
