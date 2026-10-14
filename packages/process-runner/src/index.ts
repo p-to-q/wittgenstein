@@ -24,6 +24,13 @@ export interface ProcessRunnerOptions {
  */
 const MAX_STREAM_BYTES = 32_768;
 
+/**
+ * Grace period between SIGTERM and SIGKILL when a subprocess ignores the
+ * polite termination signal. Prevents orphaned children (2026-10-16
+ * robustness slice A3).
+ */
+export const PROCESS_SIGKILL_GRACE_MS = 2_000;
+
 function appendCapped(current: string, chunk: string): string {
   const combined = current + chunk;
   if (combined.length <= MAX_STREAM_BYTES) {
@@ -67,14 +74,26 @@ export async function runProcess(
       stderr = appendCapped(stderr, chunk);
     });
 
+    let killTimer: NodeJS.Timeout | undefined;
     const timer = setTimeout(() => {
+      // Polite termination first; escalate to SIGKILL if the child ignores
+      // SIGTERM within the grace period, so no orphan is left behind.
       child.kill("SIGTERM");
+      killTimer = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, PROCESS_SIGKILL_GRACE_MS);
+      killTimer.unref?.();
+
       const hint = options.timeoutHint ? ` ${options.timeoutHint}` : "";
-      reject(new Error(`${errorPrefix} timed out after ${timeoutMs}ms.${hint}`));
+      const timeoutError = new Error(`${errorPrefix} timed out after ${timeoutMs}ms.${hint}`);
+      Object.assign(timeoutError, { code: "PROCESS_TIMEOUT", timedOut: true });
+      reject(timeoutError);
     }, timeoutMs);
+    timer.unref?.();
 
     child.on("error", (error) => {
       clearTimeout(timer);
+      clearTimeout(killTimer);
       reject(
         new Error(
           `Failed to spawn ${errorPrefix} (${command} ${args.join(" ")}). Is Node/npm available on PATH?`,
@@ -85,6 +104,7 @@ export async function runProcess(
 
     child.on("close", (code) => {
       clearTimeout(timer);
+      clearTimeout(killTimer);
       if (code === 0) {
         resolve();
         return;

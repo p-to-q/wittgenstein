@@ -16,6 +16,7 @@ import { routeRequest } from "./router.js";
 import { CodecRegistry } from "./registry.js";
 import { createRunId, resolveSeed } from "./seed.js";
 import { RunTelemetry } from "./telemetry.js";
+import type { RetryPolicy } from "./retry.js";
 import { serializeError, ValidationError, WittgensteinError } from "./errors.js";
 import { injectSchemaPreamble } from "../schema/preamble.js";
 import type { LlmAdapter, LlmGenerationResult } from "../llm/adapter.js";
@@ -70,7 +71,7 @@ export class Wittgenstein {
       ...(options.configPath ? { configPath: options.configPath } : {}),
     });
     const registry = options.registry ?? createDefaultRegistry();
-    const llmAdapter = options.llmAdapter ?? createLlmAdapter(config.llm);
+    const llmAdapter = options.llmAdapter ?? createLlmAdapter(config.llm, config.runtime.retry);
     return new Wittgenstein(config, registry, llmAdapter);
   }
 
@@ -469,11 +470,47 @@ function createHarnessCtx(options: {
   return ctx;
 }
 
-function foldManifestRows(
+/**
+ * Closed set of row keys a v2 codec may fold into the manifest via
+ * `manifestRows()`. Before 2026-10-16 the fold accepted ANY key — a codec
+ * typo could silently overwrite core manifest fields (e.g. `seed`) or write
+ * junk keys with no schema. The set below is the union of the row keys every
+ * shipped v2 codec emits; extending it is deliberate and code-reviewed
+ * (2026-10-16 robustness slice A4).
+ */
+const CODEC_MANIFEST_ROW_KEYS: ReadonlySet<string> = new Set([
+  "route",
+  "renderPath",
+  "audioRender",
+  "audioPlan",
+  "image.code",
+  "image.adapter",
+  "quality.structural",
+  "quality.partial",
+  "metadata.warnings",
+  "L4.adapterHash",
+  "L5.decoderHash",
+  "artifact.sha256",
+]);
+
+/**
+ * Folds codec manifest rows into the run manifest. Exported for the harness
+ * unit tests; the harness itself is the only production caller.
+ */
+export function foldManifestRows(
   manifest: MutableManifest,
   rows: ReadonlyArray<codecV2.ManifestRow>,
 ): void {
   for (const row of rows) {
+    if (!CODEC_MANIFEST_ROW_KEYS.has(row.key)) {
+      throw new WittgensteinError(
+        "MANIFEST_ROW_KEY_REJECTED",
+        `Codec emitted manifest row with key "${row.key}", which is not in the allowed row-key set. ` +
+          "Extend CODEC_MANIFEST_ROW_KEYS in packages/core/src/runtime/harness.ts deliberately — " +
+          "unchecked rows can silently overwrite core RunManifest fields.",
+        { details: { rowKey: row.key } },
+      );
+    }
     manifest[row.key] = row.value;
     if (row.key === "route" && typeof row.value === "string") {
       manifest.route = row.value;
@@ -530,12 +567,22 @@ export function createDefaultRegistry(): CodecRegistry {
 
 function createLlmAdapter(
   llmConfig: Awaited<ReturnType<typeof loadWittgensteinConfig>>["llm"],
+  retryConfig: Awaited<ReturnType<typeof loadWittgensteinConfig>>["runtime"]["retry"],
 ): LlmAdapter | null {
+  // Wire the L1 retry policy (config.runtime.retry) into the adapter with the
+  // industry-default exponential-jitter strategy. Previously the retry config
+  // was parsed but never consumed (2026-10-16 robustness slice A2).
+  const retryPolicy: RetryPolicy = {
+    maxAttempts: retryConfig.maxAttempts,
+    backoffMs: retryConfig.backoffMs,
+    backoffStrategy: "exponential-jitter",
+  };
+
   if (llmConfig.provider === "anthropic") {
-    return new AnthropicLlmAdapter(llmConfig);
+    return new AnthropicLlmAdapter(llmConfig, retryPolicy);
   }
 
-  return new OpenAICompatibleLlmAdapter(llmConfig);
+  return new OpenAICompatibleLlmAdapter(llmConfig, retryPolicy);
 }
 
 // LEGITIMATE modality-aware routing (NOT v1-compat; stays even after #300).

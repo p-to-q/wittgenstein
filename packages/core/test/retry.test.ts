@@ -107,3 +107,97 @@ describe("retryWithPolicy", () => {
     expect(shouldRetry).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("retryWithPolicy exponential-jitter strategy", () => {
+  it("succeeds after transient failures with jittered delays within bounds", async () => {
+    vi.useFakeTimers();
+    try {
+      let attempts = 0;
+      const task = vi.fn(async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error("retry");
+        }
+        return "done";
+      });
+
+      const promise = retryWithPolicy(task, {
+        maxAttempts: 5,
+        backoffMs: 100,
+        backoffStrategy: "exponential-jitter",
+      });
+
+      // Delay after attempt 1: uniform jitter in [0, 100].
+      await vi.advanceTimersByTimeAsync(100);
+      // Delay after attempt 2: uniform jitter in [0, 200].
+      await vi.advanceTimersByTimeAsync(200);
+
+      const result = await promise;
+      expect(result).toBe("done");
+      expect(task).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("caps exponential backoff at maxBackoffMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const task = vi.fn(async () => {
+        throw new Error("always fail");
+      });
+
+      const promise = retryWithPolicy(task, {
+        maxAttempts: 4,
+        backoffMs: 10_000,
+        maxBackoffMs: 50,
+        backoffStrategy: "exponential-jitter",
+      }).catch(() => undefined);
+
+      // Every inter-attempt delay must be within [0, 50]. Advancing 50ms
+      // repeatedly must be enough to let all attempts finish.
+      await vi.advanceTimersByTimeAsync(50);
+      await vi.advanceTimersByTimeAsync(50);
+      await vi.advanceTimersByTimeAsync(50);
+      await promise;
+      expect(task).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("uses the respectRetryAfter override when it returns a positive delay", async () => {
+    vi.useFakeTimers();
+    try {
+      const task = vi.fn(async () => {
+        throw new Error("rate-limited");
+      });
+
+      const promise = retryWithPolicy(
+        task,
+        {
+          maxAttempts: 2,
+          backoffMs: 100,
+          backoffStrategy: "exponential-jitter",
+          respectRetryAfter: () => 250,
+        },
+        () => true,
+      );
+
+      // Attach the rejection assertion first so the second attempt's throw
+      // (which fires from inside the timer advance) is already handled.
+      const assertion = expect(promise).rejects.toThrow("rate-limited");
+
+      // Computed delay would be <= 100; the override pins 250ms. Advancing
+      // only 100ms must NOT let the second attempt start.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(task).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(150);
+      await assertion;
+      expect(task).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

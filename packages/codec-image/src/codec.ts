@@ -304,6 +304,11 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     if (!codecV2.isHybridIR(ir)) {
       throw new Error("ImageCodec expected HybridIR after adapt().");
     }
+    // Phase-scoped duration: `ctx.clock.now()` returns epoch milliseconds, not
+    // an elapsed value. Recording it directly (previous bug) wrote ~1.75e12
+    // into `durationMs` and polluted manifest telemetry. Match codec-audio's
+    // pattern: capture at phase entry, record elapsed ms at phase exit.
+    const startedAt = ctx.clock.now();
     const payload = asPayload(ir.latent);
     const imageCode = imageCodeReceipt(payload.scene);
     const raster = await decodeLatentsToRaster(
@@ -324,7 +329,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         llmTokens: payload.llmTokens,
         costUsd: payload.costUsd,
         ...(payload.costUsdReason ? { costUsdReason: payload.costUsdReason } : {}),
-        durationMs: Math.max(0, ctx.clock.now()),
+        durationMs: Math.max(0, ctx.clock.now() - startedAt),
         seed: ctx.seed,
         promptExpanded: payload.promptExpanded,
         llmOutputRaw: payload.llmOutputRaw,

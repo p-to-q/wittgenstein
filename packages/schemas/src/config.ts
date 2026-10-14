@@ -17,6 +17,14 @@ export const LlmConfigSchema = z.object({
   apiKeyEnv: z.string().default("WITTGENSTEIN_LLM_API_KEY"),
   maxOutputTokens: z.number().int().positive().default(4096),
   temperature: z.number().min(0).max(2).default(0.2),
+  /**
+   * Per-request network timeout for LLM calls (ms). Optional so callers that
+   * construct `LlmConfig` objects by hand stay valid; the harness default
+   * (`DEFAULT_WITTGENSTEIN_CONFIG`) and the adapter-level fallback both use
+   * 120_000. Adapters pass an abort signal so a hung connection can never
+   * block a run forever (2026-10-16 robustness slice A2).
+   */
+  timeoutMs: z.number().int().positive().optional(),
 });
 export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
@@ -73,6 +81,7 @@ export const DEFAULT_WITTGENSTEIN_CONFIG: WittgensteinConfig = WittgensteinConfi
     apiKeyEnv: "WITTGENSTEIN_LLM_API_KEY",
     maxOutputTokens: 4096,
     temperature: 0.2,
+    timeoutMs: 120_000,
   },
   runtime: {
     artifactsDir: "artifacts",

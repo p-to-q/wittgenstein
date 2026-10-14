@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 export function resolveSeed(
   requestedSeed: number | null | undefined,
   defaultSeed: number | null | undefined,
@@ -11,7 +13,10 @@ export function resolveSeed(
 
 export function createRunId(now = new Date()): string {
   const stamp = now.toISOString().replace(/[:.]/g, "-");
-  const suffix = Math.random().toString(36).slice(2, 8);
+  // Crypto-grade uniqueness for the 6-char suffix (format preserved from the
+  // original `Math.random().toString(36)` implementation; entropy upgraded
+  // from ~36^6 pseudo-random to a UUID slice — 2026-10-16 slice A5).
+  const suffix = randomUUID().replace(/-/g, "").slice(0, 6);
   return `${stamp}-${suffix}`;
 }
 

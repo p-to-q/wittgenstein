@@ -1,46 +1,85 @@
 import { llm as llmSchemas } from "@wittgenstein/schemas";
 import type { LlmConfig } from "@wittgenstein/schemas";
 import { WittgensteinError } from "../runtime/errors.js";
+import { retryWithPolicy, type RetryPolicy } from "../runtime/retry.js";
 import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "./adapter.js";
 import { priceModel } from "./pricing.js";
+import {
+  DEFAULT_LLM_TIMEOUT_MS,
+  fetchWithTimeout,
+  isTransientLlmFailure,
+  LlmHttpStatusError,
+  parseRetryAfterHeader,
+  retryAfterMsFrom,
+} from "./http.js";
+import { DEFAULT_LLM_RETRY_POLICY } from "./openai-compatible.js";
 
 export class AnthropicLlmAdapter implements LlmAdapter {
   public readonly provider = "anthropic";
+  private readonly retryPolicy: RetryPolicy;
 
-  public constructor(private readonly config: LlmConfig) {}
+  public constructor(
+    private readonly config: LlmConfig,
+    retryPolicy: RetryPolicy = DEFAULT_LLM_RETRY_POLICY,
+  ) {
+    this.retryPolicy = retryPolicy;
+  }
 
   public async generate(request: LlmGenerationRequest): Promise<LlmGenerationResult> {
+    return retryWithPolicy(
+      (attempt) => this.requestOnce(request, attempt),
+      {
+        ...this.retryPolicy,
+        respectRetryAfter: this.retryPolicy.respectRetryAfter ?? retryAfterMsFrom,
+      },
+      isTransientLlmFailure,
+    );
+  }
+
+  private async requestOnce(
+    request: LlmGenerationRequest,
+    attempt: number,
+  ): Promise<LlmGenerationResult> {
     const apiKey = process.env[this.config.apiKeyEnv];
 
     if (!apiKey) {
       throw new Error(`Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`);
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+    const response = await fetchWithTimeout(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: request.model,
+          max_tokens: request.maxOutputTokens,
+          temperature: request.temperature,
+          system:
+            request.messages.find((message) => message.role === "system")?.content ??
+            "Return JSON only.",
+          messages: request.messages
+            .filter((message) => message.role !== "system")
+            .map((message) => ({
+              role: message.role === "assistant" ? "assistant" : "user",
+              content: message.content,
+            })),
+        }),
       },
-      body: JSON.stringify({
-        model: request.model,
-        max_tokens: request.maxOutputTokens,
-        temperature: request.temperature,
-        system:
-          request.messages.find((message) => message.role === "system")?.content ??
-          "Return JSON only.",
-        messages: request.messages
-          .filter((message) => message.role !== "system")
-          .map((message) => ({
-            role: message.role === "assistant" ? "assistant" : "user",
-            content: message.content,
-          })),
-      }),
-    });
+      this.config.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS,
+    );
 
     if (!response.ok) {
-      throw new Error(`Anthropic request failed with ${response.status}: ${await response.text()}`);
+      const body = await response.text();
+      throw new LlmHttpStatusError(
+        response.status,
+        `Anthropic request failed with ${response.status}${attempt > 1 ? ` (attempt ${attempt})` : ""}: ${body}`,
+        parseRetryAfterHeader(response.headers.get("retry-after")),
+      );
     }
 
     const rawJson: unknown = await response.json();

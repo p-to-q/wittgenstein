@@ -10,7 +10,9 @@
  *
  * Refs:
  *   - Audit: `docs/research/2026-05-13-audit-vqgan-class.md` (Gates A+B pass)
- *   - Upstream: https://github.com/FoundationVision/LlamaGen (Apache-2.0)
+ *   - Upstream: https://github.com/FoundationVision/LlamaGen (MIT code + weights;
+ *     pinned commit `ce98ec4`, verified via GitHub API and the vendored
+ *     LICENSE.llamagen — the previous Apache-2.0 claim here was wrong)
  *   - Bridge contract: `./types.ts`
  *   - Replay verifier for the wired path: `wittgenstein replay` (#384)
  */

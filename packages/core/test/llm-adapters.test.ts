@@ -158,3 +158,117 @@ describe("OpenAICompatibleLlmAdapter zod boundary", () => {
     await expect(adapter.generate(baseRequest)).rejects.toBeInstanceOf(WittgensteinError);
   });
 });
+
+describe("OpenAICompatibleLlmAdapter retry + timeout boundary", () => {
+  const fastRetry = { maxAttempts: 3, backoffMs: 0, backoffStrategy: "linear" as const };
+  const adapter = new OpenAICompatibleLlmAdapter(
+    {
+      provider: "openai-compatible",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+      timeoutMs: 5_000,
+    },
+    fastRetry,
+  );
+
+  it("retries transient 429s and returns the eventual success", async () => {
+    let calls = 0;
+    installFetchStub(async () => {
+      calls += 1;
+      if (calls < 3) {
+        return jsonResponse({ error: "rate limited" }, 429);
+      }
+      return jsonResponse({
+        choices: [{ message: { role: "assistant", content: '{"ok":true}' } }],
+        usage: { prompt_tokens: 7, completion_tokens: 5 },
+      });
+    });
+    const result = await adapter.generate(baseRequest);
+    expect(result.text).toBe('{"ok":true}');
+    expect(calls).toBe(3);
+  });
+
+  it("does not retry 400 validation failures", async () => {
+    let calls = 0;
+    installFetchStub(async () => {
+      calls += 1;
+      return jsonResponse({ error: "bad request" }, 400);
+    });
+    await expect(adapter.generate(baseRequest)).rejects.toMatchObject({ name: "LlmHttpStatusError", status: 400 });
+    expect(calls).toBe(1);
+  });
+
+  it("retries network failures (fetch rejects with TypeError)", async () => {
+    let calls = 0;
+    installFetchStub(async () => {
+      calls += 1;
+      if (calls < 2) {
+        throw new TypeError("fetch failed");
+      }
+      return jsonResponse({
+        choices: [{ message: { role: "assistant", content: '{"ok":true}' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      });
+    });
+    const result = await adapter.generate(baseRequest);
+    expect(result.text).toBe('{"ok":true}');
+    expect(calls).toBe(2);
+  });
+
+  it("honors Retry-After on a 503 and retries after the advertised delay", async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      installFetchStub(async () => {
+        calls += 1;
+        if (calls === 1) {
+          return new Response(JSON.stringify({ error: "overloaded" }), {
+            status: 503,
+            headers: { "content-type": "application/json", "retry-after": "1" },
+          });
+        }
+        return jsonResponse({
+          choices: [{ message: { role: "assistant", content: '{"ok":true}' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        });
+      });
+
+      const promise = adapter.generate(baseRequest);
+      await vi.advanceTimersByTimeAsync(1_000);
+      const result = await promise;
+      expect(result.text).toBe('{"ok":true}');
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out a hung request and exhausts retries with AbortError", async () => {
+    let calls = 0;
+    installFetchStub(async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal | undefined;
+      await new Promise<void>((_, reject) => {
+        signal?.addEventListener("abort", () =>
+          reject(new DOMException("The operation was aborted.", "AbortError")),
+        );
+      });
+      throw new Error("unreachable");
+    });
+
+    const shortTimeoutAdapter = new OpenAICompatibleLlmAdapter(
+      {
+        provider: "openai-compatible",
+        apiKeyEnv: "TEST_LLM_KEY",
+        model: "test-model",
+        timeoutMs: 50,
+      },
+      fastRetry,
+    );
+
+    await expect(shortTimeoutAdapter.generate(baseRequest)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(calls).toBe(3);
+  });
+});

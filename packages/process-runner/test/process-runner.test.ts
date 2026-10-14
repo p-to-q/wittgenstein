@@ -4,9 +4,13 @@
  * it indirectly through end-to-end MP4 rendering — these tests pin the
  * timeout + bounded-capture + structured-error invariants directly.
  */
+import { readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_VERSION_CHECK_TIMEOUT_MS,
+  PROCESS_SIGKILL_GRACE_MS,
   createRuntimeProbeReceipt,
   firstOutputLine,
   probeRuntimeCommandVersion,
@@ -63,6 +67,49 @@ describe("runProcess (Issue #356)", () => {
     const message = (caught as Error).message;
     expect(message).toContain("timeout-test");
     expect(message).toContain("100ms");
+  });
+
+  it("escalates SIGTERM to SIGKILL when the child ignores the polite signal", async () => {
+    // Child ignores SIGTERM, so only the SIGKILL escalation can end it. The
+    // child writes its PID to a temp file so the test can verify it died.
+    const pidFile = join(tmpdir(), `witt-process-runner-pid-${Date.now()}.txt`);
+    let caught: unknown;
+    try {
+      await runProcess(
+        "node",
+        [
+          "-e",
+          "require('node:fs').writeFileSync(process.env.WITT_PID_FILE, String(process.pid)); " +
+            "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)",
+        ],
+        { ...baseOptions, env: { ...process.env, WITT_PID_FILE: pidFile } },
+        100,
+        "sigkill-test",
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error & { code?: string }).code).toBe("PROCESS_TIMEOUT");
+    expect((caught as Error & { timedOut?: boolean }).timedOut).toBe(true);
+
+    // The child must be gone shortly after the SIGKILL grace window.
+    const pid = Number(readFileSync(pidFile, "utf8").trim());
+    expect(Number.isInteger(pid) && pid > 0).toBe(true);
+    const deadline = Date.now() + PROCESS_SIGKILL_GRACE_MS + 5_000;
+    let dead = false;
+    while (Date.now() < deadline && !dead) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        dead = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(dead).toBe(true);
+    rmSync(pidFile, { force: true });
   });
 
   it("includes the optional timeoutHint in timeout error messages", async () => {
