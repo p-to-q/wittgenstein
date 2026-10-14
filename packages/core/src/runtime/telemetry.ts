@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { WittgensteinError } from "./errors.js";
 
 export interface RunTelemetryOptions {
   runId: string;
@@ -20,6 +21,20 @@ export class RunTelemetry {
   }
 
   public async writeText(name: string, value: string): Promise<void> {
+    // Path guard: telemetry names come from harness/codec code, but a
+    // traversal here would silently write outside the run dir. Reject
+    // absolute paths and `..` segments with a typed error instead
+    // (2026-10-16 Stage B).
+    if (isAbsolute(name) || name.split(/[\\/]/).includes("..")) {
+      throw new WittgensteinError(
+        "TELEMETRY_PATH_TRAVERSAL",
+        "Telemetry file name must stay inside the run dir.",
+        {
+          details: { name },
+        },
+      );
+    }
+
     const filePath = resolve(this.runDir, name);
     await mkdir(dirname(filePath), { recursive: true });
     await writeFile(filePath, value, "utf8");

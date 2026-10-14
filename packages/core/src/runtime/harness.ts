@@ -158,6 +158,7 @@ export class Wittgenstein {
           llmMaxOutputTokens: this.config.llm.maxOutputTokens,
           dryRun: options.dryRun === true,
           telemetry,
+          budget,
         });
 
         const art = await codec.produce(validated.value, harnessCtx);
@@ -299,6 +300,9 @@ export class Wittgenstein {
       telemetry,
       budget,
     } = options;
+    // Same fail-fast rule as the v2 services wrapper: don't pay for an
+    // LLM call when the budget is already exhausted.
+    budget.assertWithinLimits();
     const generation = await this.generateLegacyCodecInput(
       request,
       runOptions,
@@ -424,6 +428,7 @@ function createHarnessCtx(options: {
   llmMaxOutputTokens: number;
   dryRun: boolean;
   telemetry: RunTelemetry;
+  budget: BudgetTracker;
 }): codecV2.HarnessCtx {
   const ctx: codecV2.HarnessCtx = {
     runId: options.runId,
@@ -444,8 +449,12 @@ function createHarnessCtx(options: {
             model: options.llmModel,
             maxOutputTokens: options.llmMaxOutputTokens,
             temperature: options.llmTemperature,
-            generate: (request: Parameters<LlmAdapter["generate"]>[0]) =>
-              options.llmAdapter!.generate(request),
+            generate: (request: Parameters<LlmAdapter["generate"]>[0]) => {
+              // Fail fast before spending: an exhausted budget rejects the
+              // next LLM call instead of paying for it and failing after.
+              options.budget.assertWithinLimits();
+              return options.llmAdapter!.generate(request);
+            },
           }
         : undefined,
       telemetry: options.telemetry,

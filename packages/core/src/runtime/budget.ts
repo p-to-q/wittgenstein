@@ -10,9 +10,7 @@ export class BudgetTracker {
   private totalTokens = 0;
   private totalCostUsd = 0;
 
-  public constructor(
-    private readonly limits: RuntimeConfig["budget"],
-  ) {}
+  public constructor(private readonly limits: RuntimeConfig["budget"]) {}
 
   public consume(tokens: number, costUsd: number): BudgetSnapshot {
     this.totalTokens += tokens;
@@ -28,7 +26,12 @@ export class BudgetTracker {
     };
   }
 
-  private assertWithinLimits(): void {
+  /**
+   * Fail fast before a spend is attempted. The harness calls this before
+   * issuing an LLM call so an already-exhausted budget rejects the NEXT call
+   * instead of spending first and noticing afterwards (2026-10-16 Stage B).
+   */
+  public assertWithinLimits(): void {
     if (this.totalTokens > this.limits.maxTokens) {
       throw new BudgetExceededError(
         `Token budget exceeded: ${this.totalTokens} > ${this.limits.maxTokens}`,
