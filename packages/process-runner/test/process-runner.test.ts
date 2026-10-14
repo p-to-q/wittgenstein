@@ -4,7 +4,7 @@
  * it indirectly through end-to-end MP4 rendering — these tests pin the
  * timeout + bounded-capture + structured-error invariants directly.
  */
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -83,7 +83,7 @@ describe("runProcess (Issue #356)", () => {
             "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)",
         ],
         { ...baseOptions, env: { ...process.env, WITT_PID_FILE: pidFile } },
-        100,
+        3_000,
         "sigkill-test",
       );
     } catch (error) {
@@ -94,7 +94,15 @@ describe("runProcess (Issue #356)", () => {
     expect((caught as Error & { code?: string }).code).toBe("PROCESS_TIMEOUT");
     expect((caught as Error & { timedOut?: boolean }).timedOut).toBe(true);
 
-    // The child must be gone shortly after the SIGKILL grace window.
+    // 3s lets the child finish startup and install its SIGTERM-ignoring
+    // handler even on a loaded machine — a 100ms window used to SIGKILL it
+    // mid-startup, before the pid file existed (load flake, 2026-10-16).
+    // Belt-and-braces: poll briefly for the pid file before reading.
+    const pidDeadline = Date.now() + 3_000;
+    while (!existsSync(pidFile) && Date.now() < pidDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(existsSync(pidFile)).toBe(true);
     const pid = Number(readFileSync(pidFile, "utf8").trim());
     expect(Number.isInteger(pid) && pid > 0).toBe(true);
     const deadline = Date.now() + PROCESS_SIGKILL_GRACE_MS + 5_000;
