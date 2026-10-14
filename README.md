@@ -255,6 +255,33 @@ pnpm --filter @wittgenstein/cli exec wittgenstein audio   "short launch audio ar
 pnpm --filter @wittgenstein/cli exec wittgenstein doctor
 ```
 
+### Optional runtime tiers (`wittgenstein install`)
+
+Tier 0 (sensor / svg-local / asciipng / procedural audio) ships with the CLI.
+The image decoder tier (LlamaGen frozen VQ bridge, M1B) is opt-in because its
+weights are never bundled:
+
+```bash
+wittgenstein doctor                                   # tier table: what's installed, what's missing
+wittgenstein install image --dry-run                  # plan only, downloads nothing
+wittgenstein install image --weights-base-url https://huggingface.co
+```
+
+`install image` resolves the selected blessed decoder manifest (env
+`WITTGENSTEIN_DECODER_MANIFEST`), fetches the pinned weights from
+`<base>/<repoId>/resolve/<revision>/<filename>`, sha256-verifies them against
+the manifest pin, promotes them into the local decoder cache atomically, and
+writes a receipt to `~/.config/wittgenstein/installed-tiers.json`. Re-running
+is an idempotent no-op; `doctor` reports tier readiness from the receipt plus
+a live cache/runtime re-check. The npm peer `onnxruntime-node` is a separate
+`npm install` step the command reports when missing.
+
+The shipped decoder ONNX is a derivative export with no canonical
+SHA-pinnable URL yet — until the hosting decision lands ([#402](https://github.com/p-to-q/wittgenstein/issues/402) /
+[#435](https://github.com/p-to-q/wittgenstein/issues/435)), install stays
+cache-only unless `--weights-base-url` (or `WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL`)
+points at a blessed mirror. The image GPU tier is not shipped yet.
+
 ---
 
 ## Reproducibility

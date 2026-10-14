@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,7 @@ describe("install image decoder manifest flow", () => {
       manifestPath: string;
       decoderId: string;
       family: string;
+      receiptPath: string;
       weightsRestriction: string;
       decoderPreflight: {
         status: string;
@@ -72,6 +73,110 @@ describe("install image decoder manifest flow", () => {
       codebookSha256: fixture.codebookSha,
       weightsRestriction: "permissive",
     });
+
+    const receipt = JSON.parse(readFileSync(payload.receiptPath, "utf8")) as {
+      schemaVersion: string;
+      tiers: Record<
+        string,
+        { tier: string; weightsSha256: string; codebookSha256: string; runtimeVerified: boolean }
+      >;
+    };
+    expect(receipt.schemaVersion).toBe("witt.installed-tiers/v0.1");
+    expect(receipt.tiers.image).toMatchObject({
+      tier: "image",
+      weightsSha256: fixture.weightsSha,
+      codebookSha256: fixture.codebookSha,
+      runtimeVerified: true,
+    });
+  });
+
+  it("fetches + verifies weights end-to-end from a configured base URL and writes the receipt", async () => {
+    const fixture = writeDecoderFixture({ cacheState: "missing" });
+
+    // Tiny local HTTP server answering the exact HF-style resolve paths with
+    // the pinned bytes (weights vs codebook routed by filename).
+    const serverDir = makeTempDir();
+    const serverScript = join(serverDir, "serve.mjs");
+    writeFileSync(
+      serverScript,
+      [
+        'import { createServer } from "node:http";',
+        'const routes = new Map([["vqgan.onnx", "weights"], ["codebook.bin", "codebook"]]);',
+        "const server = createServer((req, res) => {",
+        '  const filename = req.url.split("/").pop();',
+        '  const body = routes.get(filename);',
+        "  if (!body) { res.writeHead(404); res.end(); return; }",
+        '  res.writeHead(200, { "content-type": "application/octet-stream" });',
+        "  res.end(body);",
+        "});",
+        'server.listen(0, "127.0.0.1", () => {',
+        "  console.log(server.address().port);",
+        "});",
+      ].join("\n"),
+    );
+
+    const server = spawn(process.execPath, [serverScript], { stdio: ["ignore", "pipe", "inherit"] });
+    try {
+      const port = await new Promise<string>((resolvePort, rejectPort) => {
+        let buffer = "";
+        server.stdout.setEncoding("utf8");
+        server.stdout.on("data", (chunk) => {
+          buffer += chunk;
+          const match = buffer.match(/\d+\n/);
+          if (match) resolvePort(match[0].trim());
+        });
+        server.once("error", rejectPort);
+        server.once("exit", () => rejectPort(new Error("server exited before announcing its port")));
+      });
+
+      const install = runInstall(["image", "--json", "--weights-base-url", `http://127.0.0.1:${port}`], {
+        WITTGENSTEIN_DECODER_MANIFEST: fixture.manifestPath,
+        WITTGENSTEIN_DECODER_CACHE_DIR: fixture.decoderCacheDir,
+      });
+
+      expect(install.status).toBe(0);
+      const payload = JSON.parse(install.stdout) as {
+        ok: boolean;
+        action: string;
+        status: string;
+        receiptPath: string;
+        weightsSha256: string;
+        source: string;
+        runtimeVerified: boolean;
+      };
+      expect(payload.ok).toBe(true);
+      expect(payload.action).toBe("installed");
+      expect(payload.status).toBe("ready");
+      expect(payload.weightsSha256).toBe(fixture.weightsSha);
+      expect(payload.source).toBe("fetched");
+      expect(payload.runtimeVerified).toBe(true);
+
+      // Cache file landed with verified bytes.
+      expect(readFileSync(fixture.weightsPath, "utf8")).toBe("weights");
+
+      // Receipt records the fetched install.
+      const receipt = JSON.parse(readFileSync(payload.receiptPath, "utf8")) as {
+        tiers: Record<string, { source: string; weightsSha256: string; runtimeVerified: boolean }>;
+      };
+      expect(receipt.tiers.image).toMatchObject({
+        source: "fetched",
+        weightsSha256: fixture.weightsSha,
+        runtimeVerified: true,
+      });
+
+      // Idempotent: a second install is a cache-hit no-op with zero HTTP.
+      const again = runInstall(["image", "--json"], {
+        WITTGENSTEIN_DECODER_MANIFEST: fixture.manifestPath,
+        WITTGENSTEIN_DECODER_CACHE_DIR: fixture.decoderCacheDir,
+        WITTGENSTEIN_INSTALL_RECEIPT_PATH: payload.receiptPath,
+      });
+      expect(again.status).toBe(0);
+      const againPayload = JSON.parse(again.stdout) as { action: string; status: string };
+      expect(againPayload.action).toBe("install-ready");
+      expect(againPayload.status).toBe("ready");
+    } finally {
+      server.kill();
+    }
   });
 
   it("blocks when no manifest is selected", () => {
@@ -140,7 +245,7 @@ describe("install image decoder manifest flow", () => {
     },
   );
 
-  it("blocks when declared weights are not installed", () => {
+  it("needs a weights base URL when declared weights are not installed", () => {
     const fixture = writeDecoderFixture({ cacheState: "missing" });
 
     const install = runInstall(["image", "--json"], {
@@ -149,8 +254,17 @@ describe("install image decoder manifest flow", () => {
     });
 
     expect(install.status).toBe(1);
-    const payload = JSON.parse(install.stderr) as InstallBlockedPayload;
+    const payload = JSON.parse(install.stderr) as InstallBlockedPayload & {
+      code: string;
+      installHint: string;
+      tracker: string;
+      modelOwnerTracker: string;
+    };
 
+    expect(payload.code).toBe("TIER_INSTALL_NEEDS_WEIGHTS_URL");
+    expect(payload.installHint).toBe("wittgenstein install image --weights-base-url <base-url>");
+    expect(payload.tracker).toMatch(/issues\/402$/);
+    expect(payload.modelOwnerTracker).toMatch(/issues\/435$/);
     expect(payload.decoderPreflight.reason).toBe("weights-not-installed");
     expect(payload.decoderPreflight.installHint).toBe("wittgenstein install image");
   });
@@ -166,6 +280,7 @@ describe("install image decoder manifest flow", () => {
     expect(install.status).toBe(1);
     const payload = JSON.parse(install.stderr) as InstallBlockedPayload;
 
+    expect(payload.code).toBe("TIER_INSTALL_NEEDS_WEIGHTS_URL");
     expect(payload.decoderPreflight.reason).toBe("weights-invalid");
     expect(payload.decoderPreflight.details.code).toBe("WEIGHTS_SHA256_MISMATCH");
     expect(existsSync(fixture.weightsPath)).toBe(false);
@@ -207,11 +322,17 @@ function runInstall(args: string[], envOverrides: NodeJS.ProcessEnv = {}) {
   const env = { ...process.env };
   delete env.WITTGENSTEIN_DECODER_MANIFEST;
   delete env.WITTGENSTEIN_DECODER_CACHE_DIR;
+  delete env.WITTGENSTEIN_INSTALL_RECEIPT_PATH;
+  delete env.WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL;
 
   return spawnSync("node", ["--import", "tsx", cliBin, "install", ...args], {
     cwd: packageRoot,
     encoding: "utf8",
-    env: { ...env, ...envOverrides },
+    env: {
+      ...env,
+      WITTGENSTEIN_INSTALL_RECEIPT_PATH: join(makeTempDir(), "installed-tiers.json"),
+      ...envOverrides,
+    },
   });
 }
 

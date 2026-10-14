@@ -17,7 +17,8 @@ export interface InstallTierPlan {
   weightsRequired: true;
   allowResearchWeights: boolean;
   tracker: string;
-  blockedBy: "decoder-manifest";
+  /** Cache-only until a canonical artifact URL is blessed (#402/#435). */
+  weightsFetch: "cache-only" | "fetch-enabled";
 }
 
 const IMAGE_INSTALL_TRACKER = TRACKERS.installTierCli;
@@ -69,7 +70,7 @@ export function resolveInstallTier(
 
 export function buildInstallTierPlan(
   tier: InstallTierId,
-  options: { allowResearchWeights?: boolean } = {},
+  options: { allowResearchWeights?: boolean; weightsFetch?: InstallTierPlan["weightsFetch"] } = {},
 ): InstallTierPlan {
   const runtimeTier = tier === "image-gpu" ? "tier2" : "tier1";
   const readiness = runtimeTierReadiness()[runtimeTier];
@@ -82,6 +83,6 @@ export function buildInstallTierPlan(
     weightsRequired: true,
     allowResearchWeights: options.allowResearchWeights ?? false,
     tracker: IMAGE_INSTALL_TRACKER,
-    blockedBy: "decoder-manifest",
+    weightsFetch: options.weightsFetch ?? "cache-only",
   };
 }

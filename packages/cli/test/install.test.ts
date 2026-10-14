@@ -22,7 +22,8 @@ describe("install tier command", () => {
     const payload = JSON.parse(install.stdout) as {
       ok: boolean;
       action: string;
-      plan: { tier: string; runtimeTier: string; blockedBy: string };
+      plan: { tier: string; runtimeTier: string; weightsFetch: string };
+      fetchPolicy: { weightsBaseUrlConfigured: boolean; cacheOnly: boolean };
       decoderPreflight: {
         schemaVersion: string;
         status: string;
@@ -41,7 +42,9 @@ describe("install tier command", () => {
     expect(payload.action).toBe("plan-only");
     expect(payload.plan.tier).toBe("image");
     expect(payload.plan.runtimeTier).toBe("tier1");
-    expect(payload.plan.blockedBy).toBe("decoder-manifest");
+    expect(payload.plan.weightsFetch).toBe("cache-only");
+    expect(payload.fetchPolicy.weightsBaseUrlConfigured).toBe(false);
+    expect(payload.fetchPolicy.cacheOnly).toBe(true);
     expect(payload.decoderPreflight).toMatchObject({
       schemaVersion: "witt.image.decoder-preflight/v0.1",
       status: "blocked",
@@ -54,7 +57,7 @@ describe("install tier command", () => {
     expect(payload.decoderPreflight.details.gateDOnnxCpu).toMatch(/issues\/335$/);
   });
 
-  it("maps --gpu to the image GPU tier", () => {
+  it("refuses the image GPU tier until an onnxruntime-gpu bridge ships", () => {
     const install = spawnSync(
       "node",
       ["--import", "tsx", cliBin, "install", "image", "--gpu", "--dry-run"],
@@ -64,16 +67,16 @@ describe("install tier command", () => {
       },
     );
 
-    expect(install.status).toBe(0);
-    const payload = JSON.parse(install.stdout) as {
-      plan: { tier: string; runtimeTier: string };
-      decoderPreflight: { runtimeTier: string; reason: string };
+    expect(install.status).toBe(1);
+    const payload = JSON.parse(install.stderr) as {
+      ok: boolean;
+      code: string;
+      supportedTiers: string[];
     };
 
-    expect(payload.plan.tier).toBe("image-gpu");
-    expect(payload.plan.runtimeTier).toBe("tier2");
-    expect(payload.decoderPreflight.reason).toBe("manifest-missing");
-    expect(payload.decoderPreflight.runtimeTier).toBe("node-onnx-gpu");
+    expect(payload.ok).toBe(false);
+    expect(payload.code).toBe("TIER_INSTALL_GPU_UNSUPPORTED");
+    expect(payload.supportedTiers).toEqual(["image"]);
   });
 
   it("refuses real installation until a decoder manifest exists", () => {

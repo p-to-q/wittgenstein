@@ -16,6 +16,10 @@ import {
 } from "./decoder-manifest.js";
 import { resolveExecutionRoot } from "./shared.js";
 import { runtimeTierReadiness } from "../tiers.js";
+import {
+  defaultInstalledTiersReceiptPath,
+  readInstalledTiersReceipt,
+} from "../install-receipt.js";
 
 type DoctorCheck = RuntimeProbeReceipt;
 
@@ -77,6 +81,25 @@ export function registerDoctorCommand(program: Command): void {
       });
       const nodeSatisfied = isNodeVersionAtLeast(process.versions.node, NODE_ENGINE_MINIMUM);
       const pricing = priceModel(config.llm.provider, config.llm.model, { input: 1, output: 1 });
+      const imageDecoder = await checkImageDecoderReadiness(workspaceRoot);
+      const tiers = runtimeTierReadiness();
+      const imageReady = imageDecoder.status === "ready";
+      tiers.tier1 = {
+        label: tiers.tier1.label,
+        ready: imageReady,
+        installHint: imageReady ? null : imageDecoder.installHint ?? "wittgenstein install image",
+        ...(tiers.tier1.tracker ? { tracker: tiers.tier1.tracker } : {}),
+      };
+      tiers.tier2 = {
+        label: tiers.tier2.label,
+        ready: false,
+        // GPU tier is not shipped: `wittgenstein install image --gpu`
+        // answers TIER_INSTALL_GPU_UNSUPPORTED until an onnxruntime-gpu
+        // bridge exists (#402 delivery surface).
+        installHint: null,
+        ...(tiers.tier2.tracker ? { tracker: tiers.tier2.tracker } : {}),
+      };
+      const installReceipt = await readInstalledTiersReceipt(defaultInstalledTiersReceiptPath());
 
       console.log(
         JSON.stringify(
@@ -100,9 +123,14 @@ export function registerDoctorCommand(program: Command): void {
                   : null,
             },
             artifactsDir: config.runtime.artifactsDir,
-            tiers: runtimeTierReadiness(),
+            tiers,
+            installReceipt: {
+              status: installReceipt.status,
+              path: installReceipt.path,
+              tiers: installReceipt.receipt?.tiers ?? null,
+            },
             videoRender: checkVideoRenderDependencies(),
-            imageDecoder: await checkImageDecoderReadiness(workspaceRoot),
+            imageDecoder,
           },
           null,
           2,

@@ -39,7 +39,13 @@ describe("doctor tier readiness", () => {
       };
       tiers: {
         tier0: { ready: boolean };
-        tier1: { ready: boolean; installHint: string };
+        tier1: { ready: boolean; installHint: string | null };
+        tier2: { ready: boolean; installHint: string | null };
+      };
+      installReceipt: {
+        status: string;
+        path: string;
+        tiers: Record<string, unknown> | null;
       };
       videoRender: {
         enabled: boolean;
@@ -82,6 +88,9 @@ describe("doctor tier readiness", () => {
     expect(payload.tiers.tier0.ready).toBe(true);
     expect(payload.tiers.tier1.ready).toBe(false);
     expect(payload.tiers.tier1.installHint).toBe("wittgenstein install image");
+    expect(payload.tiers.tier2.ready).toBe(false);
+    expect(payload.tiers.tier2.installHint).toBeNull(); // GPU tier not shipped
+    expect(["loaded", "missing", "invalid"]).toContain(payload.installReceipt.status);
     expect(payload.videoRender.enabled).toBe(false);
     expect(payload.videoRender.backend).toBe("distilled-internal");
     expect(payload.videoRender.hyperframesNode.status).toBe("skipped");
@@ -122,6 +131,62 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.blockers.decoderDelivery).toMatch(/issues\/402$/);
     expect(payload.imageDecoder.blockers.gateCDeterminism).toMatch(/issues\/334$/);
     expect(payload.imageDecoder.blockers.gateDOnnxCpu).toMatch(/issues\/335$/);
+  });
+
+  it("reports the installed-tiers receipt when one exists", () => {
+    const receiptPath = join(makeTempDir(), "installed-tiers.json");
+    writeFileSync(
+      receiptPath,
+      JSON.stringify({
+        schemaVersion: "witt.installed-tiers/v0.1",
+        tiers: {
+          image: {
+            tier: "image",
+            family: "llamagen",
+            decoderId: "llamagen-vqgan-phase0",
+            weightsSha256: "a".repeat(64),
+            codebookSha256: "b".repeat(64),
+            weightsRestriction: "permissive",
+            source: "fetched",
+            runtimeVerified: true,
+            installedAt: "2026-10-16T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+
+    const doctor = runDoctor({ WITTGENSTEIN_INSTALL_RECEIPT_PATH: receiptPath });
+
+    expect(doctor.status).toBe(0);
+    const payload = JSON.parse(doctor.stdout) as {
+      installReceipt: {
+        status: string;
+        path: string;
+        tiers: { image: { tier: string; weightsSha256: string } } | null;
+      };
+    };
+    expect(payload.installReceipt.status).toBe("loaded");
+    expect(payload.installReceipt.path).toBe(receiptPath);
+    expect(payload.installReceipt.tiers?.image).toMatchObject({
+      tier: "image",
+      weightsSha256: "a".repeat(64),
+    });
+  });
+
+  it("reports a corrupt installed-tiers receipt as invalid (never as ready)", () => {
+    const receiptPath = join(makeTempDir(), "installed-tiers.json");
+    writeFileSync(receiptPath, JSON.stringify({ schemaVersion: "wrong" }));
+
+    const doctor = runDoctor({ WITTGENSTEIN_INSTALL_RECEIPT_PATH: receiptPath });
+
+    expect(doctor.status).toBe(0);
+    const payload = JSON.parse(doctor.stdout) as {
+      installReceipt: { status: string; tiers: unknown };
+      tiers: { tier1: { ready: boolean } };
+    };
+    expect(payload.installReceipt.status).toBe("invalid");
+    expect(payload.installReceipt.tiers).toBeNull();
+    expect(payload.tiers.tier1.ready).toBe(false);
   });
 
   it("flags a configured model missing from the pricing table", () => {

@@ -50,3 +50,25 @@ export type {
   DecoderPreflightReceipt,
   DecoderPreflightStatus,
 } from "./decoders/preflight.js";
+// Decoder delivery installation (Issues #402/#403): the CLI `wittgenstein
+// install image` command fetches + verifies + promotes weights through the
+// same resolver and error classes the bridge itself uses, so receipts and
+// failure codes stay identical between the loader and the installer.
+export {
+  buildHuggingFaceAssetFetcher,
+  loadLlamagenDecoderBridge,
+  LLAMAGEN_DECODER_ID,
+} from "./decoders/llamagen.js";
+export {
+  DecoderWeightsFetchFailedError,
+  DecoderWeightsNotInstalledError,
+  DecoderWeightsSha256MismatchError,
+  ResearchWeightsRequiresOptInError,
+  resolveDecoderWeights,
+} from "./decoders/weights.js";
+export type {
+  DecoderWeightsAsset,
+  DecoderWeightsAssetKind,
+  DecoderWeightsManifest,
+  ResolvedDecoderWeights,
+} from "./decoders/weights.js";
