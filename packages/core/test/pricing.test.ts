@@ -43,6 +43,30 @@ describe("priceModel", () => {
     expect(result.costUsdReason).toBe("missing-usage");
   });
 
+  it("pins the 2026-10-16 refreshed Anthropic lineup (primary source)", () => {
+    // platform.claude.com model pages, 2026-10-16: opus-5-5 $4/$20,
+    // sonnet-5-5 $2/$10, haiku-5-5 from $0.10/$0.50, fable-5-1 $10/$50.
+    expect(priceModel("anthropic", "claude-opus-5-5", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(24, 6);
+    expect(priceModel("anthropic", "claude-sonnet-5-5", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(12, 6);
+    expect(priceModel("anthropic", "claude-haiku-5-5", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(0.6, 6);
+    expect(priceModel("anthropic", "claude-fable-5-1", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(60, 6);
+  });
+
+  it("pins the 2026-10-16 refreshed OpenAI + MiniMax rows", () => {
+    expect(priceModel("openai-compatible", "gpt-4.1", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(10, 6);
+    expect(priceModel("openai-compatible", "gpt-5", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(11.25, 6);
+    expect(priceModel("minimax", "MiniMax-M2", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(1.5, 6);
+    expect(priceModel("minimax", "MiniMax-M3", { input: 1_000_000, output: 1_000_000 }).costUsd).toBeCloseTo(1.5, 6);
+  });
+
+  it("keeps conflicting-source OpenAI tiers unpinned (honest unknown-model)", () => {
+    // Aggregators disagree on gpt-5.4/5.5/5.6/6.x rates; they must stay out
+    // of the table until pinned against platform.openai.com.
+    for (const model of ["gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-6"]) {
+      expect(priceModel("openai-compatible", model, { input: 1, output: 1 }).costUsdReason).toBe("unknown-model");
+    }
+  });
+
   it("computes minimax-01 cost correctly", () => {
     const result = priceModel("minimax", "minimax/minimax-01", { input: 5_000, output: 2_500 });
     expect(result.costUsdReason).toBe("computed");
