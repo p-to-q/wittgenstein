@@ -236,8 +236,11 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
    2026-10-16 (`91ca0dd`, S7b)**: DI seam (`services.decoderBridge` / `options.bridge`), preflight
    family/shape/codebook + output-resolution assertions, typed no-fallback, `decoderReceipt` +
    conditional `image.decoder` manifest row, stub-bridge tests + skippable real-bridge smoke.
-   Remaining: thin CLI `--decoder` opt-in flag, `wittgenstein replay` verification (#384),
-   canonical ONNX hosting decision (#435), then issue closeout review.
+   CLI `--decoder llamagen` opt-in flag **landed 2026-10-16 (`8fd1a24`)**: loader runs before
+   any LLM spend, failures are structured CLI errors (installHint) with exit 1, and core
+   `HarnessRunOptions.services` folds entry-layer services into `HarnessCtx.services`.
+   Remaining: `wittgenstein replay` verification (#384), canonical ONNX hosting decision
+   (#435), then issue closeout review.
 7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
 
 ### Open-risk ledger (unchanged, restated)

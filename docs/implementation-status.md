@@ -167,7 +167,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Codec                | Protocol | Notes |
 | -------------------- | -------- | ----- |
-| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback); delivery left: canonical ONNX URL (#435), replay (#384), issue closeout |
+| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`); delivery left: canonical ONNX URL (#435), replay (#384), issue closeout |
 | audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
 | sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
 | video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
