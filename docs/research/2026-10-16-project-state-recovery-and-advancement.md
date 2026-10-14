@@ -232,9 +232,12 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
    emitting the canonical manifest; no quality claims until real runs.
 5. **Reuse gate:** LlamaGen vendored shim only. TiTok / Open-MAGVIT2 / MaskGIT reuse needs license +
    model-owner review before becoming training code (#435 hub).
-6. **Delivery wiring left for M1B closeout:** bridge → image pipeline `decode()` swap (the loader is
-   ready; the pipeline still runs the procedural placeholder), `wittgenstein replay` verification
-   (#384), canonical ONNX hosting decision (#435), then issue closeout review.
+6. **Delivery wiring left for M1B closeout:** bridge → image pipeline `decode()` swap **landed
+   2026-10-16 (`91ca0dd`, S7b)**: DI seam (`services.decoderBridge` / `options.bridge`), preflight
+   family/shape/codebook + output-resolution assertions, typed no-fallback, `decoderReceipt` +
+   conditional `image.decoder` manifest row, stub-bridge tests + skippable real-bridge smoke.
+   Remaining: thin CLI `--decoder` opt-in flag, `wittgenstein replay` verification (#384),
+   canonical ONNX hosting decision (#435), then issue closeout review.
 7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
 
 ### Open-risk ledger (unchanged, restated)
