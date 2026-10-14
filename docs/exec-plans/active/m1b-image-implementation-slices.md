@@ -46,8 +46,39 @@ Unsafe claims:
 | S4. CLI inspection                    | Landed.                                                                                  | Keep human-facing summaries compact: semantic source and seed summary by default, raw image-code only behind `--show-image-code`. | `packages/cli/src/commands/image.ts`, `packages/cli/test/image.test.ts`                             | CLI JSON tests for `imageCode`, `semanticSummary`, and `seedSummary`.                                                    | Roll back if CLI starts dumping raw opaque token arrays by default.                                        |
 | S5. Eval hooks                        | Partially landed; active successor lanes remain.                                         | Treat parse-valid, adapter-valid, decoder-compat, deterministic replay, quality metrics, and Gate E as separate receipts.         | `research/validation/phase0a_emission_entropy.py`, `docs/acceptance/m1b-image.md`, future eval code | current probes plus future #393/#394 metrics.                                                                            | Roll back any metric that mixes candidate-decoder evidence with own-trained tokenizer evidence.            |
 | S6. Fixture / golden strategy         | Landed for lightweight receipts; heavy binary fixtures remain excluded.                  | Prefer JSON manifests and small audit fixtures; avoid committing model weights or large generated images.                         | `packages/codec-image/test/*`, `research/validation/fixtures/m1b-audit/*`, `.gitignore`             | `pnpm test`, artifact-check validators, tarball exclusion checks.                                                        | Roll back if fixtures make npm packages or CI dependent on private weights.                                |
-| S7. Decoder delivery                  | Open.                                                                                    | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
+| S7. Decoder delivery                  | Loader + install CLI landed (2026-10-16); pipeline wiring + hosting + closeout remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
 | S8. Training / adapter implementation | Open.                                                                                    | Train only narrow tokenizer/adapter/head slices after the receipt floor is in place.                                              | `research/training/*`, `python/image_adapter/*`, future package glue                                | #441/#399/#400 before expensive training; #393/#394/#396/#397/#398 for actual experiments.                               | Roll back if smoke runs are described as trained weights or if receipts omit dataset/runtime fingerprints. |
+
+## S7b. Bridge → pipeline wiring brief (next landing step, no schema change)
+
+Loader and installer are landed; the remaining S7 code is one explicit,
+non-default lane from the bridge into `ImageCodec.decode()`. Design notes so
+the landing PR is a mechanical fill, not a design decision:
+
+- **Seam (dependency injection, not loader-coupling).** `decodeLatentsToRaster`
+  (and `ImageCodec.decode()`) gain an optional injected bridge: the caller
+  passes an already-loaded `ImageDecoderBridge`; the pipeline never imports
+  `loadLlamagenDecoderBridge` and never parses env or config. The CLI / entry
+  layer decides the lane (e.g. a `--decoder llamagen` flag or a config field,
+  both trivial once the codec accepts the seam) and passes
+  `loadLlamagenDecoderBridge({ cacheDir, weightsBaseUrl })` in.
+- **No silent fallback.** When a bridge is injected: `decode()` runs
+  capabilities/shape/codebook assertions (already in the loader), and any
+  failure is a typed error — it never falls through to the procedural
+  placeholder. When no bridge is injected: the placeholder path runs exactly
+  as today (golden unchanged).
+- **Receipts.** The manifest records the lane: bridge-backed runs add
+  `decoderId`, `decoderHash` (weights SHA from the bridge), `determinismClass`
+  (`structural-parity`), and a `renderPath`-style marker distinguishing
+  bridge vs placeholder output, so `wittgenstein replay` (#384) can verify a
+  bridge run reproduced with the same decoder hash.
+- **Validation.** Codec-level tests with a stubbed `ImageDecoderBridge`
+  (contract in `decoder-bridge-contract.test.ts`, loader behavior in
+  `llamagen-decoder.test.ts`); one real-session smoke behind the install
+  lane; golden untouched.
+- **Do not do here.** Schema changes (RFC-0007 discriminator), default-lane
+  switching, quality claims, or auto-loading the bridge for `providerLatents`
+  — those are separate decisions, not this slice.
 
 ## Successor issue map
 
