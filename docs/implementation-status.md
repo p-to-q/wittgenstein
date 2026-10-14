@@ -10,7 +10,7 @@
 > - `docs/agent-guides/`
 > - `docs/archive-policy.md` if a row here starts to drift into historical-only status
 >
-> Last updated: 2026-05-31. "Ships" = produces real output today. "Stub" = typed interface,
+> Last updated: 2026-10-16. "Ships" = produces real output today. "Stub" = typed interface,
 > throws `NotImplementedError`, waiting for a renderer. "Partial" = some routes work.
 
 ---
@@ -54,18 +54,19 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Component                            | Status   | Notes                                              |
 | ------------------------------------ | -------- | -------------------------------------------------- |
-| `harness.ts` — `Wittgenstein` class  | ✅ Ships | render(), route dispatching, manifest write        |
+| `harness.ts` — `Wittgenstein` class  | ✅ Ships | route dispatching, manifest write, budget fail-fast before every LLM generate, manifest validated against `RunManifestSchema` before persist |
 | `registry.ts` — codec registry       | ✅ Ships |                                                    |
 | `router.ts` — modality routing       | ✅ Ships |                                                    |
-| `manifest.ts` — run manifest emitter | ✅ Ships | writes `artifacts/runs/<id>/manifest.json`         |
-| `telemetry.ts` — artifact logger     | ✅ Ships |                                                    |
-| `budget.ts` — token/cost tracker     | ✅ Ships |                                                    |
-| `retry.ts` — retry policy            | ✅ Ships |                                                    |
-| `seed.ts` — deterministic RNG        | ✅ Ships |                                                    |
+| `manifest.ts` — run manifest emitter | ✅ Ships | writes `artifacts/runs/<id>/manifest.json`; refuses invalid receipts with `MANIFEST_INVALID` + zod issues (2026-10-16) |
+| `telemetry.ts` — artifact logger     | ✅ Ships | path-traversal guard: `TELEMETRY_PATH_TRAVERSAL` on absolute / `..` names |
+| `budget.ts` — token/cost tracker     | ✅ Ships | `assertWithinLimits()` public; harness fail-fast before spend |
+| `retry.ts` — retry policy            | ✅ Ships | linear / exponential-jitter backoff, transient-only, `Retry-After` respected |
+| `seed.ts` — deterministic RNG        | ✅ Ships | `createRunId` via `crypto.randomUUID()` |
 | `errors.ts` — error taxonomy         | ✅ Ships | `NotImplementedError`, `BudgetExceededError`, etc. |
 | `config.ts` — config loader          | ✅ Ships | `polyglot.config.ts` + env vars                    |
 | `llm/openai-compatible.ts`           | ✅ Ships | Moonshot/MiniMax/DeepSeek/Qwen/OpenAI              |
 | `llm/anthropic.ts`                   | ✅ Ships | Claude via `x-api-key`                             |
+| `llm/http.ts`                        | ✅ Ships | `fetchWithTimeout` + typed `LlmHttpStatusError` (transient-only retry) |
 
 ### @wittgenstein/codec-sensor
 
@@ -144,7 +145,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | `wittgenstein video`        | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in    |
 | `wittgenstein animate-html` | ✅ Ships   | Builds self-contained slideshow HTML from SVG inputs                     |
 | `wittgenstein replay`       | ⚠️ Partial | Byte-parity replay for sensor, svg-local, and asciipng-local routes      |
-| `wittgenstein doctor`       | ✅ Ships   | Checks node, pnpm, env vars, package links, and runtime tier readiness   |
+| `wittgenstein doctor`       | ✅ Ships   | Runtime tier readiness + decoder preflight + pricing-table staleness hint (`llmPricing`) |
 | `wittgenstein install`      | ⚠️ Partial | Dry-run tier plans ship; real image install preflights blessed manifests |
 
 ### @wittgenstein/process-runner
@@ -161,6 +162,25 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | `exec.ts` — `execProgram()` interface | 🔴 Stub | Typed production boundary; throws `SANDBOX_NOT_IMPLEMENTED` |
 
 ---
+
+## Codec protocol v1/v2 split (2026-10-16 decision)
+
+| Codec                | Protocol | Notes |
+| -------------------- | -------- | ----- |
+| image                | v2       | `produce()` + `manifestRows()`; M1B bridge delivery still blocked on #402/#403/#441 |
+| audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
+| sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
+| video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
+| svg                  | v1 (**frozen**) | Stable, golden-tested, tier0-shipped |
+| asciipng             | v1 (**frozen**) | Stable, golden-tested, tier0-shipped |
+
+**svg / asciipng v1→v2 port: frozen, not scheduled.** Rationale: both are the most stable shipped
+surface (tier0), their non-local sources (svg engine, asciipng minimax) are LLM-generation paths a
+v2 port must move into codec-owned `produce()`, and #300 (v1-compat retirement) is closed so the
+legacy pipeline is not scheduled for removal. Un-freeze criteria: (a) M1B audit delivery closeout
+(#402/#403/#441) lands, and (b) the v2 protocol exits experimental. Then port svg-local first
+(pure-local, smallest), then asciipng — the sibling-port order already in
+`docs/exec-plans/active/codec-v2-port.md`. Full rationale: research note §6, 2026-10-16.
 
 ## Loupe dashboard renderer
 
@@ -183,3 +203,5 @@ These are explicit scope decisions, not omissions:
   audio ambient classifier). No fine-tuning of base models.
 - **Cloud render APIs** — no DALL·E, ElevenLabs, or Runway calls anywhere in the stack.
 - **Stable Diffusion / diffusion models** — explicitly excluded by `docs/hard-constraints.md`.
+- **svg / asciipng codec v2 ports** — deliberately frozen as stable v1 until M1B delivery closes
+  and the v2 protocol exits experimental (see "Codec protocol v1/v2 split" above).

@@ -87,7 +87,7 @@ License fields re-verified against the GitHub API today (gh api repos/<r> licens
 Known inconsistency to fix later (fact): `packages/codec-image/src/decoders/llamagen.ts` header says
 "Upstream: Apache-2.0" but the audited upstream (pinned `ce98ec4`) and GitHub API both say **MIT**;
 the vendored `research/training/_shared/_third_party/LICENSE.llamagen` also says MIT. The header
-comment is wrong; it must be corrected before the bridge lands so receipts don't propagate a false
+comment was wrong; corrected to MIT in Stage A (`b88f183`) so receipts cannot propagate a false
 license posture.
 
 ## 4. Staged advancement plan
@@ -136,3 +136,47 @@ Order preserved from the 2026-05-31 exec order, refreshed by today's facts:
 - Whether ONNX CPU determinism holds for Open-MAGVIT2 on macOS+Linux (Gates C/D unknown, #331).
 - Current model prices for the pricing table (stale since mid-2026 model rotations).
 - The user's compute budget and timing for Stage C — plan is readiness work until then.
+
+## 6. Addendum — Stage B landed (2026-10-16, same session)
+
+Stage A already committed (`b88f183`); the llamagen header inconsistency noted in §3 is fixed there.
+Stage B landed as two commits plus one test-robustness fix, all local, all gates green:
+
+- `bcaea32` **B1/B2 — budget fail-fast + telemetry path guard**: `BudgetTracker.assertWithinLimits()`
+  is public and the harness calls it before every LLM generate (v2 `services.llm.generate` wrapper
+  and the legacy path), so an exhausted budget rejects the NEXT call instead of paying first.
+  `RunTelemetry.writeText` rejects absolute names and `..` segments with a typed
+  `TELEMETRY_PATH_TRAVERSAL` error; `writeJson` inherits the guard.
+- `2ff5c10` **B3/B4 — manifest write-path validation + doctor pricing hint**: the harness now runs
+  the manifest through the canonical `RunManifestSchema` before persisting and refuses with
+  `MANIFEST_INVALID` + zod issues (replay-validates-on-read becomes validates-on-write-too; this
+  closes the `foldManifestRows` unknown-value bypass). `priceModel` is exported from the core
+  surface and `wittgenstein doctor` reports `llmPricing {modelKnown, costUsdReason, hint}` so an
+  unpriced (provider, model) pair is surfaced up front. First validator run immediately caught a
+  real invalid pairing (`costUsd=0` + `reason="no-llm-call"`) in a test fixture — the check works.
+- `53904b9` **process-runner test deflake**: the SIGKILL escalation test gave the child a 100ms
+  startup window that the machine's load could eat (ENOENT on the pid file, reproduced 2×); now
+  3s + a bounded pid-file poll. Production runner code was correct throughout.
+
+**asciipng/svg v1→v2 port decision (this session): freeze, do not port now.**
+Facts: `codec-svg` and `codec-asciipng` are v1 `WittgensteinCodec`s (schemaPreamble/parse/render)
+routed through the legacy pipeline; both are stable, golden-tested, and shipped as tier0
+("sensor / svg-local / asciipng"). Their non-local sources (svg engine, asciipng minimax) are
+LLM-generation paths that a v2 port must move into codec-owned `produce()` — real work, not a
+mechanical port. Issue #300 (v1-compat retirement) is closed; the legacy pipeline is not scheduled
+for removal. Interpretation: porting now buys receipt uniformity but risks churn on the most
+stable shipped surface while robustness and M1B delivery are the binding constraints.
+Decision: keep both codecs v1 (frozen) until (a) M1B audit delivery closeout lands (#402/#403/#441),
+and (b) the v2 protocol exits experimental; then port svg-local first (pure-local, smallest),
+then asciipng, per the sibling-port order already recorded in
+`docs/exec-plans/active/codec-v2-port.md`. Documented in `docs/implementation-status.md`.
+
+**Validation record (after B, worker under load 8–28):** typecheck green · lint green ·
+core 101/101 · codec-image 124/124 · golden 1/1 · process-runner 20/20 (3× after deflake) ·
+cli 50/50 · reviewer-bench 8/8 · publish-surface clean · doctor ok (llmPricing present) ·
+numpy smoke OK. No push to mirror/GitHub yet.
+
+**What Stage B does NOT cover (explicit, not forgotten):** doctor pricing-table rates themselves
+remain stale (mid-2026 model rotations — the hint now tells operators exactly which pair is
+unpriced, but the table refresh needs current vendor pages); sandbox remains a typed stub;
+M1B delivery (#402/#403/#441) stays blocked on compute/lazy-fetch work, unchanged.
