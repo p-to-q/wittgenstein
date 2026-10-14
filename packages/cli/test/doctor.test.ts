@@ -32,6 +32,11 @@ describe("doctor tier readiness", () => {
 
     expect(doctor.status).toBe(0);
     const payload = JSON.parse(doctor.stdout) as {
+      llmPricing: {
+        modelKnown: boolean;
+        costUsdReason: string;
+        hint: string | null;
+      };
       tiers: {
         tier0: { ready: boolean };
         tier1: { ready: boolean; installHint: string };
@@ -71,6 +76,9 @@ describe("doctor tier readiness", () => {
         };
       };
     };
+    expect(payload.llmPricing.costUsdReason).toBe("computed");
+    expect(payload.llmPricing.modelKnown).toBe(true);
+    expect(payload.llmPricing.hint).toBeNull();
     expect(payload.tiers.tier0.ready).toBe(true);
     expect(payload.tiers.tier1.ready).toBe(false);
     expect(payload.tiers.tier1.installHint).toBe("wittgenstein install image");
@@ -114,6 +122,27 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.blockers.decoderDelivery).toMatch(/issues\/402$/);
     expect(payload.imageDecoder.blockers.gateCDeterminism).toMatch(/issues\/334$/);
     expect(payload.imageDecoder.blockers.gateDOnnxCpu).toMatch(/issues\/335$/);
+  });
+
+  it("flags a configured model missing from the pricing table", () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, "wittgenstein-config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({ llm: { provider: "openai-compatible", model: "gpt-future-2030" } }),
+    );
+
+    const doctor = runDoctor({}, ["--config", configPath]);
+
+    expect(doctor.status).toBe(0);
+    const payload = JSON.parse(doctor.stdout) as {
+      llmPricing: { modelKnown: boolean; costUsdReason: string; hint: string | null };
+    };
+    expect(payload.llmPricing.modelKnown).toBe(false);
+    expect(payload.llmPricing.costUsdReason).toBe("unknown-model");
+    expect(payload.llmPricing.hint).toMatch(
+      /No pricing rate for openai-compatible\/gpt-future-2030/,
+    );
   });
 
   it("prints structured video dependency checks when HyperFrames MP4 rendering is enabled", () => {
@@ -246,14 +275,14 @@ describe("doctor tier readiness", () => {
   });
 });
 
-function runDoctor(envOverrides: NodeJS.ProcessEnv = {}) {
+function runDoctor(envOverrides: NodeJS.ProcessEnv = {}, args: string[] = []) {
   const env = { ...process.env };
   delete env.WITTGENSTEIN_DECODER_MANIFEST;
   delete env.WITTGENSTEIN_DECODER_CACHE_DIR;
   delete env.WITTGENSTEIN_HYPERFRAMES_RENDER;
   delete env.WITTGENSTEIN_HYPERFRAMES_BACKEND;
 
-  return spawnSync("node", ["--import", "tsx", cliBin, "doctor"], {
+  return spawnSync("node", ["--import", "tsx", cliBin, "doctor", ...args], {
     cwd: packageRoot,
     encoding: "utf8",
     env: { ...env, ...envOverrides },

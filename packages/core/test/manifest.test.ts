@@ -3,8 +3,14 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { RunManifest } from "@wittgenstein/schemas";
 import { WittgensteinError } from "../src/runtime/errors.js";
-import { collectRuntimeFingerprint, hashFile, hashFileOrThrow } from "../src/runtime/manifest.js";
+import {
+  assertRunManifestValid,
+  collectRuntimeFingerprint,
+  hashFile,
+  hashFileOrThrow,
+} from "../src/runtime/manifest.js";
 
 let tmp: string;
 
@@ -290,3 +296,118 @@ describe("collectRuntimeFingerprint", () => {
     expect(fp.lockfileHash).toBe(expected);
   });
 });
+
+describe("assertRunManifestValid (2026-10-16 Stage B)", () => {
+  it("accepts a valid failed-run manifest", () => {
+    expect(() => assertRunManifestValid(validFailedManifest())).not.toThrow();
+  });
+
+  it("accepts a valid successful-run manifest", () => {
+    expect(() => assertRunManifestValid(validSuccessfulManifest())).not.toThrow();
+  });
+
+  it("rejects a successful run without an artifact path", () => {
+    const manifest = { ...validSuccessfulManifest(), artifactPath: null };
+    let caught: unknown;
+    try {
+      assertRunManifestValid(manifest);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_INVALID");
+    const details = (caught as WittgensteinError).details as { issues: unknown[] };
+    expect(details.issues.length).toBeGreaterThan(0);
+  });
+
+  it("rejects a failed run without an error payload", () => {
+    const manifest = { ...validFailedManifest(), error: null };
+    let caught: unknown;
+    try {
+      assertRunManifestValid(manifest);
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_INVALID");
+  });
+
+  it("rejects a negative durationMs (runtime check for the nonnegative field)", () => {
+    const manifest = { ...validFailedManifest(), durationMs: -1 };
+    let caught: unknown;
+    try {
+      assertRunManifestValid(manifest);
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_INVALID");
+    const details = (caught as WittgensteinError).details as {
+      issues: Array<{ path: Array<string | number> }>;
+    };
+    expect(details.issues.some((issue) => issue.path.includes("durationMs"))).toBe(true);
+  });
+
+  it("rejects a codec-folded row value that violates a typed field", () => {
+    // foldManifestRows assigns codec-authored `unknown` values into whitelisted
+    // keys — this is the class of bug the write-path check exists for.
+    const manifest = { ...validSuccessfulManifest(), route: 123 as unknown as string };
+    let caught: unknown;
+    try {
+      assertRunManifestValid(manifest);
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_INVALID");
+    const details = (caught as WittgensteinError).details as {
+      issues: Array<{ path: Array<string | number> }>;
+    };
+    expect(details.issues.some((issue) => issue.path.includes("route"))).toBe(true);
+  });
+});
+
+function validFailedManifest(): RunManifest {
+  return {
+    ...manifestSpine(),
+    ok: false,
+    error: { code: "VALIDATION_ERROR", message: "boom" },
+  };
+}
+
+function validSuccessfulManifest(): RunManifest {
+  return {
+    ...manifestSpine(),
+    ok: true,
+    error: null,
+    artifactPath: "/tmp/artifact.png",
+    artifactSha256: "a".repeat(64),
+  };
+}
+
+function manifestSpine(): RunManifest {
+  return {
+    runId: "run-1",
+    gitSha: null,
+    lockfileHash: null,
+    nodeVersion: process.version,
+    wittgensteinVersion: "0.3.0-alpha.3",
+    command: "wittgenstein",
+    args: ["image", "test"],
+    seed: null,
+    codec: "image",
+    tier: null,
+    route: "raster",
+    license: { weightsRestriction: "permissive" },
+    llmProvider: "openai-compatible",
+    llmModel: "gpt-4o-mini",
+    llmTokens: { input: 0, output: 0 },
+    costUsd: null,
+    costUsdReason: "no-llm-call",
+    promptRaw: "prompt",
+    promptExpanded: null,
+    llmOutputRaw: null,
+    llmOutputParsed: null,
+    artifactPath: null,
+    artifactSha256: null,
+    startedAt: new Date().toISOString(),
+    durationMs: 0,
+  };
+}

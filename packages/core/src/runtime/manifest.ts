@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { RunManifestSchema, type RunManifest } from "@wittgenstein/schemas";
 import { WittgensteinError } from "./errors.js";
 
 const execFileAsync = promisify(execFile);
@@ -14,9 +15,7 @@ export interface RuntimeFingerprint {
   wittgensteinVersion: string;
 }
 
-export async function collectRuntimeFingerprint(
-  cwd: string,
-): Promise<RuntimeFingerprint> {
+export async function collectRuntimeFingerprint(cwd: string): Promise<RuntimeFingerprint> {
   const rootPackageJsonPath = resolve(cwd, "package.json");
   const lockfilePath = resolve(cwd, "pnpm-lock.yaml");
 
@@ -77,5 +76,26 @@ async function readWittgensteinVersion(packageJsonPath: string): Promise<string>
     return parsed.version ?? "0.0.0";
   } catch {
     return "0.0.0";
+  }
+}
+
+/**
+ * Reject a manifest that fails the canonical RunManifestSchema before it is
+ * persisted (2026-10-16 Stage B). The harness builds manifests imperatively
+ * and `foldManifestRows` assigns codec-authored `unknown` values into
+ * whitelisted keys, so TypeScript cannot prove runtime validity. Replay
+ * already validates manifests on read; this makes the write path symmetric
+ * and refuses to persist a corrupt receipt (doctrine: no silent fallbacks).
+ */
+export function assertRunManifestValid(manifest: RunManifest): void {
+  const result = RunManifestSchema.safeParse(manifest);
+  if (!result.success) {
+    throw new WittgensteinError(
+      "MANIFEST_INVALID",
+      "Refusing to persist a run manifest that fails the canonical RunManifestSchema. " +
+        "A codec emitted values the manifest cannot honestly record; fix the codec (or the schema) " +
+        "instead of writing a corrupt receipt.",
+      { details: { issues: result.error.issues } },
+    );
   }
 }

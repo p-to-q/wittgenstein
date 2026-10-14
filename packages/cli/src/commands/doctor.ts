@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
-import { loadWittgensteinConfig } from "@wittgenstein/core";
+import { loadWittgensteinConfig, priceModel } from "@wittgenstein/core";
 import type { DecoderPreflightReceipt } from "@wittgenstein/codec-image";
 import {
   createRuntimeProbeReceipt,
@@ -76,6 +76,7 @@ export function registerDoctorCommand(program: Command): void {
         ...(options.config ? { configPath: options.config } : {}),
       });
       const nodeSatisfied = isNodeVersionAtLeast(process.versions.node, NODE_ENGINE_MINIMUM);
+      const pricing = priceModel(config.llm.provider, config.llm.model, { input: 1, output: 1 });
 
       console.log(
         JSON.stringify(
@@ -86,6 +87,18 @@ export function registerDoctorCommand(program: Command): void {
             hasApiKey: Boolean(process.env[config.llm.apiKeyEnv]),
             llmProvider: config.llm.provider,
             llmModel: config.llm.model,
+            // Pricing-table staleness check (2026-10-16 Stage B): manifests
+            // record costUsd=null + reason "unknown-model" when the configured
+            // (provider, model) pair is not in the rate table — doctor should
+            // say so up front instead of leaving it to manifest archaeology.
+            llmPricing: {
+              modelKnown: pricing.costUsdReason === "computed",
+              costUsdReason: pricing.costUsdReason,
+              hint:
+                pricing.costUsdReason === "unknown-model"
+                  ? `No pricing rate for ${config.llm.provider}/${config.llm.model} in packages/core/src/llm/pricing.ts; run manifests will record costUsd=null with reason "unknown-model".`
+                  : null,
+            },
             artifactsDir: config.runtime.artifactsDir,
             tiers: runtimeTierReadiness(),
             videoRender: checkVideoRenderDependencies(),

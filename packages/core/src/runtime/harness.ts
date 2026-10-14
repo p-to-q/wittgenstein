@@ -11,7 +11,7 @@ import type {
 import { codecV2 as codecV2Ns } from "@wittgenstein/schemas";
 import { loadWittgensteinConfig } from "./config.js";
 import { BudgetTracker } from "./budget.js";
-import { collectRuntimeFingerprint, hashFileOrThrow } from "./manifest.js";
+import { assertRunManifestValid, collectRuntimeFingerprint, hashFileOrThrow } from "./manifest.js";
 import { routeRequest } from "./router.js";
 import { CodecRegistry } from "./registry.js";
 import { createRunId, resolveSeed } from "./seed.js";
@@ -235,6 +235,7 @@ export class Wittgenstein {
       manifest.ok = false;
     }
 
+    assertRunManifestValid(manifest);
     await telemetry.writeJson("manifest.json", manifest);
 
     return {

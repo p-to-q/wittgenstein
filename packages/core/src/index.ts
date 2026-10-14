@@ -4,6 +4,8 @@
  * What ships:
  *   - `Wittgenstein` — the harness class consumers run requests through.
  *   - `loadWittgensteinConfig` — the config loader CLI / consumers call.
+ *   - `priceModel` — the pricing-table lookup `wittgenstein doctor` uses to
+ *     surface stale / unknown (provider, model) pairs for honest receipts.
  *   - `codecV2` — the experimental v2 codec protocol namespace.
  *   - Types needed to type `Wittgenstein.run`'s call site.
  *
@@ -23,12 +25,9 @@
  * path — but be aware those imports are unstable and not covered by semver.
  */
 export { Wittgenstein } from "./runtime/harness.js";
-export type {
-  HarnessOutcome,
-  HarnessRunOptions,
-  WittgensteinOptions,
-} from "./runtime/harness.js";
+export type { HarnessOutcome, HarnessRunOptions, WittgensteinOptions } from "./runtime/harness.js";
 export { loadWittgensteinConfig } from "./runtime/config.js";
+export { priceModel } from "./llm/pricing.js";
 
 /**
  * Codec Protocol v2 (experimental, M0). Surfaced under a namespace to avoid
