@@ -97,6 +97,24 @@ tracks: [#267, #403]
 - `--config` pointing at a missing file dies as an uncaught
   `ERR_MODULE_NOT_FOUND` (raw node stack, no structured envelope, exit 1) —
   candidate for a small CLI error-boundary slice.
+  **Fixed (2026-10-16, config error-boundary slice).** The loader now raises
+  typed `CONFIG_LOAD_FAILED` (import / transform failures) or
+  `CONFIG_SCHEMA_INVALID` (merged config fails `WittgensteinConfigSchema`)
+  errors, and the CLI top-level boundary (`runCli` → `printCliError`,
+  `packages/cli/src/cli-errors.ts`) renders every escaping rejection as one
+  flat `{ ok: false, code, message, details? }` JSON document on stderr with
+  exit 1 — the same refusal shape as `printImageDecoderError` /
+  `printInstallError`. A `stack` is attached only for `UNEXPECTED_ERROR`
+  (errors that could not be named). Verified shapes: missing path,
+  unparsable `.ts` (esbuild transform), schema-invalid `.ts` / `.json`, and
+  the env-var lane (`WITTGENSTEIN_LLM_PROVIDER=bogus` refuses without
+  inventing a `configPath`). `doctor` and all codec commands were affected;
+  `replay` was already structured (`REPLAY_EXECUTION_FAILED` + `cause`) and is
+  unchanged. Design anchors: Vite's `failed to load config from <path>`
+  (fail loud, name the resolved path — `vitejs/vite` `config.ts`); Brief D
+  item 5 + RFC-0002 fix 1 (payload on stdout, errors/logs on stderr; non-zero
+  exit on refusal). Regression locks: `packages/core/test/config.test.ts`,
+  `packages/cli/test/cli-errors.test.ts`, `packages/cli/test/bin.test.ts`.
 - `asciipng --source minimax` with non-TTY stdin exits 0 without output or
   work (the interactive key prompt resolves on closed stdin) — a silent
   no-op success.

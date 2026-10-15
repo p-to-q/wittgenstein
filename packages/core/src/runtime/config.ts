@@ -6,6 +6,7 @@ import {
   WittgensteinConfigSchema,
   type WittgensteinConfig,
 } from "@wittgenstein/schemas";
+import { WittgensteinError } from "./errors.js";
 
 export interface LoadConfigOptions {
   cwd?: string;
@@ -80,7 +81,11 @@ export async function loadWittgensteinConfig(
     };
   }
 
-  return WittgensteinConfigSchema.parse(merged);
+  try {
+    return WittgensteinConfigSchema.parse(merged);
+  } catch (cause) {
+    throw configSchemaError(configPath, cause);
+  }
 }
 
 async function resolveConfigPath(
@@ -111,6 +116,78 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 async function importConfig(filePath: string): Promise<Partial<WittgensteinConfig>> {
-  const imported = await import(pathToFileURL(filePath).href);
-  return (imported.default ?? imported.config ?? imported) as Partial<WittgensteinConfig>;
+  try {
+    const imported = (await import(pathToFileURL(filePath).href)) as Record<string, unknown>;
+    return (imported.default ?? imported.config ?? imported) as Partial<WittgensteinConfig>;
+  } catch (cause) {
+    throw new WittgensteinError(
+      "CONFIG_LOAD_FAILED",
+      `Failed to load Wittgenstein config "${filePath}": ${describeCause(cause)}`,
+      { cause, details: { configPath: filePath } },
+    );
+  }
+}
+
+function configSchemaError(configPath: string | null, cause: unknown): WittgensteinError {
+  const { summary, issues } = summarizeConfigIssues(cause);
+  const subject = configPath ? `Wittgenstein config "${configPath}"` : "Wittgenstein config";
+  return new WittgensteinError(
+    "CONFIG_SCHEMA_INVALID",
+    `${subject} failed schema validation: ${summary}`,
+    {
+      cause,
+      details: {
+        ...(configPath ? { configPath } : {}),
+        ...(issues.length > 0 ? { issues } : {}),
+      },
+    },
+  );
+}
+
+function summarizeConfigIssues(error: unknown): { summary: string; issues: unknown[] } {
+  const issues = readIssues(error);
+  if (issues.length === 0) {
+    return { summary: describeCause(error), issues };
+  }
+
+  const statements = issues
+    .slice(0, 3)
+    .map((issue) => `${issuePath(issue)}: ${issueMessage(issue)}`);
+  const remaining = issues.length - statements.length;
+  const suffix = remaining > 0 ? ` (+${remaining} more issue${remaining === 1 ? "" : "s"})` : "";
+  return { summary: `${statements.join("; ")}${suffix}`, issues };
+}
+
+function readIssues(error: unknown): unknown[] {
+  if (typeof error === "object" && error !== null && "issues" in error) {
+    const issues = (error as { issues?: unknown }).issues;
+    if (Array.isArray(issues)) {
+      return issues;
+    }
+  }
+  return [];
+}
+
+function issuePath(issue: unknown): string {
+  if (typeof issue === "object" && issue !== null) {
+    const path = (issue as { path?: unknown }).path;
+    if (Array.isArray(path) && path.length > 0) {
+      return path.join(".");
+    }
+  }
+  return "(root)";
+}
+
+function issueMessage(issue: unknown): string {
+  if (typeof issue === "object" && issue !== null) {
+    const message = (issue as { message?: unknown }).message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+  return "invalid value";
+}
+
+function describeCause(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
 }

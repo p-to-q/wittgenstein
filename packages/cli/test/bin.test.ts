@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -73,5 +75,44 @@ describe("@wittgenstein/cli bin", () => {
     expect(result.stderr).toContain(
       "error: option '--columns <n>' argument '10xyz' is invalid. Value must be a positive integer.",
     );
+  });
+});
+
+describe("config refusals", () => {
+  it("prints a structured CONFIG_LOAD_FAILED refusal for a missing --config path", () => {
+    const missing = join(tmpdir(), `witt-missing-config-${process.pid}-${Date.now()}.json`);
+    const result = spawnSync(
+      process.execPath,
+      ["./bin/wittgenstein.js", "image", "hello", "--config", missing, "--dry-run"],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    const payload = JSON.parse(result.stderr) as Record<string, unknown>;
+    expect(payload).toMatchObject({ ok: false, code: "CONFIG_LOAD_FAILED" });
+    expect(payload["details"]).toEqual({ configPath: missing });
+  });
+
+  it("prints a structured CONFIG_SCHEMA_INVALID refusal for schema-invalid config values", () => {
+    const dir = mkdtempSync(join(tmpdir(), "witt-config-refusal-"));
+    try {
+      const configPath = join(dir, "wittgenstein.config.mjs");
+      writeFileSync(configPath, 'export default { llm: { provider: "bogus-provider" } };\n');
+      const result = spawnSync(
+        process.execPath,
+        ["./bin/wittgenstein.js", "doctor", "--config", configPath],
+        { cwd: packageRoot, encoding: "utf8" },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      const payload = JSON.parse(result.stderr) as { ok: boolean; code?: string; message?: string };
+      expect(payload.ok).toBe(false);
+      expect(payload.code).toBe("CONFIG_SCHEMA_INVALID");
+      expect(payload.message).toContain("llm.provider");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { printCliError } from "./cli-errors.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerAudioCommand } from "./commands/audio.js";
@@ -34,5 +35,10 @@ export function createProgram(): Command {
 }
 
 export async function runCli(argv = process.argv): Promise<void> {
-  await createProgram().parseAsync(argv);
+  try {
+    await createProgram().parseAsync(argv);
+  } catch (error) {
+    printCliError(error);
+    process.exitCode = 1;
+  }
 }
