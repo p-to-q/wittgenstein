@@ -196,15 +196,17 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
       { cwd: packageRoot, encoding: "utf8" },
     );
     expect(baseline.status).toBe(0);
-    // Image runs print progress diagnostics ahead of the JSON body (svg and
-    // sensor do not), so parse from the first brace of the stdout stream.
-    const baselineOutput = JSON.parse(stdoutBody(baseline.stdout)) as {
+    // stdout is a single JSON document end to end: run diagnostics go to
+    // stderr (ADR-0009), so raw stdout parses directly — this also locks the
+    // stream split against regressions.
+    const baselineOutput = JSON.parse(baseline.stdout) as {
       ok: boolean;
       runDir: string;
       artifactPath: string;
     };
     expect(baselineOutput.ok).toBe(true);
     expect(baselineOutput.artifactPath).toBe(baselineOut);
+    expect(baseline.stderr).toContain("[wittgenstein:");
 
     const baselineManifest = join(baselineOutput.runDir, "manifest.json");
     const manifestRaw = JSON.parse(await readFile(baselineManifest, "utf8")) as {
@@ -230,7 +232,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
       encoding: "utf8",
     });
     expect(replay.status).toBe(0);
-    const replayOutput = JSON.parse(stdoutBody(replay.stdout)) as {
+    const replayOutput = JSON.parse(replay.stdout) as {
       ok: boolean;
       code: string;
       byteParity: boolean;
@@ -245,6 +247,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replayOutput.determinismClass).toBe("byte-parity");
     expect(replayOutput.latents.latentsParity).toBe(true);
     expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
+    expect(replay.stderr).toContain("[wittgenstein:");
   }, 30_000);
 
   it("resolves a recorded bridge decoder cache-only — never fetches, reports REPLAY_DECODER_UNAVAILABLE", async () => {
@@ -1216,12 +1219,4 @@ function stubImageDecoderBridge(
     },
   };
   return { bridge };
-}
-
-function stdoutBody(text: string): string {
-  const start = text.indexOf("{");
-  if (start < 0) {
-    throw new Error(`No JSON body found in output: ${text.slice(0, 200)}`);
-  }
-  return text.slice(start);
 }

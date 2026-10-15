@@ -1,3 +1,4 @@
+import { Console } from "node:console";
 import { resolve } from "node:path";
 import type {
   CostUsdReason,
@@ -625,19 +626,33 @@ function defaultOutputPathFor(
   return resolve(cwd, "artifacts", "runs", runId, `output.${extension}`);
 }
 
+// Codec-run diagnostics are diagnostics: they belong on stderr so a run's
+// stdout stays the single structured JSON document the CLI contract promises
+// (ADR-0009 "logs on stderr"; RFC-0002 fix 1). Image runs in particular log
+// `info` progress lines (VSC expansion, adapter selection) that must not
+// interleave with the JSON envelope on stdout.
+const diagnostics = new Console({ stdout: process.stderr, stderr: process.stderr });
+
 function createRunLogger(runId: string): RenderCtx["logger"] {
+  const log = (
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    data?: unknown,
+  ): void => {
+    const line = `[wittgenstein:${runId}] ${message}`;
+    // Omitting the second argument when there is no data keeps the line free
+    // of the otherwise-trailing separator space.
+    if (data === undefined || data === null) {
+      diagnostics[level](line);
+    } else {
+      diagnostics[level](line, data);
+    }
+  };
+
   return {
-    debug: (message, data) => {
-      console.debug(`[wittgenstein:${runId}] ${message}`, data ?? "");
-    },
-    info: (message, data) => {
-      console.info(`[wittgenstein:${runId}] ${message}`, data ?? "");
-    },
-    warn: (message, data) => {
-      console.warn(`[wittgenstein:${runId}] ${message}`, data ?? "");
-    },
-    error: (message, data) => {
-      console.error(`[wittgenstein:${runId}] ${message}`, data ?? "");
-    },
+    debug: (message, data) => log("debug", message, data),
+    info: (message, data) => log("info", message, data),
+    warn: (message, data) => log("warn", message, data),
+    error: (message, data) => log("error", message, data),
   };
 }

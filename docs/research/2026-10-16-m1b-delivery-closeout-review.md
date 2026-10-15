@@ -79,6 +79,12 @@ Acceptance vs reality (verified against the repo this session):
 - **Remains:** the real fetch recipe is blocked behind the same hosting
   decision as #402; the known cosmetic defect (stray `undefined` printed on
   some CLI error paths) is pre-existing and not part of this lane's contract.
+  *(2026-10-16 addendum: bounded — the literal claim was not reproducible at
+  `68b499a` across ~50 probe paths, and no HEAD print site can emit it; the
+  actionable output defect in this family (run diagnostics printed on stdout
+  ahead of the JSON envelope) was fixed the same day by moving the run logger
+  to stderr per ADR-0009 — see
+  [`2026-10-16-cli-stray-undefined-investigation.md`](./2026-10-16-cli-stray-undefined-investigation.md).)*
 
 ### #473 / S7e
 
