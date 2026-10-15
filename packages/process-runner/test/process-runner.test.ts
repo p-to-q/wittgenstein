@@ -69,6 +69,10 @@ describe("runProcess (Issue #356)", () => {
     expect(message).toContain("100ms");
   });
 
+  // 30s allowance (repo-wide local convention): the escalation path
+  // legitimately needs the 3s child window + the 2s SIGKILL grace before it
+  // can assert, which exceeds vitest's 5s default — plain `pnpm test` (what
+  // CI runs) must pass, found 2026-10-16 during the pre-push CI-mirror sweep.
   it("escalates SIGTERM to SIGKILL when the child ignores the polite signal", async () => {
     // Child ignores SIGTERM, so only the SIGKILL escalation can end it. The
     // child writes its PID to a temp file so the test can verify it died.
@@ -118,7 +122,7 @@ describe("runProcess (Issue #356)", () => {
     }
     expect(dead).toBe(true);
     rmSync(pidFile, { force: true });
-  });
+  }, 30_000);
 
   it("includes the optional timeoutHint in timeout error messages", async () => {
     let caught: unknown;
