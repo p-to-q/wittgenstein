@@ -92,7 +92,7 @@ tracks: [#267, #403]
   for a bound `Console` vs global `console`, piped and on a pty, before
   landing).
 
-## Bounded leftovers (recorded, not fixed here)
+## Bounded leftovers (recorded here; fix status annotated in place)
 
 - `--config` pointing at a missing file dies as an uncaught
   `ERR_MODULE_NOT_FOUND` (raw node stack, no structured envelope, exit 1) —
@@ -118,6 +118,20 @@ tracks: [#267, #403]
 - `asciipng --source minimax` with non-TTY stdin exits 0 without output or
   work (the interactive key prompt resolves on closed stdin) — a silent
   no-op success.
+  **Fixed (2026-10-16, minimax prompt slice).** The prompt wrote to stdout
+  and `rl.question` never settles on closed stdin, so the event loop drained
+  and the process exited 0 with the prompt text as its only output.
+  `ensureMinimaxApiKeyInteractive` now (a) prompts only when
+  `process.stdin.isTTY`, with the prompt text on stderr so stdout stays a
+  single JSON document; (b) resolves answers through `questionOrClose`, which
+  settles with `""` when the interface closes or the question rejects — no
+  promise can be left pending. Non-TTY (or empty / closed) input proceeds
+  keyless into the codec's existing structured refusal: `VALIDATION_ERROR`
+  ("Missing Minimax API key …") as a recorded in-run failure envelope with
+  exit 1 — the same lane as every other missing-LLM-key failure. Regression
+  locks: `packages/cli/test/minimax-key.test.ts`; verified non-TTY
+  (`< /dev/null`: envelope on stdout, exit 1, no prompt text) and under a pty
+  (prompt on stderr only).
 - `console.warn(message, data)` prints `data` with `util.inspect`, not JSON —
   consistent with the diagnostics stream after this fix, noted for the
   record.
