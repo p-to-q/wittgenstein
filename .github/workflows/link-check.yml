@@ -22,12 +22,22 @@ jobs:
 
       - name: Run lychee link check
         id: lychee
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
+          # Pin the bundled lychee binary explicitly. The action's default
+          # version drifts with new releases: v0.24 removed `--exclude-mail`
+          # (mail is now excluded by default) and the drift silently broke
+          # this workflow in 2026 — see #584. Bump deliberately.
+          lycheeVersion: v0.24.2
+          # Slightly above lychee defaults (retry wait 1s, timeout 20s) so
+          # transient slow hosts don't fail the monthly audit; real breakage
+          # still surfaces. Baseline run: #584.
           args: >-
             --no-progress
             --max-concurrency 4
-            --exclude-mail
+            --max-retries 3
+            --retry-wait-time 2
+            --timeout 30
             --exclude-loopback
             --exclude-path '.*node_modules.*'
             --accept 200..=299,403,429
