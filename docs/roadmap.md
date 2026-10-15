@@ -29,8 +29,8 @@ If a Phase row and an M-phase row appear to disagree (status, scope, target rele
 Wittgenstein is built in phases. Each phase is self-contained and shippable — the repo
 should be useful (and honest) at every phase boundary, not only at the end.
 
-For per-component status see [`docs/implementation-status.md`](docs/implementation-status.md).
-For architectural decisions see [`docs/adrs/`](docs/adrs/).
+For per-component status see [`docs/implementation-status.md`](implementation-status.md).
+For architectural decisions see [`docs/adrs/`](adrs/).
 
 ---
 

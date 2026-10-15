@@ -16,7 +16,7 @@
 - Cursor: `.cursor/commands/site-clone.md` (invoke **site-clone** from the command palette)
 - Codex CLI: `.codex/skills/site-clone/SKILL.md`
 
-Upstream: [CloveSVG/One-Click-Clone](https://github.com/CloveSVG/One-Click-Clone).
+Upstream: [CloveSVG/One-Click-Clone](https://web.archive.org/web/20260408032604/https://github.com/CloveSVG/One-Click-Clone) — original repo removed upstream; Wayback snapshot (captured 2026-04-08).
 
 ## Artifacts captured here
 

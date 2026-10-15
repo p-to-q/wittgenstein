@@ -271,7 +271,7 @@ These are **maintainer-decision** questions that this research note flags but do
 - M1B umbrella: [#70](https://github.com/p-to-q/wittgenstein/issues/70).
 - Per-candidate audits: [#329](https://github.com/p-to-q/wittgenstein/issues/329) VQGAN-class (delivered via [PR #336](https://github.com/p-to-q/wittgenstein/pull/336)); [#330](https://github.com/p-to-q/wittgenstein/issues/330) / [#331](https://github.com/p-to-q/wittgenstein/issues/331) / [#332](https://github.com/p-to-q/wittgenstein/issues/332) / [#333](https://github.com/p-to-q/wittgenstein/issues/333) (delivered via PR #340).
 - Implementation gates: [#334](https://github.com/p-to-q/wittgenstein/issues/334) (Gate C), [#335](https://github.com/p-to-q/wittgenstein/issues/335) (Gate D).
-- ADRs: [ADR-0018](../adrs/0018-hybrid-image-code-and-visual-seed-token.md) (Visual Seed Code image route), [ADR-0005](../adrs/0005-frozen-vq-decoder-only.md) (frozen-decoder doctrine), [ADR-0007](../adrs/0007-path-c-rejected.md) (no fused multimodal retrain).
+- ADRs: [ADR-0018](../adrs/0018-hybrid-image-code-and-visual-seed-token.md) (Visual Seed Code image route), [ADR-0005](../adrs/0005-decoder-not-generator.md) (frozen-decoder doctrine), [ADR-0007](../adrs/0007-path-c-rejected.md) (no fused multimodal retrain).
 - Existing training-manifest pattern: [`polyglot-mini/train/data_manifest.json`](../../polyglot-mini/train/data_manifest.json) (PR #130 — `Added CI-gated sensor goldens and training-data lock receipts`).
 - Audio precedent for cross-platform parity class: [CHANGELOG.md](../../CHANGELOG.md) `0.3.0-alpha.1` § Kokoro structural-parity verdict.
 
