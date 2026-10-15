@@ -762,6 +762,7 @@ describe("image adapterOutcome (#247-style observability)", () => {
       attemptedPaths: ["visual-seed-code"],
       fallbackReasons: [],
       seedExpanderId: "placeholder-seed-expander/v0",
+      latentsSha256: "956d920d2ceab85e9ca1659878f466c5120e46cbde9c2228f6986764c0bf03c9",
     });
   });
 
@@ -790,6 +791,7 @@ describe("image adapterOutcome (#247-style observability)", () => {
         attemptedPaths: ["visual-seed-code"],
         fallbackReasons: [],
         seedExpanderId: "block-causal-maskgit-expander/v0",
+        latentsSha256: "b6fd7b2568c5b57107734a224496133a9445e9dd1ed8975f80a4b6b0491601b1",
       });
     } finally {
       if (previous === undefined) {
@@ -832,6 +834,7 @@ describe("image adapterOutcome (#247-style observability)", () => {
       attemptedPaths: [],
       fallbackReasons: ["no-decoder-facing-code", "learned-mlp-unavailable"],
       seedExpanderId: null,
+      latentsSha256: "da96089e6b64ea880b0e675a6fafe0162497d0911098d8f0d61e9c322c4970be",
     });
   });
 

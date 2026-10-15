@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { RenderCtx } from "@wittgenstein/schemas";
 import { resolveMlpForScene, predictWithResolved } from "../adapters/adapter-resolve.js";
 import { selectSeedExpander } from "../adapters/seed-expander-resolve.js";
@@ -21,6 +22,26 @@ export { ImageLatentCodesSchema };
 
 /** v1 stub: tokens[0]=1, tokens[1]=byte length, tokens[2..]=UTF-8 bytes of caption. */
 export const STUB_LATENT_PROTOCOL_V1 = 1;
+
+/**
+ * Canonical SHA-256 of the decoder-native latents a receipt describes —
+ * the decode-input identity recorded as `ImageAdapterReceipt.latentsSha256`
+ * (S7d, #384). Serialization uses a fixed key order (not `JSON.stringify`
+ * over the object itself) so the digest does not depend on property order;
+ * `tokenGrid` is re-materialized as a plain array for the same reason.
+ */
+export function latentsSha256(latents: ImageLatentCodes): string {
+  const canonical = JSON.stringify({
+    schemaVersion: latents.schemaVersion,
+    family: latents.family,
+    codebook: latents.codebook,
+    codebookVersion: latents.codebookVersion,
+    tokenGrid: [latents.tokenGrid[0], latents.tokenGrid[1]],
+    tokens: latents.tokens,
+  });
+  const digest = createHash("sha256").update(canonical, "utf8").digest("hex");
+  return digest;
+}
 
 /**
  * Result of `adaptSceneToLatents`: the decoder-native latents plus a record
@@ -50,7 +71,7 @@ export async function adaptSceneToLatents(
       return {
         latents: validated.data,
         outcome: "provider-latents",
-        receipt: adapterReceipt("provider-latents", attemptedPaths, fallbackReasons),
+        receipt: adapterReceipt("provider-latents", attemptedPaths, fallbackReasons, validated.data),
       };
     }
     fallbackReasons.push("provider-latents-invalid");
@@ -64,10 +85,11 @@ export async function adaptSceneToLatents(
     const validated = ImageCoarseVqSchema.safeParse(parsed.coarseVq);
     if (validated.success) {
       ctx.logger.info("Using coarseVq hints; expanding to decoder-native latents.");
+      const latents = expandCoarseVqToLatents(parsed, validated.data);
       return {
-        latents: expandCoarseVqToLatents(parsed, validated.data),
+        latents,
         outcome: "coarse-vq",
-        receipt: adapterReceipt("coarse-vq", attemptedPaths, fallbackReasons),
+        receipt: adapterReceipt("coarse-vq", attemptedPaths, fallbackReasons, latents),
       };
     }
     fallbackReasons.push("coarse-vq-invalid");
@@ -84,14 +106,15 @@ export async function adaptSceneToLatents(
       ctx.logger.info(
         `Using Visual Seed Code; expanding to decoder-native latents via ${seedExpander.id}.`,
       );
+      const latents = seedExpander.expander.expand({
+        seedCode: validated.data,
+        decoder: parsed.decoder,
+        seed: hashSpecToSeed(parsed),
+      });
       return {
-        latents: seedExpander.expander.expand({
-          seedCode: validated.data,
-          decoder: parsed.decoder,
-          seed: hashSpecToSeed(parsed),
-        }),
+        latents,
         outcome: "visual-seed-code",
-        receipt: adapterReceipt("visual-seed-code", attemptedPaths, fallbackReasons, {
+        receipt: adapterReceipt("visual-seed-code", attemptedPaths, fallbackReasons, latents, {
           seedExpanderId: seedExpander.id,
         }),
       };
@@ -108,18 +131,20 @@ export async function adaptSceneToLatents(
 
   const resolved = await resolveMlpForScene(parsed, ctx);
   if (resolved) {
+    const latents = annotateLatents(parsed, await predictWithResolved(parsed, resolved));
     return {
-      latents: annotateLatents(parsed, await predictWithResolved(parsed, resolved)),
+      latents,
       outcome: "learned-mlp",
-      receipt: adapterReceipt("learned-mlp", attemptedPaths, fallbackReasons),
+      receipt: adapterReceipt("learned-mlp", attemptedPaths, fallbackReasons, latents),
     };
   }
 
   fallbackReasons.push("learned-mlp-unavailable");
+  const latents = annotateLatents(parsed, placeholderLatents(parsed, ctx));
   return {
-    latents: annotateLatents(parsed, placeholderLatents(parsed, ctx)),
+    latents,
     outcome: "placeholder",
-    receipt: adapterReceipt("placeholder", attemptedPaths, fallbackReasons),
+    receipt: adapterReceipt("placeholder", attemptedPaths, fallbackReasons, latents),
   };
 }
 
@@ -127,6 +152,7 @@ function adapterReceipt(
   outcome: ImageAdapterOutcome,
   attemptedPaths: readonly ImageCodePath[],
   fallbackReasons: readonly ImageAdapterFallbackReason[],
+  latents: ImageLatentCodes,
   options: { seedExpanderId?: string | null } = {},
 ): ImageAdapterReceipt {
   return {
@@ -134,6 +160,7 @@ function adapterReceipt(
     attemptedPaths: [...attemptedPaths],
     fallbackReasons: [...fallbackReasons],
     seedExpanderId: options.seedExpanderId ?? null,
+    latentsSha256: latentsSha256(latents),
   };
 }
 

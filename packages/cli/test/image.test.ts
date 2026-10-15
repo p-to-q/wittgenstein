@@ -4,7 +4,8 @@ import { join } from "node:path";
 import type { RunManifest } from "@wittgenstein/schemas";
 import { describe, expect, it } from "vitest";
 import { createProgram } from "../src/index.js";
-import { imageInspectionPayload, loadImageDecoderBridgeForRun } from "../src/commands/image.js";
+import { imageInspectionPayload } from "../src/commands/image.js";
+import { loadImageDecoderBridgeForRun } from "../src/commands/decoder-bridge.js";
 
 describe("image command inspection flags", () => {
   it("registers the image receipt inspection surface", () => {

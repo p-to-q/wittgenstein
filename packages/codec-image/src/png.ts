@@ -5,8 +5,14 @@
  * for ONNX-decoded rasters — one byte-format definition for every raster
  * this codec emits.
  *
- * Behavior is byte-for-byte identical to the previous inline copy; the
- * image pipeline tests + golden serve as the regression net.
+ * Also carries `readPngStructure`, the equally minimal structure reader
+ * behind verification surfaces (S7d replay artifact comparison for
+ * `structural-parity` decoders). The reader deliberately checks only the
+ * 8-byte signature and the IHDR dimensions — the same claim the #473 policy
+ * calls "PNG structure" — and treats anything else as unreadable (null).
+ *
+ * Behavior of the encoder is byte-for-byte identical to the previous inline
+ * copy; the image pipeline tests + golden serve as the regression net.
  */
 
 export function encodeRgbaAsPng(width: number, height: number, rgba: Uint8Array): Uint8Array {
@@ -35,6 +41,46 @@ export function encodeRgbaAsPng(width: number, height: number, rgba: Uint8Array)
   const iendChunk = createChunk("IEND", new Uint8Array(0));
 
   return concatUint8Arrays(signature, ihdrChunk, idatChunk, iendChunk);
+}
+
+/**
+ * Read the structure of a PNG raster: 8-byte signature plus IHDR
+ * width/height (the first chunk, per the PNG spec). Returns `null` when the
+ * bytes are not a readable PNG structure — short buffers, wrong signature,
+ * or an IHDR that is not the first chunk of the declared size. Does not
+ * validate CRCs, subsequent chunks, or pixel data: verification compares
+ * *structure*, not integrity.
+ */
+export function readPngStructure(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes.length < 24) {
+    return null;
+  }
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (let index = 0; index < signature.length; index += 1) {
+    if (bytes[index] !== signature[index]) {
+      return null;
+    }
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const chunkLength = view.getUint32(8);
+  if (chunkLength !== 13) {
+    return null;
+  }
+  const chunkType = String.fromCharCode(
+    bytes[12] ?? 0,
+    bytes[13] ?? 0,
+    bytes[14] ?? 0,
+    bytes[15] ?? 0,
+  );
+  if (chunkType !== "IHDR") {
+    return null;
+  }
+  const width = view.getUint32(16);
+  const height = view.getUint32(20);
+  if (width === 0 || height === 0) {
+    return null;
+  }
+  return { width, height };
 }
 
 function createChunk(type: string, data: Uint8Array): Uint8Array {

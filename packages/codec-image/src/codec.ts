@@ -64,6 +64,38 @@ interface ImageCodecServices {
    * fallback. Absent → the procedural placeholder lane runs as before.
    */
   readonly decoderBridge?: ImageDecoderBridge;
+  /**
+   * S7d recorded-generation seam: when present, `expand()` re-parses the
+   * recorded LLM output instead of calling an LLM or the dry-run stub —
+   * the VCR-style record/replay lane for `wittgenstein replay` (#384).
+   * Priority: recorded > dry-run > live LLM. A recorded generation that
+   * fails to parse is a typed `RECORDED_GENERATION_INVALID` error; the
+   * codec never silently substitutes another scene source.
+   */
+  readonly recordedGeneration?: { readonly llmOutputRaw: string };
+}
+
+/**
+ * Typed failure for `services.recordedGeneration` payloads that do not
+ * parse as an `ImageSceneSpec`. Carries the parse issues for diagnostics;
+ * callers (replay) map it to a manifest-level reporter code and MUST NOT
+ * treat it as a cue to fall back to the dry-run stub scene.
+ */
+export class RecordedGenerationInvalidError extends Error {
+  readonly code = "RECORDED_GENERATION_INVALID";
+  readonly details: Record<string, unknown>;
+
+  constructor(parseError: { message: string; details?: unknown }) {
+    super(
+      "Recorded LLM output does not parse as an ImageSceneSpec; refusing to substitute " +
+        "another scene source for recorded-generation replay (S7d, #384).",
+    );
+    this.name = "WittgensteinError";
+    this.details = {
+      parseError: parseError.message,
+      ...(parseError.details !== undefined ? { parseDetails: parseError.details } : {}),
+    };
+  }
 }
 
 interface AdaptedImagePayload {
@@ -228,6 +260,31 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     const services = asServices(ctx.services);
     const promptExpanded = injectSchemaPreamble(req.prompt, imageSchemaPreamble(req));
     await services.telemetry?.writeText("llm-input.txt", promptExpanded);
+
+    // S7d recorded-generation replay: re-parse the recorded generation
+    // (priority: recorded > dry-run > live LLM). The LLM stage is frozen
+    // like a VCR cassette — no LLM call, no stub substitution, and a
+    // recorded generation that fails to parse is a typed refusal.
+    if (services.recordedGeneration) {
+      const llmOutputRaw = services.recordedGeneration.llmOutputRaw;
+      const parsedRecorded = parseImageSceneSpec(llmOutputRaw);
+      if (!parsedRecorded.ok) {
+        throw new RecordedGenerationInvalidError(parsedRecorded.error);
+      }
+      await services.telemetry?.writeText("llm-output.txt", llmOutputRaw);
+      return {
+        kind: "text",
+        text: llmOutputRaw,
+        plan: {
+          scene: parsedRecorded.value,
+          promptExpanded,
+          llmOutputRaw,
+          llmTokens: { input: 0, output: 0 },
+          costUsd: null,
+          costUsdReason: "no-llm-call",
+        },
+      };
+    }
 
     if (services.dryRun) {
       const scene = createDryRunScene(req);

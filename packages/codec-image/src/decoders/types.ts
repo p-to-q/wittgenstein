@@ -215,6 +215,16 @@ export interface LoadDecoderBridgeOptions {
   readonly weightsBaseUrl?: string;
 
   /**
+   * Resolve weights from the local cache only: never consult
+   * `weightsBaseUrl`, the ambient weights-URL environment variable, or an
+   * injected fetcher. A cache miss surfaces `WEIGHTS_NOT_INSTALLED` as
+   * usual. This is the S7d replay lane's hard guarantee that verification
+   * never touches the network (a fetch could "make the check pass" with
+   * bytes the recorded run never used).
+   */
+  readonly cacheOnly?: boolean;
+
+  /**
    * Injection point replacing the default HuggingFace fetcher (diagnostics,
    * offline tests, mirrors). Receives the asset to fetch and the manifest;
    * returns raw bytes — sha256 verification + atomic cache promotion happen

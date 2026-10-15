@@ -21,6 +21,9 @@
  *     discriminator RFC ([RFC-0007](../../../docs/rfcs/0007-image-seedcode-shape-discriminator.md)).
  */
 export { imageCodec, imageV2Codec, ImageCodec } from "./codec.js";
+// Minimal PNG structure reader for read-only verification surfaces (S7d
+// replay artifact comparison); the encoder itself stays internal.
+export { readPngStructure } from "./png.js";
 export { ImageSceneSpecSchema, imageSchemaPreamble, parseImageSceneSpec } from "./schema.js";
 export type { ImageSceneSpec } from "./schema.js";
 // `ImageRequest` + its schema live in `@wittgenstein/schemas` (the

@@ -161,7 +161,10 @@ export class DecoderInferenceFailedError extends Error {
  * Cache-only by default (no canonical asset URL yet — #402). When
  * `options.weightsBaseUrl` or `WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL` is set,
  * cache misses fetch `<base>/<repoId>/resolve/<revision>/<filename>` and are
- * sha256-verified before promotion (never cache bad bytes).
+ * sha256-verified before promotion (never cache bad bytes). With
+ * `options.cacheOnly`, every fetch path — explicit URL, ambient env, and
+ * injected fetcher — is suppressed (S7d replay: verification never
+ * downloads).
  */
 export async function loadLlamagenDecoderBridge(
   options: LoadDecoderBridgeOptions = {},
@@ -171,7 +174,10 @@ export async function loadLlamagenDecoderBridge(
   // Weights first, runtime second: a cache miss without a configured URL
   // fails as WEIGHTS_NOT_INSTALLED even on machines without
   // onnxruntime-node — the install CLI (#403) is the fix for both.
-  const fetcher = options.fetcher ?? buildHuggingFaceAssetFetcher(resolveWeightsBaseUrl(options));
+  const fetcher =
+    options.cacheOnly === true
+      ? undefined
+      : (options.fetcher ?? buildHuggingFaceAssetFetcher(resolveWeightsBaseUrl(options)));
   const resolved = fetcher
     ? await resolveDecoderWeights({ ...options, manifest, fetcher })
     : await resolveDecoderWeights({ ...options, manifest });

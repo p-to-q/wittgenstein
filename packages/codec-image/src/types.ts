@@ -42,6 +42,19 @@ export interface ImageAdapterReceipt {
   readonly attemptedPaths: readonly ImageCodePath[];
   readonly fallbackReasons: readonly ImageAdapterFallbackReason[];
   readonly seedExpanderId: string | null;
+  /**
+   * SHA-256 over the canonical decode-input latents this adapter produced
+   * (schema version, family, codebook, codebook version, token grid, tokens)
+   * — the digest of exactly what `decodeLatentsToRaster` receives.
+   *
+   * Decode-input identity for the replay lane (S7d, #384): for
+   * `structural-parity` decoders, artifact bytes cannot be required to match,
+   * so replay proves baseline and replayed runs fed the decoder the *same
+   * input* rather than merely the same dimensions. Computed over the final
+   * (post-annotation) latents with a fixed key order so the digest is stable
+   * across process and platform.
+   */
+  readonly latentsSha256: string;
 }
 
 export type ImageSemanticSource = "emitted" | "legacy-top-level" | "absent";

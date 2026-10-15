@@ -1,9 +1,9 @@
 import type { Command } from "commander";
 import type { RunManifest } from "@wittgenstein/schemas";
 import {
-  loadLlamagenDecoderBridge,
-  type ImageDecoderBridge,
-} from "@wittgenstein/codec-image";
+  loadImageDecoderBridgeForRun,
+  printImageDecoderError,
+} from "./decoder-bridge.js";
 import { readDecoderCacheDir } from "./decoder-manifest.js";
 import {
   runCodecCommand,
@@ -159,74 +159,4 @@ function readNumberProperty(value: Record<string, unknown> | null, key: string):
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Structured CLI error for the `--decoder` opt-in lane (mirrors install's shape). */
-export interface ImageDecoderCliError {
-  readonly code: string;
-  readonly message: string;
-  readonly details?: unknown;
-  readonly installHint?: string;
-}
-
-export interface ImageDecoderLoadOutcome {
-  readonly bridge?: ImageDecoderBridge;
-  readonly error?: ImageDecoderCliError;
-}
-
-/**
- * Load the decoder bridge the `--decoder` flag opts into (S7b/S7c entry
- * layer). The codec owns the decode contract; the CLI owns loading and turns
- * loader failures into structured CLI errors before any LLM spend.
- */
-export async function loadImageDecoderBridgeForRun(options: {
-  decoder?: string;
-  allowResearchWeights?: boolean;
-  cacheDir?: string;
-}): Promise<ImageDecoderLoadOutcome> {
-  if (!options.decoder) {
-    return {};
-  }
-
-  if (options.decoder !== "llamagen") {
-    return {
-      error: {
-        code: "INVALID_IMAGE_DECODER",
-        message: `Unknown decoder family "${options.decoder}"; only "llamagen" is shipped.`,
-      },
-    };
-  }
-
-  try {
-    const bridge = await loadLlamagenDecoderBridge({
-      ...(options.allowResearchWeights ? { allowResearchWeights: options.allowResearchWeights } : {}),
-      ...(options.cacheDir ? { cacheDir: options.cacheDir } : {}),
-    });
-    return { bridge };
-  } catch (error) {
-    const shaped = error as Error & { code?: string; details?: Record<string, unknown> };
-    const installHint =
-      typeof shaped.details?.["installHint"] === "string" ? shaped.details["installHint"] : undefined;
-    return {
-      error: {
-        code: typeof shaped.code === "string" ? shaped.code : "IMAGE_DECODER_LOAD_FAILED",
-        message: shaped.message ?? "Failed to load the image decoder bridge.",
-        ...(shaped.details !== undefined ? { details: shaped.details } : {}),
-        ...(installHint !== undefined ? { installHint } : {}),
-      },
-    };
-  }
-}
-
-function printImageDecoderError(error: ImageDecoderCliError): void {
-  console.error(
-    JSON.stringify(
-      {
-        ok: false,
-        ...error,
-      },
-      null,
-      2,
-    ),
-  );
 }

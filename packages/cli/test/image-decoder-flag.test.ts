@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageDecoderBridge } from "@wittgenstein/codec-image";
 import { loadLlamagenDecoderBridge } from "@wittgenstein/codec-image";
-import { loadImageDecoderBridgeForRun } from "../src/commands/image.js";
+import { loadImageDecoderBridgeForRun } from "../src/commands/decoder-bridge.js";
 
 vi.mock("@wittgenstein/codec-image", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
