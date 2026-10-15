@@ -28,6 +28,21 @@ const requiredFiles = [
     aliases: ["vqgan-gates-blocked.fixture.json"],
     validate: validateFinalReceipt,
   },
+  {
+    name: "om2-gate-c-roundtrip.json",
+    aliases: ["om2-gate-c-pass.fixture.json"],
+    validate: validateGateC,
+  },
+  {
+    name: "om2-gate-d-onnx-export.json",
+    aliases: ["om2-gate-d-onnx-export.fixture.json"],
+    validate: validateGateDExport,
+  },
+  {
+    name: "om2-gate-d-onnx-cpu.json",
+    aliases: ["om2-gate-d-onnx-cpu.fixture.json"],
+    validate: validateGateD,
+  },
 ];
 
 const issues = [];

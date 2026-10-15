@@ -1,0 +1,56 @@
+{
+  "environment": {
+    "onnx_version": "fixture",
+    "opset": 17,
+    "platform": "fixture",
+    "python_version": "3.13.0",
+    "torch_version": "fixture"
+  },
+  "error": null,
+  "generated_at": "2026-10-15T00:00:00Z",
+  "inputs": {
+    "ckpt": "/fixture/imagenet_256_L.ckpt",
+    "ckpt_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "codebook_dim": 18,
+    "codebook_size": 262144,
+    "downsample_size": 16,
+    "image_size": 256,
+    "repo_commit": "cccccccccccccccccccccccccccccccccccccccc",
+    "repo_root": "/fixture/TencentARC/SEED-Voken",
+    "token_grid": [
+      16,
+      16
+    ]
+  },
+  "onnx": "/fixture/om2-decoder.onnx",
+  "onnx_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "parity_check": {
+    "available": true,
+    "fixtures": {
+      "sequential": {
+        "max_abs_diff": 5.5789947509765625e-05,
+        "output_shape": [
+          1,
+          3,
+          256,
+          256
+        ]
+      },
+      "spread": {
+        "max_abs_diff": 7.37309455871582e-05,
+        "output_shape": [
+          1,
+          3,
+          256,
+          256
+        ]
+      }
+    },
+    "max_abs_diff": 7.37309455871582e-05,
+    "max_abs_diff_threshold": 0.0001,
+    "onnxruntime_version": "fixture",
+    "passed": true
+  },
+  "schema_version": "m1b-gate-d-onnx-export.v0",
+  "status": "passed"
+}

@@ -31,6 +31,16 @@ const checks = [
     args: ["-m", "research.validation.m1b_gate_d_onnx_cpu", "--help"],
   },
   {
+    name: "OM2 ONNX export help",
+    command: "python3",
+    args: ["-m", "research.validation.m1b_export_om2_decoder_onnx", "--help"],
+  },
+  {
+    name: "OM2 Gate C producer help",
+    command: "python3",
+    args: ["-m", "research.validation.m1b_om2_gate_c_roundtrip", "--help"],
+  },
+  {
     name: "codec-image decoder manifest tests",
     command: "pnpm",
     args: [
@@ -62,6 +72,10 @@ const checks = [
       "artifacts/m1b-audit/gate-c-roundtrip.json",
       "artifacts/m1b-audit/gate-d-onnx-cpu.json",
       "artifacts/m1b-audit/decoder.onnx",
+      "artifacts/m1b-audit/om2-gate-c-roundtrip.json",
+      "artifacts/m1b-audit/om2-gate-d-onnx-export.json",
+      "artifacts/m1b-audit/om2-gate-d-onnx-cpu.json",
+      "artifacts/m1b-audit/om2-decoder.onnx",
     ],
   },
   {
@@ -134,6 +148,18 @@ function checkArtifactValidatorRejectsBadGateD() {
     cpSync(
       "research/validation/fixtures/m1b-audit/vqgan-gates-blocked.fixture.json",
       join(dir, "vqgan-gates.json"),
+    );
+    cpSync(
+      "research/validation/fixtures/m1b-audit/om2-gate-c-pass.fixture.json",
+      join(dir, "om2-gate-c-roundtrip.json"),
+    );
+    cpSync(
+      "research/validation/fixtures/m1b-audit/om2-gate-d-onnx-export.fixture.json",
+      join(dir, "om2-gate-d-onnx-export.json"),
+    );
+    cpSync(
+      "research/validation/fixtures/m1b-audit/om2-gate-d-onnx-cpu.fixture.json",
+      join(dir, "om2-gate-d-onnx-cpu.json"),
     );
     const gateDPath = join(dir, "gate-d-onnx-cpu.json");
     const gateD = JSON.parse(readFileSync(gateDPath, "utf8"));

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
 from . import m1b_gate_c_roundtrip as gate_c
 from . import m1b_gate_d_onnx_cpu as gate_d
 from . import m1b_export_llamagen_decoder_onnx as export_onnx
+from . import m1b_export_om2_decoder_onnx as om2_export
+from . import m1b_om2_gate_c_roundtrip as om2_gate_c
 from . import vqgan_gate_audit as gate_audit
 from .vqgan_gate_audit import gate_c_passes, gate_d_passes
 
@@ -161,6 +164,11 @@ class M1BMetricProducerTests(unittest.TestCase):
             export_onnx.latent_size(args)
 
     def test_gate_d_main_returns_nonzero_for_failed_metric(self) -> None:
+        try:
+            gate_d.import_numpy()
+        except SystemExit:
+            self.skipTest("numpy is not installed in this environment")
+
         class Input:
             name = "tokens"
             shape = [1, 16, 16]
@@ -198,6 +206,99 @@ class M1BMetricProducerTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 1)
             self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["onnx_cpu_passed"], False)
+
+
+class M1BOpenMAGVIT2ProducerTests(unittest.TestCase):
+    def test_om2_gate_c_parser_defaults(self) -> None:
+        args = om2_gate_c.build_parser().parse_args(
+            ["--repo-root", "/tmp/seed-voken", "--ckpt", "/tmp/om2.ckpt"]
+        )
+
+        self.assertEqual(args.image_size, 256)
+        self.assertEqual(args.downsample_size, 16)
+        self.assertEqual(args.codebook_dim, 18)
+        self.assertEqual(args.codebook_size, 2 ** 18)
+        self.assertEqual(args.sample_count, 3)
+
+    def test_om2_select_ema_state_prefers_ema_twins(self) -> None:
+        state_dict = {
+            "encoder.conv_in.weight": "plain-encoder",
+            "decoder.conv_in.weight": "plain-decoder",
+            "decoder.conv_in.bias": "plain-decoder-bias",
+            "model_ema.encoderconv_inweight": "ema-encoder",
+            "model_ema.decoderconv_inweight": "ema-decoder",
+            "model_ema.decoderconv_inbias": "ema-decoder-bias",
+            "model_ema.decay": "ema-decay",
+            "model_ema.num_updates": "ema-count",
+        }
+
+        encoder_state, decoder_state, selection = om2_gate_c.select_ema_state(state_dict)
+
+        self.assertEqual(encoder_state, {"conv_in.weight": "ema-encoder"})
+        self.assertEqual(
+            decoder_state,
+            {"conv_in.weight": "ema-decoder", "conv_in.bias": "ema-decoder-bias"},
+        )
+        self.assertEqual(selection["ema_keys"], 5)
+        self.assertEqual(selection["ema_used"], 3)
+        self.assertEqual(selection["plain_used"], 0)
+        self.assertEqual(selection["ema_ignored"], ["decay", "num_updates"])
+
+    def test_om2_gate_c_environment_records_device(self) -> None:
+        class TorchStub:
+            __version__ = "test"
+
+            def get_num_threads(self) -> int:
+                return 2
+
+            def are_deterministic_algorithms_enabled(self) -> bool:
+                return True
+
+        components = {"param_counts": {"decoder": 5}, "selection": {"ema_used": 3}}
+
+        env = om2_gate_c.environment(TorchStub(), components, "cpu")
+
+        self.assertEqual(env["device"], "cpu")
+        self.assertEqual(env["torch_version"], "test")
+        self.assertEqual(env["threads"], 2)
+        self.assertEqual(env["param_counts"], {"decoder": 5})
+
+    def test_om2_gate_c_non_fixed_point_receipt_satisfies_structural_policy(self) -> None:
+        metrics = {
+            "roundtrip_passed": False,
+            "encode_consistent": True,
+            "decode_consistent": True,
+            "reencode_consistent": False,
+            "sample_count": 3,
+            "token_hamming_rate": 0.109375,
+            "reencode_token_hamming_rate": 0.109375,
+            "cross_device_parity": "structural-only",
+        }
+
+        self.assertEqual(gate_c_passes(metrics)["passed"], True)
+
+    def test_om2_export_parser_defaults(self) -> None:
+        args = om2_export.build_parser().parse_args(
+            ["--repo-root", "/tmp/seed-voken", "--ckpt", "/tmp/om2.ckpt"]
+        )
+
+        self.assertEqual(args.out, "artifacts/m1b-audit/om2-decoder.onnx")
+        self.assertEqual(args.receipt, "artifacts/m1b-audit/om2-gate-d-onnx-export.json")
+        self.assertEqual(args.opset, 17)
+        self.assertEqual(om2_export.latent_size(args), 16)
+
+    def test_om2_export_main_rejects_indivisible_image_size(self) -> None:
+        with self.assertRaises(SystemExit):
+            om2_export.main(
+                [
+                    "--repo-root",
+                    "/tmp/seed-voken",
+                    "--ckpt",
+                    "/tmp/om2.ckpt",
+                    "--image-size",
+                    "250",
+                ]
+            )
 
 
 if __name__ == "__main__":
