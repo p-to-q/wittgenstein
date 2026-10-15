@@ -1,6 +1,6 @@
 ---
 date: 2026-10-16
-status: research pass + closeout review feeding the manifest row-schema symmetry decision (implementation lands this session)
+status: research pass + closeout review; decisions CR1–CR3 landed 2026-10-16 (`c2ca18e`); assessment is the #267 closeout record for the S7 delivery line
 labels: [research-derived, m1-image, receipts, closeout, manifest]
 tracks: [#267, #384, #402, #403, #435, #473]
 ---

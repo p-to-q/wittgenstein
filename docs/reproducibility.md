@@ -43,6 +43,13 @@ Per Brief K §K.1 (ratified by ADR-0017), the manifest spine is functionally the
 
 The mapping is currently **per-run**, not cross-run: each CLI invocation writes one manifest. Anthropic's `wake(sessionId)` cross-run linkage would require a `parentRunId` field and an explicit `events[]` slot in the manifest schema; both are deferred to v0.4 per Brief K. The equivalence above is honest about the gap.
 
+## The manifest row channel
+
+v2 codecs author `ManifestRow`s and the harness folds them into the manifest. Two rules keep that channel honest (2026-10-16 closeout review, decisions CR1–CR3):
+
+- **Closed set, single source.** `MANIFEST_ROW_KEYS` (`packages/schemas/src/codec/v2/manifest-rows.ts`) is the only allow-list; `foldManifestRows` refuses anything else with `MANIFEST_ROW_KEY_REJECTED`, and `ManifestRow.key` is typed by the same union.
+- **Declared, then promoted.** Every key is declared in `RunManifestSchema`, so a canonical parse preserves the persisted receipts instead of stripping them. Values stay permissive (`unknown`) until a contract is promoted to a typed schema in place — first scheduled promotion: `image.decoder` (runtime identity) with S7e. One serialization location per fact; promotion never duplicates a row into a second place.
+
 ## Replay verification
 
 `wittgenstein replay <manifest-path>` re-executes a recorded run and checks its reproducibility claim instead of trusting it:

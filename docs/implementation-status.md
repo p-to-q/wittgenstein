@@ -96,7 +96,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | Schema + Zod image-code contract              | ✅ Ships       | Visual Seed Code contract now supports `seedCode`, optional `semantic`, optional `coarseVq`, and `providerLatents`                                      |
 | `expand.ts` — prompt → image code             | ⚠️ Partial     | LLM-driven; dry-run emits deterministic `witt-dry-run` seed tokens, while real prompt-stack quality remains a follow-up                                 |
 | `adapter.ts` — seed / semantic → latent codes | ⚠️ Partial     | Priority order now ships as `providerLatents -> coarseVq -> seedCode -> semantic fallback -> placeholder`; trained expander TBD                         |
-| Image-code manifest receipts                  | ✅ Ships       | `metadata.imageCode` / manifest `image.code` records intent; `renderPath` and `image.adapter` record fired tier, fallback reasons, and seed-expander id |
+| Image-code manifest receipts                  | ✅ Ships       | `metadata.imageCode` / manifest `image.code` records intent; `renderPath` and `image.adapter` record fired tier, fallback reasons, and seed-expander id; every row key is declared in `RunManifestSchema` (closeout review CR1, `c2ca18e`) |
 | `decoder.ts` — latent codes → raster          | ⚠️ Partial     | `renderSky()` / `renderTerrain()` functional; `tryDecodeReferenceLandscape()` fires when reference weights present                                      |
 | `package.ts` — raster → PNG                   | ✅ Ships       |                                                                                                                                                         |
 | `decoders/llamagen.ts`                        | 🔴 Stub        | Throws `NotImplementedError` — bridge to LlamaGen VQ-VAE decoder, not yet wired                                                                         |
@@ -167,7 +167,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Codec                | Protocol | Notes |
 | -------------------- | -------- | ----- |
-| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`), bridge-lane replay verification landed (`23f2055`, S7d — recorded-generation replay, `latentsSha256` decode-input digest, class-aware parity); delivery left: canonical ONNX URL (#435), issue closeout |
+| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`), bridge-lane replay verification landed (`23f2055`, S7d — recorded-generation replay, `latentsSha256` decode-input digest, class-aware parity); closeout review + row-schema symmetry landed (`c2ca18e`, CR1–CR3); delivery left: canonical ONNX URL (#435) + issue closeout |
 | audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
 | sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
 | video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
@@ -179,10 +179,11 @@ surface (tier0), their non-local sources (svg engine, asciipng minimax) are LLM-
 v2 port must move into codec-owned `produce()`, and #300 (v1-compat retirement) is closed so the
 legacy pipeline is not scheduled for removal. Un-freeze criteria: (a) M1B audit delivery closeout —
 #441 closed 2026-05-31; the #402/#403 code contract-fill, pipeline `decode()` wiring (S7b), and
-replay verification (#384, S7d, `23f2055`) all landed 2026-10-16 — the issues stay open until the
-canonical ONNX hosting decision (#435) and the closeout review land, and (b) the v2 protocol
-exits experimental. Then port svg-local first
-(pure-local, smallest), then asciipng — the sibling-port order already in
+replay verification (#384, S7d, `23f2055`) all landed 2026-10-16, and the closeout review
+(row-schema symmetry CR1–CR3, `655eba3` + `c2ca18e`) landed the same day — the issues stay open
+until the canonical ONNX hosting decision (#435) lands, and (b) the v2 protocol exits
+experimental. Then port svg-local first (pure-local, smallest), then asciipng — the sibling-port
+order already in
 `docs/exec-plans/active/codec-v2-port.md`. Full rationale: research note §6 + §7, 2026-10-16.
 
 ## Loupe dashboard renderer

@@ -46,7 +46,7 @@ Unsafe claims:
 | S4. CLI inspection                    | Landed.                                                                                  | Keep human-facing summaries compact: semantic source and seed summary by default, raw image-code only behind `--show-image-code`. | `packages/cli/src/commands/image.ts`, `packages/cli/test/image.test.ts`                             | CLI JSON tests for `imageCode`, `semanticSummary`, and `seedSummary`.                                                    | Roll back if CLI starts dumping raw opaque token arrays by default.                                        |
 | S5. Eval hooks                        | Partially landed; active successor lanes remain.                                         | Treat parse-valid, adapter-valid, decoder-compat, deterministic replay, quality metrics, and Gate E as separate receipts.         | `research/validation/phase0a_emission_entropy.py`, `docs/acceptance/m1b-image.md`, future eval code | current probes plus future #393/#394 metrics.                                                                            | Roll back any metric that mixes candidate-decoder evidence with own-trained tokenizer evidence.            |
 | S6. Fixture / golden strategy         | Landed for lightweight receipts; heavy binary fixtures remain excluded.                  | Prefer JSON manifests and small audit fixtures; avoid committing model weights or large generated images.                         | `packages/codec-image/test/*`, `research/validation/fixtures/m1b-audit/*`, `.gitignore`             | `pnpm test`, artifact-check validators, tarball exclusion checks.                                                        | Roll back if fixtures make npm packages or CI dependent on private weights.                                |
-| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in + bridge-lane replay verification (S7d) landed (2026-10-16); hosting (#435) + closeout remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
+| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in + bridge-lane replay verification (S7d) + closeout review (row-schema symmetry CR1–CR3) landed (2026-10-16); hosting (#435) + S7e remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
 | S8. Training / adapter implementation | Open.                                                                                    | Train only narrow tokenizer/adapter/head slices after the receipt floor is in place.                                              | `research/training/*`, `python/image_adapter/*`, future package glue                                | #441/#399/#400 before expensive training; #393/#394/#396/#397/#398 for actual experiments.                               | Roll back if smoke runs are described as trained weights or if receipts omit dataset/runtime fingerprints. |
 
 ## S7b. Bridge → pipeline wiring brief (landed 2026-10-16 as `91ca0dd`, no schema change)
@@ -152,6 +152,31 @@ owners:
 - #399/#400 own experiment tracking plus DVC/GPU sweep receipts.
 - #393/#394/#396/#397/#398 own the actual seed-length, eval, tokenizer,
   adapter, and image-emitting-head work.
+
+## S7 closeout review (landed 2026-10-16 as `655eba3` + `c2ca18e`)
+
+The S7 delivery line ran the #267-style closeout review the advancement plan
+called for. Design authority + evidence assessment:
+`docs/research/2026-10-16-m1b-delivery-closeout-review.md` (decisions CR1–CR3).
+
+- **Assessment.** #384 needs nothing further (S7d landed the image lane).
+  #402's acceptance bullets are all covered by landed tests (cache hit/miss,
+  SHA mismatch, license refusal, runtime unavailable, tarball guard); what
+  remains is the owner-gated canonical ONNX hosting + manifest pin, which also
+  gates #403's real fetch recipe and S7e. No delivery-line code debt blocks
+  that decision.
+- **CR1–CR3 (landed).** The closed row-key set is now single-sourced in
+  `packages/schemas/src/codec/v2/manifest-rows.ts`; `RunManifestSchema`
+  declares every key (a canonical parse preserves rows instead of stripping
+  them); `ManifestRow.key` is typed by the closed union; value typing stays a
+  per-key promotion step (first: `image.decoder` in S7e). Declaration only —
+  no on-disk shape change, golden row-set pins intact.
+- **Validation.** schemas 66/66 · core 107/107 · codec-image 153 + 1 skip ·
+  codec-audio 22 + 3 skip · cli 85/85 · repo-wide typecheck + lint Done ·
+  boundaries + no-research-imports + publish-surface green.
+- **Remaining.** Canonical ONNX hosting decision (#435-class) → then #402
+  manifest pin + install fetch recipe, S7e (runtime identity on bridge
+  receipts), and the issue closeout comments.
 
 ## Research / engineer / hacker review
 

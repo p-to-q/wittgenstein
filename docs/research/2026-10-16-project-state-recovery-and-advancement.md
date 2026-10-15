@@ -245,6 +245,10 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
    checks the D2 chain — decoder id/hash/class → `latentsSha256` decode-input digest →
    class-aware artifact parity (`REPLAY_OK` / `REPLAY_STRUCTURAL_OK`; refusals never green).
    Remaining: canonical ONNX hosting decision (#435), then issue closeout review.
+   **Closeout review landed 2026-10-16 (`655eba3` + `c2ca18e`):** #384/#402/#403
+   assessment + manifest row-schema symmetry decisions CR1–CR3
+   (`docs/research/2026-10-16-m1b-delivery-closeout-review.md`); the remaining
+   owner decisions (hosting/pin) are unchanged.
 7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
 
 ### Open-risk ledger (unchanged, restated)
