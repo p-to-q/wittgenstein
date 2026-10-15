@@ -55,7 +55,15 @@ adapter is not complete until it writes:
 Aim remains the intended lab default for #399, but the repo contract does not
 claim that a shared Aim endpoint exists. Before closing #399, validate the
 current Aim deployment instructions, endpoint access, retention policy, and
-sample tokenizer run against the lab environment.
+sample tokenizer run against the lab environment, and satisfy the deployment
+gates recorded in
+[`2026-10-16-training-infra-decision-briefs.md`](../research/2026-10-16-training-infra-decision-briefs.md):
+the Aim remote-tracking server in the current OSS line (≤ 3.29.1) ships with
+no authentication and an open critical advisory (`aimhubio/aim#3412`,
+CVE-2026-85663), so a shared deployment must stay on a trusted network
+(VPN / SSH tunnel / firewall), pin its version, and watch for a patched
+release before widening access. Never expose the tracking server to
+untrusted networks.
 
 ## Verification
 

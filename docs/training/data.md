@@ -63,12 +63,58 @@ rebuilt. CC12M is URL-backed and decays over time, so each refresh gets a new
 snapshot id (`cc12m-YYYYqN`) and records the observed dead-link rate. Do not
 silently replace an existing CC12M pointer with a fresher crawl.
 
+## Source Evidence: `md5` / `etag` Sufficiency (2026-10-16 decision)
+
+Answer to the #400 owner-review item, per remote:
+
+- `.dvc` pointers hash with `md5` only; `etag` is a remote-specific identity
+  field. For **filesystem / SSH** remotes the recorded `md5` (computed over
+  content by DVC) is sufficient content evidence of the pinned copy.
+- For **S3 / Azure** external outputs DVC records `etag`, and an S3 ETag is
+  not necessarily the MD5 of object content (multipart uploads, some
+  encryption settings). Do not treat `etag` as a content digest: keep it as
+  identity-at-fetch evidence and pair it with a recomputed content hash of
+  the pinned copy (`version_id` too when cloud versioning is enabled).
+- For **HTTP** remotes ETag semantics are server-defined; provenance hint
+  only.
+- For **URL-backed crawls** (CC12M family) there is no source-side checksum
+  at all: the pinned copy plus its recomputed hash is the canonical
+  identity; keep recording `deadLinkRate` per refresh.
+
+So sufficiency holds only as a bundle: the `.dvc` fields for the remote
+type, plus a recomputed content hash of the pinned copy recorded when the
+copy lands, plus fetch metadata (remote, date, `version_id`). A snapshot
+that backs a publishable claim is re-verified by readback (fetch from the
+remote and compare) — receipts are records, not verification. Rationale and
+sources:
+[`2026-10-16-training-infra-decision-briefs.md`](../research/2026-10-16-training-infra-decision-briefs.md).
+
+## License-clean corpora for publishable checkpoints
+
+A checkpoint trained on a research-only corpus (the recent Phase-1.1 run
+used LLaVA-Pretrain) is validation-only and cannot be published; runs stay
+in that state until a license-clean corpus is staged.
+
+- Publishable checkpoints train only on corpora whose per-item licence is
+  clean for the intended release terms; record the licence posture in the
+  dataset snapshot receipt.
+- Prefer operator-hosted storage over origin URLs — URL-backed corpora
+  measurably decay (>20% of URLs unavailable across a 24-dataset survey).
+- First staging candidate: PD12M (12.4M public-domain / CC0 image-caption
+  pairs on a dedicated S3 bucket, per-item licence metadata, dataset licence
+  CDLA-Permissive-2.0). Assess further candidates (e.g. DataComp
+  CommonPool) in the decision briefs note before use.
+- ImageNet / COCO pointers stay required as planned; their use for
+  _publishable_ training stays open until the same licence evidence exists.
+
 ## Owner Review
 
-#435 still needs explicit owner review for:
+#435 (the owner-facing map) closed 2026-05-31; the items below are carried
+forward by #399 / #400 / #441 and still need owner decisions:
 
-- remote storage choice and retention policy
-- dataset license posture and publishability implications
+- lab remote/storage choice and retention policy
+- dataset license posture and publishability implications (license-clean
+  policy recorded above)
 - whether DVC `md5` / `etag` fields are sufficient source evidence for each
-  remote
+  remote (decision recorded above; owner acknowledgment pending)
 - the final managed-vs-maintainer-run GPU sweep policy
