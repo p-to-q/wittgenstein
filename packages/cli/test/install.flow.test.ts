@@ -90,6 +90,9 @@ describe("install image decoder manifest flow", () => {
     });
   });
 
+  // 30s allowance: local HTTP server + two CLI install spawns (tsx startup
+  // each) exceed vitest's 5s default under load — plain `pnpm test` (CI)
+  // must pass; found 2026-10-16 during the pre-push CI-mirror sweep.
   it("fetches + verifies weights end-to-end from a configured base URL and writes the receipt", async () => {
     const fixture = writeDecoderFixture({ cacheState: "missing" });
 
@@ -177,7 +180,7 @@ describe("install image decoder manifest flow", () => {
     } finally {
       server.kill();
     }
-  });
+  }, 30_000);
 
   it("blocks when no manifest is selected", () => {
     const install = runInstall(["image", "--json"]);

@@ -55,6 +55,9 @@ afterEach(async () => {
 });
 
 describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
+  // 30s allowance: two CLI spawns (baseline + replay, tsx startup each)
+  // exceed vitest's 5s default under load — plain `pnpm test` (CI) must
+  // pass; found 2026-10-16 during the pre-push CI-mirror sweep.
   it("svg --source local is byte-reproducible via replay", async () => {
     // Baseline run. Use packageRoot as cwd so the bin can resolve tsx
     // (the bin's workspace-marker check defaults to tsx mode when run
@@ -112,8 +115,11 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replayOutput.ok).toBe(true);
     expect(replayOutput.code).toBe("REPLAY_OK");
     expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
-  });
+  }, 30_000);
 
+  // 30s allowance: two CLI spawns (baseline + replay, tsx startup each)
+  // exceed vitest's 5s default under load — plain `pnpm test` (CI) must
+  // pass; found 2026-10-16 during the pre-push CI-mirror sweep.
   it("sensor dry-run is byte-reproducible via replay", async () => {
     // Keep the default output basename (`output.*`) for both baseline and replay.
     // The optional Loupe dashboard path embeds only the basename, so this remains
@@ -167,8 +173,11 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replayOutput.ok).toBe(true);
     expect(replayOutput.code).toBe("REPLAY_OK");
     expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
-  });
+  }, 30_000);
 
+  // 30s allowance: two CLI spawns (baseline + replay, tsx startup each)
+  // exceed vitest's 5s default under load — plain `pnpm test` (CI) must
+  // pass; found 2026-10-16 during the pre-push CI-mirror sweep.
   it("image placeholder dry-run is byte-reproducible via recorded-generation replay", async () => {
     const baselineOut = join(workDir, "baseline-image.png");
     const baseline = spawnSync(
@@ -235,7 +244,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replayOutput.determinismClass).toBe("byte-parity");
     expect(replayOutput.latents.latentsParity).toBe(true);
     expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
-  });
+  }, 30_000);
 
   it("resolves a recorded bridge decoder cache-only — never fetches, reports REPLAY_DECODER_UNAVAILABLE", async () => {
     const cacheDir = join(workDir, "empty-decoder-cache");
