@@ -26,6 +26,7 @@
  */
 import type { Modality } from "../../modality.js";
 import type { HarnessCtx } from "./ctx.js";
+import type { ManifestRowKey } from "./manifest-rows.js";
 import type { CodecWarning } from "./warning.js";
 import type { StandardSchemaV1 } from "./standard-schema.js";
 
@@ -57,11 +58,14 @@ export interface Route<Req> {
 
 export interface ManifestRow {
   /**
-   * Stable key under which this row will be merged into the run manifest, e.g.
-   * `"codec"`, `"llm"`, `"artifact"`. The harness reserves a small set of well-known
-   * keys; codec-specific keys must use the codec id as a prefix (`"image.palette"`).
+   * Stable key under which this row is merged into the run manifest. The key
+   * set is closed and single-sourced in `./manifest-rows.ts`
+   * (`MANIFEST_ROW_KEYS`): a codec typo must not silently overwrite core
+   * manifest fields, so extending the set is deliberate and code-reviewed.
+   * New keys follow the codec-id prefix convention (`"image.*"`, `"audio.*"`).
+   * The harness re-checks the key at runtime for untyped callers.
    */
-  readonly key: string;
+  readonly key: ManifestRowKey;
   readonly value: unknown;
 }
 

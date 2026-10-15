@@ -10,6 +10,8 @@
  * `docs/research/briefs/H_codec_engineering_prior_art.md`.
  */
 export type { BaseArtifact, BaseArtifactMetadata, Codec, ManifestRow, Route } from "./codec.js";
+export { isManifestRowKey, MANIFEST_ROW_KEYS } from "./manifest-rows.js";
+export type { ManifestRowKey } from "./manifest-rows.js";
 export { BaseCodec, CodecRouteError } from "./base.js";
 export type { HarnessCtx, ForkOverrides, Logger, Clock } from "./ctx.js";
 export type { HybridIR, IR, LatentIR, TextIR } from "./ir.js";

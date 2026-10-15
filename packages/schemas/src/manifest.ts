@@ -198,6 +198,28 @@ export const RunManifestSchema = z
      */
     renderPath: z.string().optional(),
 
+    /**
+     * Codec-authored manifest rows (v2 row channel; closeout review
+     * 2026-10-16, decision CR1). Every key of the closed row-key set
+     * (`codec/v2/manifest-rows.ts` → `MANIFEST_ROW_KEYS`) is declared here so
+     * a canonical parse preserves the persisted receipt instead of stripping
+     * it. Declared ≠ typed: values stay `unknown` until a contract is
+     * promoted to a typed schema in place (first scheduled promotion:
+     * `image.decoder` in S7e, runtime-identity fields). `route`,
+     * `renderPath`, `audioRender`, and `audioPlan` double as typed spine
+     * fields above; `artifact.sha256` is the row-channel serialization of
+     * `artifactSha256`.
+     */
+    "image.code": z.unknown().optional(),
+    "image.adapter": z.unknown().optional(),
+    "image.decoder": z.unknown().optional(),
+    "quality.structural": z.unknown().optional(),
+    "quality.partial": z.unknown().optional(),
+    "metadata.warnings": z.unknown().optional(),
+    "L4.adapterHash": z.unknown().optional(),
+    "L5.decoderHash": z.unknown().optional(),
+    "artifact.sha256": z.unknown().optional(),
+
     startedAt: z.string(),
     durationMs: z.number().nonnegative(),
     ok: z.boolean(),

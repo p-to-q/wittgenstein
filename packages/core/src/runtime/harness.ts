@@ -496,30 +496,16 @@ function createHarnessCtx(options: {
 }
 
 /**
- * Closed set of row keys a v2 codec may fold into the manifest via
- * `manifestRows()`. Before 2026-10-16 the fold accepted ANY key — a codec
+ * Row keys a v2 codec may fold into the manifest via `manifestRows()` are a
+ * closed set, single-sourced in the protocol package
+ * (`@wittgenstein/schemas` → `codecV2.MANIFEST_ROW_KEYS`; set closed by the
+ * 2026-10-16 robustness slice A4, moved + declared by the 2026-10-16
+ * closeout review CR1/CR2). Before A4 the fold accepted ANY key — a codec
  * typo could silently overwrite core manifest fields (e.g. `seed`) or write
- * junk keys with no schema. The set below is the union of the row keys every
- * shipped v2 codec emits; extending it is deliberate and code-reviewed
- * (2026-10-16 robustness slice A4).
+ * junk keys with no schema. Extending the set is deliberate and
+ * code-reviewed; the runtime guard below stays for untyped callers even
+ * though `ManifestRow.key` is now typed.
  */
-const CODEC_MANIFEST_ROW_KEYS: ReadonlySet<string> = new Set([
-  "route",
-  "renderPath",
-  "audioRender",
-  "audioPlan",
-  "image.code",
-  "image.adapter",
-  // S7b: decoder lane + bridge identity, emitted only when an injected
-  // decoder bridge produced the raster (placeholder runs omit the row).
-  "image.decoder",
-  "quality.structural",
-  "quality.partial",
-  "metadata.warnings",
-  "L4.adapterHash",
-  "L5.decoderHash",
-  "artifact.sha256",
-]);
 
 /**
  * Folds codec manifest rows into the run manifest. Exported for the harness
@@ -530,16 +516,19 @@ export function foldManifestRows(
   rows: ReadonlyArray<codecV2.ManifestRow>,
 ): void {
   for (const row of rows) {
-    if (!CODEC_MANIFEST_ROW_KEYS.has(row.key)) {
+    if (!codecV2Ns.isManifestRowKey(row.key)) {
       throw new WittgensteinError(
         "MANIFEST_ROW_KEY_REJECTED",
         `Codec emitted manifest row with key "${row.key}", which is not in the allowed row-key set. ` +
-          "Extend CODEC_MANIFEST_ROW_KEYS in packages/core/src/runtime/harness.ts deliberately — " +
+          "Extend MANIFEST_ROW_KEYS in packages/schemas/src/codec/v2/manifest-rows.ts deliberately — " +
           "unchecked rows can silently overwrite core RunManifest fields.",
         { details: { rowKey: row.key } },
       );
     }
-    manifest[row.key] = row.value;
+    // Generic row-channel write. The cast is the fold's contract: values are
+    // codec-authored `unknown`; the closed key set here plus the typed
+    // aliases below are what keep the manifest honest.
+    (manifest as Record<string, unknown>)[row.key] = row.value;
     if (row.key === "route" && typeof row.value === "string") {
       manifest.route = row.value;
     }
