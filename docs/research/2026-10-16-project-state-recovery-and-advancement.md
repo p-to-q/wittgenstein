@@ -259,3 +259,48 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
   cache-only until #435 lands. Honest, no silent fallback.
 - svg/asciipng remain frozen v1: unfreeze needs M1B closeout (issues actually closed) + v2 protocol
   exit from experimental.
+
+## 8. Addendum — #331 OpenMAGVIT2 Gate C/D audit landed (2026-10-16, continued session)
+
+The empirical half of the OpenMAGVIT2 four-gate audit is now measured and
+recorded. §3 and §5 still say "C/D unknown" (session-start snapshot); this
+addendum supersedes those lines.
+
+- **Measurements (lab runs 2026-10-15/16, Apple Silicon CPU, torch 2.14.1,
+  onnx/onnxruntime 1.23.2/1.31.0):** Gate C PASS under the #473 structural
+  policy — encode and decode byte-identical across 3 runs, the live
+  `get_codebook_entry` index→latent path bit-exact against `LFQ.forward`
+  (`max_abs_diff 0.0`), re-encode drift 0.109375 kept advisory (LlamaGen's
+  recorded drift is 0.1211, same class). Gate D PASS — opset-17 decoder-only
+  ONNX (`49b127f5…`, 261,661,489 bytes), ORT CPU decode 4.895–5.450 s
+  (cap 30 s), output `[256, 256, 3]`, torch↔ORT parity 7.373e-05 (≤1e-4;
+  supplementary probe: torch 1↔4 threads = 0.0, ORT session self-stability
+  = 0.0). The repo's own composite harness returns `status: "passed"` for
+  `seed/openmagvit2`. PSNR sanity band on four square inputs: 20.17 / 28.54 /
+  38.83 / 27.29 dB against the published 21.90 dB for this variant.
+- `797ab56` **producers + fixtures + self-check wiring (research/validation,
+  codec-image)**: OpenMAGVIT2 Gate C producer, opset-17 ONNX exporter with a
+  torch↔ORT parity block folded into the exit code, three `om2-*` receipt
+  fixtures, artifact-check alias entries (7 total), producer unit tests.
+- **Verdict note:** `docs/research/2026-10-16-openmagvit2-gate-cd-audit.md`
+  (pinned artifacts, methodology, LFQ code-path findings — 2-tuple
+  `return_loss_breakdown` shape, `training=True` default needing `.eval()`,
+  dead `embed_code` path; PSNR sanity; follow-on decisions: keep the family
+  `candidate`, wire producers into the Python CI half, fix
+  `vqgan_gate_audit.py` tracker/wording hardcodes before any seed manifest
+  cross-check; recommended #331 disposition = close on push, delivery
+  question stays under #283).
+- **Runtime-facing gate status lifted (same session):** `seed.ts` now reports
+  `gateA`–`gateD` all `passed` with the remaining blockers the seed
+  selection/delivery decision (`#331`) and the umbrella (`#283`); the
+  decoders README row and the `TRACKERS.m1bOpenMagvit2Audit` comment match.
+  The bridge itself still throws `SEED_BRIDGE_NOT_IMPLEMENTED` — gates
+  cleared is not delivery, and no seed bridge is scheduled.
+
+**Validation record (this addendum):** `pnpm -r typecheck` clean; lint clean (codec-image,
+schemas); codec-image 153 passed / 1 skipped; schemas 66 passed;
+`pnpm m1b:audit-self-check` green (producer unit tests, 7-entry fixture check,
+codec-image subset, gitignore pins); typos rc=0.
+
+**Unchanged:** #402/#435 hosting + S7e remain the active M1B delivery lane;
+no training/compute beyond the audit re-runs; TiTok/MaskBit lanes untouched.

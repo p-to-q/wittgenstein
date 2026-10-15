@@ -100,7 +100,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | `decoder.ts` — latent codes → raster          | ⚠️ Partial     | `renderSky()` / `renderTerrain()` functional; `tryDecodeReferenceLandscape()` fires when reference weights present                                      |
 | `package.ts` — raster → PNG                   | ✅ Ships       |                                                                                                                                                         |
 | `decoders/llamagen.ts`                        | 🔴 Stub        | Throws `NotImplementedError` — bridge to LlamaGen VQ-VAE decoder, not yet wired                                                                         |
-| `decoders/seed.ts`                            | 🔴 Stub        | Throws `NotImplementedError` — bridge to SEED decoder                                                                                                   |
+| `decoders/seed.ts`                            | 🔴 Stub        | Throws `SEED_BRIDGE_NOT_IMPLEMENTED` — bridge to SEED decoder; OpenMAGVIT2 Gate C/D measured PASS 2026-10-16 (structural policy), delivery not selected |
 | `training/`                                   | 📋 Recipe only | Seed-expansion training direction is locked; concrete tokenizer family, dataset, and weights remain open                                                |
 
 ### @wittgenstein/codec-video
