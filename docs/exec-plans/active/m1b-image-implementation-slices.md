@@ -46,7 +46,7 @@ Unsafe claims:
 | S4. CLI inspection                    | Landed.                                                                                  | Keep human-facing summaries compact: semantic source and seed summary by default, raw image-code only behind `--show-image-code`. | `packages/cli/src/commands/image.ts`, `packages/cli/test/image.test.ts`                             | CLI JSON tests for `imageCode`, `semanticSummary`, and `seedSummary`.                                                    | Roll back if CLI starts dumping raw opaque token arrays by default.                                        |
 | S5. Eval hooks                        | Partially landed; active successor lanes remain.                                         | Treat parse-valid, adapter-valid, decoder-compat, deterministic replay, quality metrics, and Gate E as separate receipts.         | `research/validation/phase0a_emission_entropy.py`, `docs/acceptance/m1b-image.md`, future eval code | current probes plus future #393/#394 metrics.                                                                            | Roll back any metric that mixes candidate-decoder evidence with own-trained tokenizer evidence.            |
 | S6. Fixture / golden strategy         | Landed for lightweight receipts; heavy binary fixtures remain excluded.                  | Prefer JSON manifests and small audit fixtures; avoid committing model weights or large generated images.                         | `packages/codec-image/test/*`, `research/validation/fixtures/m1b-audit/*`, `.gitignore`             | `pnpm test`, artifact-check validators, tarball exclusion checks.                                                        | Roll back if fixtures make npm packages or CI dependent on private weights.                                |
-| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in landed (2026-10-16); hosting (#435) + replay (#384) + closeout remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
+| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in + bridge-lane replay verification (S7d) landed (2026-10-16); hosting (#435) + closeout remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
 | S8. Training / adapter implementation | Open.                                                                                    | Train only narrow tokenizer/adapter/head slices after the receipt floor is in place.                                              | `research/training/*`, `python/image_adapter/*`, future package glue                                | #441/#399/#400 before expensive training; #393/#394/#396/#397/#398 for actual experiments.                               | Roll back if smoke runs are described as trained weights or if receipts omit dataset/runtime fingerprints. |
 
 ## S7b. Bridge → pipeline wiring brief (landed 2026-10-16 as `91ca0dd`, no schema change)
@@ -81,6 +81,63 @@ landing record):
 - **Do not do here.** Schema changes (RFC-0007 discriminator), default-lane
   switching, quality claims, or auto-loading the bridge for `providerLatents`
   — those are separate decisions, not this slice.
+
+## S7d. Bridge-lane replay verification brief (landed 2026-10-16 as `23f2055`, no schema change)
+
+`wittgenstein replay` (#384) byte-replayed the deterministic local routes
+(sensor / svg-local / asciipng-local) and deliberately refused image
+manifests — an image replay would have had to re-run an LLM stage or trust
+the placeholder. S7d closes that refusal honestly: image runs re-execute
+from the recorded generation and verify at the decoder's declared class.
+Design authority: `docs/research/2026-10-16-bridge-replay-parity-comparables.md`
+(decisions D1–D5). Landed exactly as briefed:
+
+- **D1 recorded-generation replay.** `HarnessRunOptions.services.recordedGeneration`
+  (`{ llmOutputRaw }`) makes the image codec re-parse the recorded generation
+  instead of calling an LLM or the dry-run stub (priority: recorded > dry-run
+  > live). A recording that does not parse fails typed
+  (`MANIFEST_LLM_OUTPUT_INVALID`); the stub is never substituted for a
+  recording.
+- **D2 verification chain (first violation wins).** (1) decoder identity —
+  recorded `decoderId` / `decoderHash` / `determinismClass` vs the loaded
+  bridge; (2) decode-input identity — the new `image.adapter.latentsSha256`
+  receipt field (canonical SHA-256 of the decoder-native latents) vs the
+  replay-side re-digest; (3) artifact parity at the declared class —
+  `byte-parity` requires artifact SHA equality; `structural-parity` verifies
+  PNG signature + IHDR dimensions with bytes advisory.
+- **D3 refusals (no silent greens).** Placeholder-lane image manifests (no
+  `image.decoder` row) still verify byte-for-byte via recorded-generation
+  replay of the recorded scene; bridge-lane manifests without `latentsSha256`
+  are refused (`MANIFEST_MISSING_LATENTS_DIGEST`); image manifests without
+  `llmOutputRaw` are refused (`MANIFEST_MISSING_LLM_OUTPUT`); malformed
+  `image.decoder` rows are refused (`MANIFEST_IMAGE_DECODER_INVALID`).
+- **D4 decoder resolution.** Replay resolves the recorded `decoderId` from
+  the manifest spine (not a user flag) and loads the bridge **cache-only**
+  (`cacheOnly: true` suppresses explicit URL, ambient env, and injected
+  fetcher alike — verification never fetches bytes the recorded run did not
+  use). Unknown id → `REPLAY_DECODER_UNSUPPORTED`; cache miss →
+  `REPLAY_DECODER_UNAVAILABLE` + install hint.
+- **D5 reporter codes.** `REPLAY_OK` / `REPLAY_STRUCTURAL_OK` (passes);
+  `REPLAY_HASH_MISMATCH` / `REPLAY_STRUCTURE_MISMATCH` /
+  `REPLAY_LATENTS_MISMATCH` / `REPLAY_DECODER_ID_MISMATCH` /
+  `REPLAY_DECODER_HASH_MISMATCH` / `REPLAY_DECODER_CLASS_MISMATCH` /
+  `REPLAY_DECODER_UNSUPPORTED` / `REPLAY_DECODER_UNAVAILABLE` /
+  `REPLAY_ARTIFACT_READ_FAILED` (violations); `MANIFEST_MISSING_LATENTS_DIGEST` /
+  `MANIFEST_MISSING_LLM_OUTPUT` / `MANIFEST_IMAGE_DECODER_INVALID` /
+  `MANIFEST_LLM_OUTPUT_INVALID` (manifest-shape refusals). Completed
+  comparisons print their verdict on stdout; refusals print structured JSON
+  on stderr with exit 1.
+- **Validation.** `packages/cli/test/replay.test.ts` covers 27 cases: e2e
+  (placeholder-lane byte replay; cache-only resolution proven by a poisoned
+  weights URL; every refusal path) plus an S7d unit group with an injected
+  stub bridge covering every reporter code; adapter-receipt digests are
+  pinned in codec-image tests. Suites at landing: codec-image 153 passed /
+  1 skipped · cli 85/85 · core 105/105; repo-wide typecheck + lint clean.
+- **Do not do here.** No `byte-parity` claim for LlamaGen (structural-parity,
+  honored per #473); no schema change (the digest lives on the runtime
+  receipt + row, mirroring `image.decoder`); no recording of the resolved
+  `onnxruntime-node` version / execution provider on bridge receipts — that
+  is S7e, required before any `byte-parity` decoder family ships.
 
 ## Successor issue map
 

@@ -214,8 +214,8 @@ No training, no compute: three delivery slices landed as local commits, all gate
   MiniMax M2/M2.7/M3 ($0.30/$1.20). Newest OpenAI tiers (5.4/5.5/5.6/6.x) are deliberately **not**
   pinned because aggregator sources conflict — unknown-model receipts stay honest (pin test enforces).
 
-**Validation record (this addendum):** codec-image 142/142 · cli 61/61 · core 104/104 ·
-typecheck + lint clean for all three packages. Still no push to mirror/GitHub.
+**Validation record (this addendum):** codec-image 153 passed / 1 skipped · cli 85/85 · core 105/105 ·
+repo-wide typecheck + lint clean. Still no push to mirror/GitHub.
 
 ### Pre-training checklist (derived from the #441 closeout "Safe Before GPU" list)
 
@@ -239,8 +239,12 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
    CLI `--decoder llamagen` opt-in flag **landed 2026-10-16 (`8fd1a24`)**: loader runs before
    any LLM spend, failures are structured CLI errors (installHint) with exit 1, and core
    `HarnessRunOptions.services` folds entry-layer services into `HarnessCtx.services`.
-   Remaining: `wittgenstein replay` verification (#384), canonical ONNX hosting decision
-   (#435), then issue closeout review.
+   Bridge-lane replay verification **landed 2026-10-16 (`23f2055`, S7d)**: `wittgenstein replay`
+   re-executes image runs from the recorded `llmOutputRaw` (`services.recordedGeneration`, no
+   stub substitution), resolves the recorded decoder cache-only from the manifest spine, and
+   checks the D2 chain — decoder id/hash/class → `latentsSha256` decode-input digest →
+   class-aware artifact parity (`REPLAY_OK` / `REPLAY_STRUCTURAL_OK`; refusals never green).
+   Remaining: canonical ONNX hosting decision (#435), then issue closeout review.
 7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
 
 ### Open-risk ledger (unchanged, restated)

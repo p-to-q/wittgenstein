@@ -43,6 +43,14 @@ Per Brief K §K.1 (ratified by ADR-0017), the manifest spine is functionally the
 
 The mapping is currently **per-run**, not cross-run: each CLI invocation writes one manifest. Anthropic's `wake(sessionId)` cross-run linkage would require a `parentRunId` field and an explicit `events[]` slot in the manifest schema; both are deferred to v0.4 per Brief K. The equivalence above is honest about the gap.
 
+## Replay verification
+
+`wittgenstein replay <manifest-path>` re-executes a recorded run and checks its reproducibility claim instead of trusting it:
+
+- **Deterministic local routes** (sensor, svg-local, asciipng-local): the recorded request is re-run; `REPLAY_OK` records artifact-SHA equality.
+- **Image runs** (S7d, 2026-10-16, `23f2055`): the recorded `manifest.llmOutputRaw` is re-executed through the codec via the `services.recordedGeneration` seam — no LLM call and no dry-run-stub substitution (a recording that does not parse is `MANIFEST_LLM_OUTPUT_INVALID`). The recorded `image.decoder` row selects the decoder, which is loaded **cache-only** (replay never fetches; unknown id → `REPLAY_DECODER_UNSUPPORTED`, cache miss → `REPLAY_DECODER_UNAVAILABLE`). The chain, first violation wins: decoder identity (`decoderId` / `decoderHash` / `determinismClass`) → decode-input identity (`image.adapter.latentsSha256` re-digested; a bridge-lane manifest without the digest is `MANIFEST_MISSING_LATENTS_DIGEST`) → artifact parity at the decoder's declared class (`byte-parity` requires SHA equality; `structural-parity` — e.g. LlamaGen — verifies PNG signature + IHDR dimensions with bytes advisory).
+- **No silent greens**: placeholder-lane image manifests (no `image.decoder` row) still verify byte-for-byte by replaying the recorded scene; completed comparisons print their verdict on stdout, refusals print structured JSON on stderr with exit 1.
+
 ## Why This Exists
 
 The manifest spine is the main quality bar in this scaffold. A failing run is still useful if it leaves a complete trace.

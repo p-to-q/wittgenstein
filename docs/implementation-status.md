@@ -144,7 +144,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | `wittgenstein asciipng`     | ✅ Ships   | Local text-grid PNG; Minimax text source is opt-in                       |
 | `wittgenstein video`        | ⚠️ Partial | Emits HTML by default; MP4 encode is repo-owned local renderer opt-in    |
 | `wittgenstein animate-html` | ✅ Ships   | Builds self-contained slideshow HTML from SVG inputs                     |
-| `wittgenstein replay`       | ⚠️ Partial | Byte-parity replay for sensor, svg-local, and asciipng-local routes      |
+| `wittgenstein replay`       | ⚠️ Partial | Byte-parity replay for sensor, svg-local, and asciipng-local; image runs verified via recorded-generation replay + decoder identity + latents digest, artifact parity at the decoder's declared class (S7d, `23f2055`) |
 | `wittgenstein doctor`       | ✅ Ships   | Runtime tier readiness + decoder preflight + pricing-table staleness hint (`llmPricing`) |
 | `wittgenstein install`      | ⚠️ Partial | Dry-run tier plans ship; real image install preflights blessed manifests |
 
@@ -167,7 +167,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Codec                | Protocol | Notes |
 | -------------------- | -------- | ----- |
-| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`); delivery left: canonical ONNX URL (#435), replay (#384), issue closeout |
+| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`), bridge-lane replay verification landed (`23f2055`, S7d — recorded-generation replay, `latentsSha256` decode-input digest, class-aware parity); delivery left: canonical ONNX URL (#435), issue closeout |
 | audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
 | sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
 | video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
@@ -178,10 +178,10 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 surface (tier0), their non-local sources (svg engine, asciipng minimax) are LLM-generation paths a
 v2 port must move into codec-owned `produce()`, and #300 (v1-compat retirement) is closed so the
 legacy pipeline is not scheduled for removal. Un-freeze criteria: (a) M1B audit delivery closeout —
-#441 closed 2026-05-31 and the #402/#403 code contract-fill landed 2026-10-16, but the issues stay
-open until the canonical ONNX hosting decision (#435), replay verification (#384), and closeout
-review land, and (b) the v2 protocol exits experimental. (Pipeline `decode()` wiring landed
-2026-10-16 — it was one of the three un-freeze conditions.) Then port svg-local first
+#441 closed 2026-05-31; the #402/#403 code contract-fill, pipeline `decode()` wiring (S7b), and
+replay verification (#384, S7d, `23f2055`) all landed 2026-10-16 — the issues stay open until the
+canonical ONNX hosting decision (#435) and the closeout review land, and (b) the v2 protocol
+exits experimental. Then port svg-local first
 (pure-local, smallest), then asciipng — the sibling-port order already in
 `docs/exec-plans/active/codec-v2-port.md`. Full rationale: research note §6 + §7, 2026-10-16.
 
