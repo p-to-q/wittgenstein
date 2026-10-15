@@ -36,7 +36,7 @@
       "notes": ["Fixture only; not empirical evidence."],
       "required_inputs": [
         "local PyTorch environment",
-        "SHA-pinned VQGAN-class weights",
+        "SHA-pinned decoder weights for the candidate family",
         "within-device encode/decode determinism metric JSON",
         "measured CPU/GPU parity class"
       ],
@@ -63,7 +63,7 @@
       "notes": ["Fixture only; not empirical evidence."],
       "required_inputs": [
         "local PyTorch export environment",
-        "SHA-pinned VQGAN-class weights",
+        "SHA-pinned decoder weights for the candidate family",
         "exported ONNX decoder",
         "Node/ONNX CPU smoke metric JSON"
       ],

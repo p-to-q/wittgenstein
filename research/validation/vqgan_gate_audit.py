@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
-"""VQGAN-class Gate C/D audit receipt harness.
+"""Decoder-family Gate C/D audit receipt harness.
 
 This stdlib-only harness does not implement the decoder audit itself. It gives
-#334 / #335 a stable receipt shape so a contributor with PyTorch, weights, and
-ONNX tooling can attach empirical results without inventing a new report format.
+the M1B Gate C/D protocol a stable receipt shape so a contributor with PyTorch,
+weights, and ONNX tooling can attach empirical results without inventing a new
+report format.
+
+Gate trackers default to the VQGAN-class gate-protocol issues (#334 / #335).
+Other decoder families override them with --gate-c-tracker / --gate-d-tracker
+so the emitted rows can satisfy the family-manifest cross-check
+(`validateDecoderManifestAuditReceipts`): each row's tracker must equal the
+manifest's `audits.gateC.tracker` / `audits.gateD.tracker` exactly.
 
 Usage from the repository root:
 
     python -m research.validation.vqgan_gate_audit --out artifacts/m1b-audit/vqgan.json
+
+    # Other decoder families override the gate trackers so the rows can match
+    # their family manifest exactly (--candidate must reference the family):
+    python -m research.validation.vqgan_gate_audit --candidate <candidate-label> \\
+        --gate-c-tracker https://github.com/p-to-q/wittgenstein/issues/331 \\
+        --gate-d-tracker https://github.com/p-to-q/wittgenstein/issues/331 \\
+        --out artifacts/m1b-audit/seed-gates.json
 """
 
 from __future__ import annotations
@@ -25,6 +39,8 @@ from typing import Any
 
 
 SCHEMA_VERSION = "m1b-vqgan-gate-audit.v0"
+DEFAULT_GATE_C_TRACKER = "https://github.com/p-to-q/wittgenstein/issues/334"
+DEFAULT_GATE_D_TRACKER = "https://github.com/p-to-q/wittgenstein/issues/335"
 DEFAULT_GATE_C_ACCEPTANCE = {
     "mode": "within-device-determinism",
     "min_sample_count": 3,
@@ -83,10 +99,42 @@ class AuditReceipt:
     gates: list[GateReceipt]
 
 
+def tracker_url(value: str) -> str:
+    if not value.startswith(("http://", "https://")):
+        raise argparse.ArgumentTypeError("tracker must be an http(s) URL")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Write a VQGAN-class M1B gate audit receipt.")
+    parser = argparse.ArgumentParser(description="Write an M1B decoder-family gate audit receipt.")
     parser.add_argument("--out", default="artifacts/m1b-audit/vqgan-gates.json")
-    parser.add_argument("--candidate", default="vqgan-class/llamagen")
+    parser.add_argument(
+        "--candidate",
+        default="vqgan-class/llamagen",
+        help=(
+            "Candidate label recorded in the receipt. The family-manifest cross-check "
+            "requires it to equal the manifest family or end with '/<family>' "
+            "(families: llamagen, seed, dvae)."
+        ),
+    )
+    parser.add_argument(
+        "--gate-c-tracker",
+        type=tracker_url,
+        default=DEFAULT_GATE_C_TRACKER,
+        help=(
+            "Issue tracking Gate C for this candidate; must match the family manifest's "
+            "audits.gateC.tracker exactly. Default: the VQGAN-class gate-protocol issue (#334)."
+        ),
+    )
+    parser.add_argument(
+        "--gate-d-tracker",
+        type=tracker_url,
+        default=DEFAULT_GATE_D_TRACKER,
+        help=(
+            "Issue tracking Gate D for this candidate; must match the family manifest's "
+            "audits.gateD.tracker exactly. Default: the VQGAN-class gate-protocol issue (#335)."
+        ),
+    )
     parser.add_argument("--weights", help="Path to a local decoder/tokenizer weights file.")
     parser.add_argument("--onnx", help="Path to an exported ONNX decoder file.")
     parser.add_argument("--roundtrip-json", help="Optional JSON metrics from a deterministic round-trip run.")
@@ -125,8 +173,12 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     acceptance = build_acceptance(args)
     gates = [
-        build_gate_c(args.weights, args.roundtrip_json, acceptance["gate_c"]),
-        build_gate_d(args.weights, args.onnx, args.onnx_json, acceptance["gate_d"]),
+        build_gate_c(
+            args.weights, args.roundtrip_json, acceptance["gate_c"], args.gate_c_tracker
+        ),
+        build_gate_d(
+            args.weights, args.onnx, args.onnx_json, acceptance["gate_d"], args.gate_d_tracker
+        ),
     ]
     status = "passed" if all(gate.status == "passed" for gate in gates) else "blocked"
     receipt = AuditReceipt(
@@ -201,18 +253,19 @@ def build_gate_c(
     weights: str | None,
     metrics_path: str | None,
     acceptance: dict[str, Any] | None = None,
+    tracker: str = DEFAULT_GATE_C_TRACKER,
 ) -> GateReceipt:
     acceptance = acceptance or DEFAULT_GATE_C_ACCEPTANCE
     required_inputs = [
         "local PyTorch environment",
-        "SHA-pinned VQGAN-class weights",
+        "SHA-pinned decoder weights for the candidate family",
         "within-device encode/decode determinism metric JSON",
         "measured CPU/GPU parity class",
     ]
     if not weights or not Path(weights).exists():
         return GateReceipt(
             gate="C",
-            tracker="https://github.com/p-to-q/wittgenstein/issues/334",
+            tracker=tracker,
             status="skipped",
             required_inputs=required_inputs,
             notes=["Weights path missing; deterministic round-trip was not attempted."],
@@ -224,7 +277,7 @@ def build_gate_c(
     status = "passed" if pass_check["passed"] else "blocked"
     return GateReceipt(
         gate="C",
-        tracker="https://github.com/p-to-q/wittgenstein/issues/334",
+        tracker=tracker,
         status=status,
         required_inputs=required_inputs,
         command=["python3", "-m", "research.validation.vqgan_gate_audit", "--weights", weights],
@@ -239,18 +292,19 @@ def build_gate_d(
     onnx: str | None,
     metrics_path: str | None,
     acceptance: dict[str, Any] | None = None,
+    tracker: str = DEFAULT_GATE_D_TRACKER,
 ) -> GateReceipt:
     acceptance = acceptance or DEFAULT_GATE_D_ACCEPTANCE
     required_inputs = [
         "local PyTorch export environment",
-        "SHA-pinned VQGAN-class weights",
+        "SHA-pinned decoder weights for the candidate family",
         "exported ONNX decoder",
         "Node/ONNX CPU smoke metric JSON",
     ]
     if not weights or not Path(weights).exists():
         return GateReceipt(
             gate="D",
-            tracker="https://github.com/p-to-q/wittgenstein/issues/335",
+            tracker=tracker,
             status="skipped",
             required_inputs=required_inputs,
             notes=["Weights path missing; ONNX export was not attempted."],
@@ -258,7 +312,7 @@ def build_gate_d(
     if not onnx or not Path(onnx).exists():
         return GateReceipt(
             gate="D",
-            tracker="https://github.com/p-to-q/wittgenstein/issues/335",
+            tracker=tracker,
             status="blocked",
             required_inputs=required_inputs,
             notes=["ONNX path missing; export/CPU feasibility is still open."],
@@ -270,7 +324,7 @@ def build_gate_d(
     status = "passed" if pass_check["passed"] else "blocked"
     return GateReceipt(
         gate="D",
-        tracker="https://github.com/p-to-q/wittgenstein/issues/335",
+        tracker=tracker,
         status=status,
         required_inputs=required_inputs,
         command=[

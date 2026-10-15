@@ -105,6 +105,80 @@ class VqganGateAuditTests(unittest.TestCase):
             self.assertEqual(parsed["gates"][0]["metrics"]["pass_check"]["passed"], True)
             self.assertEqual(parsed["gates"][1]["metrics"]["onnx_cpu_passed"], True)
             self.assertEqual(parsed["gates"][1]["metrics"]["pass_check"]["passed"], True)
+            self.assertIn("issues/334", parsed["gates"][0]["tracker"])
+            self.assertIn("issues/335", parsed["gates"][1]["tracker"])
+
+    def test_gate_tracker_overrides_are_recorded(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch("shutil.which", side_effect=lambda cmd: "/usr/bin/node" if cmd == "node" else None),
+        ):
+            tmp_path = Path(tmp)
+            weights = tmp_path / "decoder.pt"
+            onnx = tmp_path / "decoder.onnx"
+            roundtrip = tmp_path / "roundtrip.json"
+            onnx_metrics = tmp_path / "onnx.json"
+            out_path = tmp_path / "audit.json"
+            tracker = "https://github.com/p-to-q/wittgenstein/issues/331"
+
+            weights.write_bytes(b"weights")
+            onnx.write_bytes(b"onnx")
+            roundtrip.write_text(
+                json.dumps(
+                    {
+                        "encode_consistent": True,
+                        "decode_consistent": True,
+                        "sample_count": 3,
+                        "reencode_token_hamming_rate": 0.109375,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            onnx_metrics.write_text(
+                json.dumps(
+                    {
+                        "onnx_cpu_passed": True,
+                        "cpu_decode_seconds": 4.895,
+                        "output_shape": [256, 256, 3],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            exit_code = audit_main(
+                [
+                    "--out",
+                    str(out_path),
+                    "--candidate",
+                    "seed/openmagvit2",
+                    "--gate-c-tracker",
+                    tracker,
+                    "--gate-d-tracker",
+                    tracker,
+                    "--weights",
+                    str(weights),
+                    "--onnx",
+                    str(onnx),
+                    "--roundtrip-json",
+                    str(roundtrip),
+                    "--onnx-json",
+                    str(onnx_metrics),
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            parsed = json.loads(out_path.read_text(encoding="utf-8"))
+            self.assertEqual(parsed["status"], "passed")
+            self.assertEqual(parsed["candidate"], "seed/openmagvit2")
+            self.assertEqual(parsed["gates"][0]["tracker"], tracker)
+            self.assertEqual(parsed["gates"][1]["tracker"], tracker)
+
+    def test_rejects_non_url_tracker_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                audit_main(
+                    ["--out", str(Path(tmp) / "audit.json"), "--gate-c-tracker", "not-a-url"]
+                )
 
     def test_blocks_when_metrics_are_missing_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
