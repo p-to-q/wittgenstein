@@ -138,6 +138,13 @@ jobs:
       - name: Python unit tests (image adapter NumPy smoke)
         run: python -m unittest discover -s python/image_adapter -p 'test_*.py' -v
 
+      - name: Python unit tests (M1B audit producers)
+        # Stdlib-only receipt/producer tests for research/validation; the
+        # numpy-backed cases run because numpy is installed above. `-t .`
+        # plus research/validation/__init__.py keep discovery importable as
+        # research.validation.* so the tests' relative imports resolve.
+        run: python -m unittest discover -s research/validation -t . -p 'test_*.py' -v
+
       - name: Python smoke (sensor + image + platform-aware tts)
         env:
           MPLBACKEND: Agg
