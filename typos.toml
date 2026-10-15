@@ -45,3 +45,9 @@ LoRA = "LoRA"
 SafeTensors = "SafeTensors"
 # typos extracts the sub-token `nin` from vendored upstream `nin_shortcut`.
 nin = "nin"
+
+[default]
+# Lines ending with the disable-line marker are checked for nothing:
+# upstream titles/quotes are kept verbatim even when published with a spelling
+# mistake (first use: ORT issue #12086 quoted in a research note).
+extend-ignore-re = ["(?Rm)^.*<!-- spellchecker:disable-line -->$"]

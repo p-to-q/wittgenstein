@@ -224,7 +224,7 @@ Runtime determinism:
 - ORT issue #22818 (Windows-vs-Linux): https://github.com/microsoft/onnxruntime/issues/22818
 - ORT issue #28609 (different runtimes): https://github.com/microsoft/onnxruntime/issues/28609
 - ORT issues #33146 / #33314 (execution-provider differences): https://github.com/microsoft/onnxruntime/issues/33146 , https://github.com/microsoft/onnxruntime/issues/33314
-- ORT issue #12086 ("What level of reproducability is expected?"): https://github.com/microsoft/onnxruntime/issues/12086
+- ORT issue #12086 ("What level of reproducability is expected?"): https://github.com/microsoft/onnxruntime/issues/12086 <!-- spellchecker:disable-line -->
 - ORT threading doc: https://onnxruntime.ai/docs/performance/tune-performance/threading.html
 - PyTorch reproducibility notes: https://docs.pytorch.org/docs/stable/notes/randomness.html
 - PyTorch `use_deterministic_algorithms`: https://docs.pytorch.org/docs/2.12/generated/torch.use_deterministic_algorithms.html
