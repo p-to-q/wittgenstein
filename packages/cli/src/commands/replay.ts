@@ -16,7 +16,10 @@
  *     additionally resolve the *recorded* decoder cache-only and verify the
  *     S7d chain: decoder identity (id / hash / determinism class) →
  *     decode-input digest (`image.adapter.latentsSha256`) → artifact parity
- *     at the decoder's declared class.
+ *     at the decoder's declared class. The chain also reports the recorded
+ *     runtime identity (S7e: `onnxruntime-node` version + configured
+ *     execution providers, baseline vs replay) as *evidence* — runtime
+ *     drift is never a violation by itself.
  *
  * Recorded-generation replay (S7d, image lane): the LLM stage is frozen
  * like a VCR cassette. `services.recordedGeneration` makes the codec
@@ -30,6 +33,9 @@
  *   - non-image runs that recorded a live LLM call — replay falls back to
  *     the dry-run stub there, which cannot reproduce paid model output
  *   - image runs without a usable recorded `llmOutputRaw`
+ *   - image runs whose `image.decoder` row is malformed — refused by the
+ *     manifest schema itself (`MANIFEST_SCHEMA_INVALID`, path-precise
+ *     issues) since the S7e value promotion typed the row
  *   - bridge-backed image runs whose receipts predate S7d (no
  *     `latentsSha256`) or whose recorded decoder is unknown / not
  *     installed locally (replay never fetches)
@@ -43,6 +49,7 @@ import {
   RunManifestSchema,
   WittgensteinRequestSchema,
   type WittgensteinRequest,
+  type codecV2,
 } from "@wittgenstein/schemas";
 import { Wittgenstein } from "@wittgenstein/core";
 import { readPngStructure } from "@wittgenstein/codec-image";
@@ -114,66 +121,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The recorded `image.decoder` row (S7b): lane + decoder identity. */
-interface ImageDecoderLane {
-  readonly decoderId: string;
-  readonly decoderHash: string;
-  readonly determinismClass: "byte-parity" | "structural-parity";
-}
-
-type DecoderLaneRead =
-  | { readonly status: "absent" }
-  | { readonly status: "present"; readonly receipt: ImageDecoderLane }
-  | { readonly status: "invalid"; readonly reason: string };
-
 /**
- * Reads the `image.decoder` row from a raw manifest object. The row is not
- * part of `RunManifestSchema`, so this reads the raw JSON (baseline) or the
- * folded runtime object (replay run). `absent` selects the placeholder
- * lane; a present-but-malformed row is a refusal — never a silent
- * placeholder fallback, and never a guess at which decoder produced the
- * recorded artifact.
+ * Reads `image.adapter.latentsSha256` from a manifest object; null when
+ * absent. The row is declared but still untyped (`z.unknown()`), so this is
+ * a narrow read — not a validation (the `image.decoder` row is typed since
+ * the S7e promotion and needs no such narrowing).
  */
-function readImageDecoderLane(manifest: Record<string, unknown>): DecoderLaneRead {
-  const row = manifest["image.decoder"];
-  if (row === undefined) {
-    return { status: "absent" };
+function readLatentsSha256(manifest: unknown): string | null {
+  if (!isRecord(manifest)) {
+    return null;
   }
-  if (!isRecord(row)) {
-    return { status: "invalid", reason: "the `image.decoder` row is not an object." };
-  }
-  if (row["lane"] !== "injected-bridge") {
-    return {
-      status: "invalid",
-      reason: `unknown lane ${JSON.stringify(row["lane"])}; this replay build verifies only the injected-bridge lane.`,
-    };
-  }
-  const decoderId = row["decoderId"];
-  const decoderHash = row["decoderHash"];
-  const determinismClass = row["determinismClass"];
-  if (typeof decoderId !== "string" || decoderId.length === 0) {
-    return { status: "invalid", reason: "the `image.decoder` row has no decoderId." };
-  }
-  if (typeof decoderHash !== "string" || decoderHash.length === 0) {
-    return { status: "invalid", reason: "the `image.decoder` row has no decoderHash." };
-  }
-  if (determinismClass !== "byte-parity" && determinismClass !== "structural-parity") {
-    return {
-      status: "invalid",
-      reason: `unknown determinismClass ${JSON.stringify(determinismClass)}; expected \`byte-parity\` or \`structural-parity\`.`,
-    };
-  }
-  return { status: "present", receipt: { decoderId, decoderHash, determinismClass } };
-}
-
-/** Reads `image.adapter.latentsSha256` from a manifest object; null when absent. */
-function readLatentsSha256(manifest: Record<string, unknown>): string | null {
   const row = manifest["image.adapter"];
   if (!isRecord(row)) {
     return null;
   }
   const digest = row["latentsSha256"];
   return typeof digest === "string" && digest.length > 0 ? digest : null;
+}
+
+/**
+ * Advisory equality of the recorded and replayed decoder runtime identities
+ * (S7e). `null` when either side recorded none (pre-S7e receipts; runtimes
+ * that cannot report a version) — absence is not a claim, so there is
+ * nothing to compare. `false` is evidence only: replay never fails on
+ * runtime drift; the recorded environment is surfaced so a reader knows
+ * what the determinism claim was scoped to.
+ */
+function runtimeIdentityParity(
+  baseline: codecV2.DecoderRuntimeIdentity | undefined,
+  replay: codecV2.DecoderRuntimeIdentity | undefined,
+): boolean | null {
+  if (!baseline || !replay) {
+    return null;
+  }
+  return (
+    baseline.name === replay.name &&
+    baseline.version === replay.version &&
+    baseline.executionProviders.length === replay.executionProviders.length &&
+    baseline.executionProviders.every(
+      (provider, index) => provider === replay.executionProviders[index],
+    )
+  );
 }
 
 type ArtifactRead =
@@ -239,7 +227,6 @@ export async function replayManifest(
     };
   }
   const manifest = validation.data;
-  const manifestRecord = isRecord(parsedManifest) ? parsedManifest : {};
 
   if (manifest.request === undefined) {
     return {
@@ -303,21 +290,18 @@ export async function replayManifest(
   }
 
   // --- Image-lane preflight (S7d D1/D3): selectors + refused-as-incomplete ---
-  let decoderLane: ImageDecoderLane | null = null;
+  let decoderLane: codecV2.ImageDecoderReceipt | null = null;
   let baselineLatentsSha256: string | null = null;
   let recordedLlmOutputRaw: string | null = null;
   if (imageRoute) {
-    const laneRead = readImageDecoderLane(manifestRecord);
-    if (laneRead.status === "invalid") {
-      return {
-        ok: false,
-        code: "MANIFEST_IMAGE_DECODER_INVALID",
-        message: `The recorded \`image.decoder\` row cannot be verified: ${laneRead.reason} Refusing to guess which decoder produced the baseline artifact.`,
-        reason: laneRead.reason,
-      };
-    }
-    decoderLane = laneRead.status === "present" ? laneRead.receipt : null;
-    baselineLatentsSha256 = readLatentsSha256(manifestRecord);
+    // The `image.decoder` row is a typed contract since the S7e value
+    // promotion, and the canonical parse above already enforced it: a
+    // malformed row refused there as `MANIFEST_SCHEMA_INVALID` with
+    // path-precise issues (that schema boundary replaced replay's
+    // hand-validated `MANIFEST_IMAGE_DECODER_INVALID` refusal). Read the
+    // validated value; absence still selects the placeholder lane.
+    decoderLane = manifest["image.decoder"] ?? null;
+    baselineLatentsSha256 = readLatentsSha256(manifest);
 
     recordedLlmOutputRaw =
       typeof manifest.llmOutputRaw === "string" && manifest.llmOutputRaw.trim().length > 0
@@ -480,10 +464,9 @@ export async function replayManifest(
     };
   }
 
-  // The folded runtime manifest keeps codec rows the zod schema does not
-  // declare (`image.decoder` / `image.adapter`) — read them from the object,
-  // same as the codec row inspection surfaces do.
-  const replayRecord = outcome.manifest as unknown as Record<string, unknown>;
+  // The replay run's manifest passed `assertRunManifestValid` on the write
+  // path, so its typed rows (`image.decoder`) are read directly; the still-
+  // untyped `image.adapter` row is narrowed by `readLatentsSha256`.
   const baselineRunId = manifest.runId;
   const replayRunId = outcome.manifest.runId;
   const baselineSha = manifest.artifactSha256;
@@ -495,15 +478,20 @@ export async function replayManifest(
   // been stamped with the recorded weights hash.
   let decoderEvidence: Record<string, unknown> | undefined;
   if (decoderLane) {
-    const replayLaneRead = readImageDecoderLane(replayRecord);
-    const replayDecoderHash =
-      replayLaneRead.status === "present" ? replayLaneRead.receipt.decoderHash : null;
+    const replayReceipt = outcome.manifest["image.decoder"];
+    const replayDecoderHash = replayReceipt?.decoderHash ?? null;
     const decoderHashParity = replayDecoderHash === decoderLane.decoderHash;
     decoderEvidence = {
       decoderId: decoderLane.decoderId,
       baselineDecoderHash: decoderLane.decoderHash,
       replayDecoderHash,
       decoderHashParity,
+      // S7e runtime identity: evidence, not a verification link. Drift in
+      // the resolved onnxruntime-node build or the configured execution
+      // providers is environment, not run identity — reported either way.
+      baselineRuntime: decoderLane.runtime ?? null,
+      replayRuntime: replayReceipt?.runtime ?? null,
+      runtimeParity: runtimeIdentityParity(decoderLane.runtime, replayReceipt?.runtime),
     };
     if (!decoderHashParity) {
       return {
@@ -526,7 +514,7 @@ export async function replayManifest(
   // placeholder-lane manifests that predate S7d skip this link explicitly.
   let latentsEvidence: Record<string, unknown> | undefined;
   if (imageRoute) {
-    const replayLatentsSha256 = readLatentsSha256(replayRecord);
+    const replayLatentsSha256 = readLatentsSha256(outcome.manifest);
     if (baselineLatentsSha256 === null && replayLatentsSha256 === null) {
       latentsEvidence = { skipped: true, reason: "receipts-predate-s7d" };
     } else {

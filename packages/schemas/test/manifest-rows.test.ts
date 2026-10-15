@@ -7,6 +7,10 @@ import { codecV2, RunManifestSchema } from "../src/index.js";
  * `route`, `renderPath`, `audioRender`, and `audioPlan` were already declared
  * as typed spine fields; the core package's `manifest-rows.test.ts` covers
  * the full 13-key fold → validate → parse round-trip.
+ *
+ * Since the S7e value promotion, `image.decoder` is a typed contract: its
+ * marker below is a valid receipt, and a malformed row refuses the parse.
+ * The other eight CR1 keys stay permissive (`z.unknown()`) until promoted.
  */
 const DECLARED_BY_CR1 = [
   "image.code",
@@ -43,12 +47,47 @@ describe("manifest row channel (2026-10-16 closeout review CR1/CR2)", () => {
 
   it("preserves every CR1-declared row key through a canonical parse", () => {
     for (const key of DECLARED_BY_CR1) {
-      const marker = { marker: key };
+      const marker = markerFor(key);
       const parsed = RunManifestSchema.safeParse({ ...failedImageManifest(), [key]: marker });
       expect(parsed.success, key).toBe(true);
       if (parsed.success) {
         expect((parsed.data as Record<string, unknown>)[key], key).toEqual(marker);
       }
+    }
+  });
+
+  it("enforces the promoted image.decoder contract at the schema boundary (S7e)", () => {
+    // Pre-S7e receipts record no runtime and must keep parsing.
+    const legacyReceipt = {
+      lane: "injected-bridge",
+      decoderId: "llamagen-frozen-vq-v0",
+      decoderHash: "b".repeat(64),
+      determinismClass: "byte-parity",
+    };
+    const legacy = RunManifestSchema.safeParse({
+      ...failedImageManifest(),
+      "image.decoder": legacyReceipt,
+    });
+    expect(legacy.success).toBe(true);
+    if (legacy.success) {
+      expect((legacy.data as Record<string, unknown>)["image.decoder"]).toEqual(legacyReceipt);
+    }
+
+    // A malformed known field refuses the whole manifest with a path-precise
+    // issue — the row no longer slides through as `unknown` (S7e promotion;
+    // this boundary replaced replay's hand-validated
+    // `MANIFEST_IMAGE_DECODER_INVALID` refusal).
+    const malformed = RunManifestSchema.safeParse({
+      ...failedImageManifest(),
+      "image.decoder": { ...legacyReceipt, decoderId: 42 },
+    });
+    expect(malformed.success).toBe(false);
+    if (!malformed.success) {
+      expect(
+        malformed.error.issues.some(
+          (issue) => issue.path[0] === "image.decoder" && issue.path[1] === "decoderId",
+        ),
+      ).toBe(true);
     }
   });
 
@@ -60,6 +99,24 @@ describe("manifest row channel (2026-10-16 closeout review CR1/CR2)", () => {
     }
   });
 });
+
+/**
+ * One parse-preserving marker per CR1-declared key. Eight keys are declared
+ * permissively (`z.unknown()`), so any marker round-trips; `image.decoder`
+ * is a typed contract since the S7e value promotion and needs a valid
+ * receipt — runtime identity included — to pass the canonical parse.
+ */
+function markerFor(key: (typeof DECLARED_BY_CR1)[number]): unknown {
+  return key === "image.decoder" ? IMAGE_DECODER_MARKER : { marker: key };
+}
+
+const IMAGE_DECODER_MARKER = {
+  lane: "injected-bridge",
+  decoderId: "llamagen-frozen-vq-v0",
+  decoderHash: "a".repeat(64),
+  determinismClass: "structural-parity",
+  runtime: { name: "onnxruntime-node", version: "1.30.0", executionProviders: ["cpu"] },
+};
 
 function failedImageManifest(): Record<string, unknown> {
   return {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ImageDecoderReceiptSchema } from "./codec/v2/image-decoder.js";
 
 const AudioRouteSchema = z.enum(["speech", "soundscape", "music"]);
 const AudioAmbientCategorySchema = z.enum([
@@ -203,16 +204,18 @@ export const RunManifestSchema = z
      * 2026-10-16, decision CR1). Every key of the closed row-key set
      * (`codec/v2/manifest-rows.ts` → `MANIFEST_ROW_KEYS`) is declared here so
      * a canonical parse preserves the persisted receipt instead of stripping
-     * it. Declared ≠ typed: values stay `unknown` until a contract is
-     * promoted to a typed schema in place (first scheduled promotion:
-     * `image.decoder` in S7e, runtime-identity fields). `route`,
-     * `renderPath`, `audioRender`, and `audioPlan` double as typed spine
-     * fields above; `artifact.sha256` is the row-channel serialization of
-     * `artifactSha256`.
+     * it. Values stay `unknown` until a contract is promoted to a typed
+     * schema in place — same key, same serialization location. First
+     * promotion (S7e): `image.decoder` is the typed decoder-lane receipt
+     * (`codec/v2/image-decoder.ts`), so a malformed row now refuses this
+     * parse with a path-precise issue instead of sliding through as
+     * `unknown`. `route`, `renderPath`, `audioRender`, and `audioPlan`
+     * double as typed spine fields above; `artifact.sha256` is the
+     * row-channel serialization of `artifactSha256`.
      */
     "image.code": z.unknown().optional(),
     "image.adapter": z.unknown().optional(),
-    "image.decoder": z.unknown().optional(),
+    "image.decoder": ImageDecoderReceiptSchema.optional(),
     "quality.structural": z.unknown().optional(),
     "quality.partial": z.unknown().optional(),
     "metadata.warnings": z.unknown().optional(),

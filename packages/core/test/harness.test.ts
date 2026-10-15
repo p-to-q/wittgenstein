@@ -51,11 +51,15 @@ describe("run() entry-layer services passthrough (S7b/S7c)", () => {
     expect(outcome.error).toBeNull();
     expect(outcome.manifest.ok).toBe(true);
     const manifest = outcome.manifest as RunManifest & Record<string, unknown>;
+    // S7e: the runtime identity rides the receipt through fold → validate
+    // → persist; the persisted receipt itself is re-parsed in the sibling
+    // write-path test below.
     expect(manifest["image.decoder"]).toEqual({
       lane: "injected-bridge",
       decoderId: "stub-bridge",
       decoderHash: "stub-hash",
       determinismClass: "byte-parity",
+      runtime: { name: "onnxruntime-node", version: "1.30.0", executionProviders: ["cpu"] },
     });
     expect(manifest["L5.decoderHash"]).toEqual({
       value: "stub-hash",
@@ -123,6 +127,7 @@ function stubImageDecoderBridge(): { bridge: ImageDecoderBridge; pngBytes: Uint8
       codebookVersion: "v0",
       determinismClass: "byte-parity",
       runtimeTier: "node-onnx-cpu",
+      runtime: { name: "onnxruntime-node", version: "1.30.0", executionProviders: ["cpu"] },
       codeLicense: "Apache-2.0",
       weightsLicense: "permissive",
     },

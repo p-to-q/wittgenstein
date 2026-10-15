@@ -95,9 +95,11 @@ describe("row keys survive fold → validate → parse (2026-10-16 closeout revi
 
 /**
  * One marker per closed-set row key. The typed spine aliases (`route`,
- * `renderPath`, `audioRender`, `audioPlan`) need type-valid values; row-only
- * keys accept any marker because their schema declaration is deliberately
- * permissive (`z.unknown()`) until a value contract is promoted.
+ * `renderPath`, `audioRender`, `audioPlan`) need type-valid values; still-
+ * permissive row-only keys (`z.unknown()`) accept any marker, while
+ * `image.decoder` — the first promoted value contract (S7e) — carries a
+ * full receipt so the parse-preservation pass covers the nested runtime
+ * identity too.
  */
 function rowMarkers(): Array<[codecV2.ManifestRowKey, unknown]> {
   return [
@@ -107,7 +109,7 @@ function rowMarkers(): Array<[codecV2.ManifestRowKey, unknown]> {
     ["audioPlan", AUDIO_PLAN_MARKER],
     ["image.code", { mode: "one-shot-vsc", marker: "image.code" }],
     ["image.adapter", { marker: "image.adapter" }],
-    ["image.decoder", { lane: "injected-bridge", marker: "image.decoder" }],
+    ["image.decoder", IMAGE_DECODER_MARKER],
     ["quality.structural", { marker: "quality.structural" }],
     ["quality.partial", { marker: "quality.partial" }],
     ["metadata.warnings", 3],
@@ -116,6 +118,20 @@ function rowMarkers(): Array<[codecV2.ManifestRowKey, unknown]> {
     ["artifact.sha256", "f".repeat(64)],
   ];
 }
+
+/**
+ * The `image.decoder` marker (S7e value promotion): a full typed receipt —
+ * lane, decoder identity, determinism class, and the nested runtime
+ * identity — so the parse-preservation pass above proves every field
+ * survives fold → validate → parse.
+ */
+const IMAGE_DECODER_MARKER = {
+  lane: "injected-bridge",
+  decoderId: "stub-decode-bridge",
+  decoderHash: "a".repeat(64),
+  determinismClass: "structural-parity",
+  runtime: { name: "onnxruntime-node", version: "1.30.0", executionProviders: ["cpu"] },
+};
 
 const AUDIO_RENDER_MARKER = {
   sampleRateHz: 22_050,

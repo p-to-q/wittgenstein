@@ -8,7 +8,8 @@
  *     proven by a poisoned weights URL in the environment).
  *   - unit runs through `replayManifest` with an injected loader: the S7d
  *     verification chain (decoder identity → decode-input digest →
- *     class-aware artifact parity) plus its refusals.
+ *     class-aware artifact parity) plus its refusals, and the S7e runtime
+ *     identity evidence (report-only, never a violation).
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -328,7 +329,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(errOutput.code).toBe("MANIFEST_MISSING_LLM_OUTPUT");
   });
 
-  it("refuses malformed image.decoder rows instead of guessing the lane", async () => {
+  it("refuses malformed image.decoder rows at the manifest-schema boundary (S7e promotion)", async () => {
     const manifestPath = await writeManifest("image-bad-decoder-row", {
       codec: "image",
       command: "wittgenstein image",
@@ -345,9 +346,18 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
       encoding: "utf8",
     });
     expect(replay.status).toBe(1);
-    const errOutput = JSON.parse(replay.stderr) as { code: string; reason: string };
-    expect(errOutput.code).toBe("MANIFEST_IMAGE_DECODER_INVALID");
-    expect(errOutput.reason).toContain("decoderId");
+    const errOutput = JSON.parse(replay.stderr) as {
+      code: string;
+      issues: Array<{ path: Array<string | number> }>;
+    };
+    // S7e typed the row: it is part of the manifest contract now, so a
+    // malformed field refuses the whole schema parse with a path-precise
+    // issue instead of the retired `MANIFEST_IMAGE_DECODER_INVALID`
+    // lane-reader refusal.
+    expect(errOutput.code).toBe("MANIFEST_SCHEMA_INVALID");
+    expect(
+      errOutput.issues.some((issue) => issue.path.join(".") === "image.decoder.decoderId"),
+    ).toBe(true);
   });
 
   it("refuses bridge-lane manifests whose receipts predate S7d (no latents digest)", async () => {
@@ -515,7 +525,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
   });
 });
 
-describe("replay bridge-lane verification chain (S7d, unit)", () => {
+describe("replay bridge-lane verification chain (S7d/S7e, unit)", () => {
   it("replays a bridge-backed byte-parity run to REPLAY_OK with full evidence", async () => {
     const stubPng = pngBytes(64, 64, 0xa1);
     const manifestPath = await writeManifest("bridge-happy", {
@@ -907,6 +917,121 @@ describe("replay bridge-lane verification chain (S7d, unit)", () => {
     expect(report.code).toBe("REPLAY_ARTIFACT_READ_FAILED");
     expect(report.side).toBe("baseline");
   });
+
+  it("reports the recorded runtime identity as advisory evidence (S7e)", async () => {
+    const stubPng = pngBytes(64, 64, 0xa1);
+    const runtime = {
+      name: "onnxruntime-node" as const,
+      version: "1.30.0",
+      executionProviders: ["cpu"],
+    };
+    const manifestPath = await writeManifest("unit-runtime-identity", {
+      codec: "image",
+      command: "wittgenstein image",
+      artifactPath: join(workDir, "out.png"),
+      request: { modality: "image", prompt: "x" },
+      llmOutputRaw: imageSceneJson(),
+      artifactSha256: sha256Hex(stubPng),
+      extraRows: {
+        ...imageAdapterRow(FIXTURE_LATENTS_SHA256),
+        ...imageDecoderRow({ runtime }),
+      },
+    });
+
+    const report = await replayManifest(
+      { manifestPath },
+      {
+        loadImageDecoderBridgeForRun: async () => ({
+          bridge: stubImageDecoderBridge({ pngBytes: stubPng, runtime }).bridge,
+        }),
+      },
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.code).toBe("REPLAY_OK");
+    expect(report.decoder).toMatchObject({
+      baselineRuntime: runtime,
+      replayRuntime: runtime,
+      runtimeParity: true,
+    });
+  });
+
+  it("reports runtime drift as evidence without failing replay (report-only)", async () => {
+    const stubPng = pngBytes(64, 64, 0xa1);
+    const recordedRuntime = {
+      name: "onnxruntime-node" as const,
+      version: "1.30.0",
+      executionProviders: ["cpu"],
+    };
+    const installedRuntime = { ...recordedRuntime, version: "1.31.0" };
+    const manifestPath = await writeManifest("unit-runtime-drift", {
+      codec: "image",
+      command: "wittgenstein image",
+      artifactPath: join(workDir, "out.png"),
+      request: { modality: "image", prompt: "x" },
+      llmOutputRaw: imageSceneJson(),
+      artifactSha256: sha256Hex(stubPng),
+      extraRows: {
+        ...imageAdapterRow(FIXTURE_LATENTS_SHA256),
+        ...imageDecoderRow({ runtime: recordedRuntime }),
+      },
+    });
+
+    const report = await replayManifest(
+      { manifestPath },
+      {
+        loadImageDecoderBridgeForRun: async () => ({
+          bridge: stubImageDecoderBridge({ pngBytes: stubPng, runtime: installedRuntime }).bridge,
+        }),
+      },
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.code).toBe("REPLAY_OK");
+    expect(report.decoder).toMatchObject({
+      baselineRuntime: recordedRuntime,
+      replayRuntime: installedRuntime,
+      runtimeParity: false,
+    });
+  });
+
+  it("keeps pre-S7e receipts replayable — runtimeParity null when the baseline recorded none", async () => {
+    const stubPng = pngBytes(64, 64, 0xa1);
+    const installedRuntime = {
+      name: "onnxruntime-node" as const,
+      version: "1.30.0",
+      executionProviders: ["cpu"],
+    };
+    const manifestPath = await writeManifest("unit-runtime-legacy", {
+      codec: "image",
+      command: "wittgenstein image",
+      artifactPath: join(workDir, "out.png"),
+      request: { modality: "image", prompt: "x" },
+      llmOutputRaw: imageSceneJson(),
+      artifactSha256: sha256Hex(stubPng),
+      extraRows: {
+        ...imageAdapterRow(FIXTURE_LATENTS_SHA256),
+        ...imageDecoderRow(),
+      },
+    });
+
+    const report = await replayManifest(
+      { manifestPath },
+      {
+        loadImageDecoderBridgeForRun: async () => ({
+          bridge: stubImageDecoderBridge({ pngBytes: stubPng, runtime: installedRuntime }).bridge,
+        }),
+      },
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.code).toBe("REPLAY_OK");
+    expect(report.decoder).toMatchObject({
+      baselineRuntime: null,
+      replayRuntime: installedRuntime,
+      runtimeParity: null,
+    });
+  });
 });
 
 type ManifestFixtureOptions = {
@@ -1059,6 +1184,7 @@ function stubImageDecoderBridge(
     determinismClass?: "byte-parity" | "structural-parity";
     pngBytes?: Uint8Array;
     outputPixels?: [number, number];
+    runtime?: { name: "onnxruntime-node"; version: string; executionProviders: string[] };
   } = {},
 ): { bridge: ImageDecoderBridge } {
   const png = options.pngBytes ?? pngBytes(64, 64, 0xa1);
@@ -1074,6 +1200,7 @@ function stubImageDecoderBridge(
       codebookVersion: "v0",
       determinismClass: options.determinismClass ?? "byte-parity",
       runtimeTier: "node-onnx-cpu",
+      ...(options.runtime ? { runtime: options.runtime } : {}),
       codeLicense: "Apache-2.0",
       weightsLicense: "permissive",
     },
