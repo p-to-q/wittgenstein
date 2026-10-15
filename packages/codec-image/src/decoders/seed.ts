@@ -13,7 +13,7 @@
  *   - Gate C/D verdict: `docs/research/2026-10-16-openmagvit2-gate-cd-audit.md`
  *   - Bridge contract: `./types.ts`
  */
-import { TRACKERS } from "@wittgenstein/schemas";
+import { CLOSED_TRACKERS, TRACKERS } from "@wittgenstein/schemas";
 import type { ImageDecoderBridge, LoadDecoderBridgeOptions } from "./types.js";
 
 export const SEED_DECODER_ID = "seed-frozen-vq-v0" as const;
@@ -42,7 +42,7 @@ function createBridgeNotImplementedError(): Error & { code: string; details: obj
       },
       blockers: {
         selection: TRACKERS.m1bOpenMagvit2Audit,
-        umbrella: TRACKERS.m1bImageDecoderUmbrella,
+        umbrella: CLOSED_TRACKERS.m1bImageDecoderUmbrella,
       },
     },
   });

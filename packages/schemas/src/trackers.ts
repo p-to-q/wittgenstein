@@ -35,12 +35,6 @@ function issueUrl(n: number): string {
  * structured error can click through to the right discussion.
  */
 export const TRACKERS = {
-  /** M1B umbrella — image trained projector blocker. */
-  m1bImageDecoderUmbrella: issueUrl(283),
-  /** VQGAN-class Gate C (deterministic encode/decode round-trip). */
-  m1bGateCDeterminism: issueUrl(334),
-  /** VQGAN-class Gate D (ONNX export + CPU decode feasibility). */
-  m1bGateDOnnxCpu: issueUrl(335),
   /** OpenMAGVIT2 per-candidate four-gate audit; all four gates measured (C/D 2026-10-16), delivery decision open. */
   m1bOpenMagvit2Audit: issueUrl(331),
   /** Decoder-delivery decision: lazy weight fetch + sha256 verify. */
@@ -64,6 +58,12 @@ export const CLOSED_TRACKERS = {
   onnxRuntimeOptionalPeer: issueUrl(404),
   /** puppeteer-core optional peer; closed via #488 (the consolidation PR). */
   puppeteerCoreOptionalPeer: issueUrl(464),
+  /** M1B umbrella that broke out the tokenizer/decoder radar audits; closed 2026-05-13 (break-out complete) — per-candidate audits (e.g. #331) carry the work; emitted by `seed.ts` blockers as provenance. */
+  m1bImageDecoderUmbrella: issueUrl(283),
+  /** VQGAN-class Gate C (deterministic encode/decode round-trip); closed via #491 (2026-05-28). Non-VQGAN families track gates per candidate. */
+  m1bGateCDeterminism: issueUrl(334),
+  /** VQGAN-class Gate D (ONNX export + CPU decode feasibility); closed via #491 (2026-05-28). */
+  m1bGateDOnnxCpu: issueUrl(335),
 } as const;
 
 export type TrackerKey = keyof typeof TRACKERS;

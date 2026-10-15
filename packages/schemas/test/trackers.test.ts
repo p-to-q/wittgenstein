@@ -35,11 +35,6 @@ describe("@wittgenstein/schemas — trackers (#487 item 2)", () => {
     // These exact values are checked into the public receipt surface; renaming
     // either key requires updating the receipt consumers. The test pins the
     // mapping so a typo in `trackers.ts` cannot silently change a receipt.
-    expect(TRACKERS.m1bImageDecoderUmbrella).toBe(
-      "https://github.com/p-to-q/wittgenstein/issues/283",
-    );
-    expect(TRACKERS.m1bGateCDeterminism).toBe("https://github.com/p-to-q/wittgenstein/issues/334");
-    expect(TRACKERS.m1bGateDOnnxCpu).toBe("https://github.com/p-to-q/wittgenstein/issues/335");
     expect(TRACKERS.decoderDeliveryDecision).toBe(
       "https://github.com/p-to-q/wittgenstein/issues/402",
     );
@@ -55,6 +50,15 @@ describe("@wittgenstein/schemas — trackers (#487 item 2)", () => {
     );
     expect(CLOSED_TRACKERS.puppeteerCoreOptionalPeer).toBe(
       "https://github.com/p-to-q/wittgenstein/issues/464",
+    );
+    expect(CLOSED_TRACKERS.m1bImageDecoderUmbrella).toBe(
+      "https://github.com/p-to-q/wittgenstein/issues/283",
+    );
+    expect(CLOSED_TRACKERS.m1bGateCDeterminism).toBe(
+      "https://github.com/p-to-q/wittgenstein/issues/334",
+    );
+    expect(CLOSED_TRACKERS.m1bGateDOnnxCpu).toBe(
+      "https://github.com/p-to-q/wittgenstein/issues/335",
     );
   });
 });
