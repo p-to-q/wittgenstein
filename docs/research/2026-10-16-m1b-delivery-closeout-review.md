@@ -65,7 +65,9 @@ Acceptance vs reality (verified against the repo this session):
   the blessed `.onnx` lives so `repoId` / `revision` / `weightsSha256` can be
   pinned; (3) wire `install` to a real fetch recipe once hosted. The
   cache-only default is the honest interim posture (`WEIGHTS_NOT_INSTALLED`
-  fails before any runtime check).
+  fails before any runtime check). Decision material for (1)+(2):
+  [`2026-10-16-decoder-weights-hosting-decision-brief.md`](./2026-10-16-decoder-weights-hosting-decision-brief.md)
+  (HF-canonical recommendation, commit-SHA pin protocol, owner checklist).
 
 ### #403 — install / doctor tier surface (state: OPEN, `status/parked`)
 

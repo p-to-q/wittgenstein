@@ -248,7 +248,9 @@ Everything below is code/process work that needs no GPU. Items are ordered as St
    **Closeout review landed 2026-10-16 (`655eba3` + `c2ca18e`):** #384/#402/#403
    assessment + manifest row-schema symmetry decisions CR1–CR3
    (`docs/research/2026-10-16-m1b-delivery-closeout-review.md`); the remaining
-   owner decisions (hosting/pin) are unchanged.
+   owner decisions (hosting/pin) are unchanged. Hosting decision brief prepared
+   2026-10-16 (`docs/research/2026-10-16-decoder-weights-hosting-decision-brief.md`,
+   HF-canonical recommendation + pin protocol + owner checklist).
 7. **SeedExpander training gating:** stays off until tokenizer/decoder radar closeout (#205/#207).
 
 ### Open-risk ledger (unchanged, restated)

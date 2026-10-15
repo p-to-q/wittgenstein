@@ -55,7 +55,9 @@ URL.
 
 Until that URL is decided (tracked by [#402](https://github.com/p-to-q/wittgenstein/issues/402) —
 decoder-delivery; [#435](https://github.com/p-to-q/wittgenstein/issues/435) —
-model-owner review hub), the bridge runs in **cache-only mode by
+model-owner review hub; owner-facing decision material prepared 2026-10-16:
+[`docs/research/2026-10-16-decoder-weights-hosting-decision-brief.md`](../../../../../docs/research/2026-10-16-decoder-weights-hosting-decision-brief.md)),
+the bridge runs in **cache-only mode by
 default**: `loadLlamagenDecoderBridge()` supplies no fetcher to
 `resolveDecoderWeights()`, and weight resolution deliberately runs
 before `ensureOnnxRuntime()` — so a cache miss surfaces as
