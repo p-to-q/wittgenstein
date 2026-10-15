@@ -6,14 +6,13 @@ import { tmpdir } from "node:os";
 
 const checks = [
   {
-    name: "python validation unit tests",
+    // Same discovery command CI runs in the "Python unit tests (M1B audit
+    // producers)" step, so the local pre-push gate and CI cannot drift: the
+    // suite is stdlib-only with numpy cases skip-guarded (system python3
+    // 3.10/no-numpy passes with skips).
+    name: "python validation unit tests (CI-aligned discovery)",
     command: "python3",
-    args: [
-      "-m",
-      "unittest",
-      "research.validation.test_m1b_metric_producers",
-      "research.validation.test_vqgan_gate_audit",
-    ],
+    args: ["-m", "unittest", "discover", "-s", "research/validation", "-t", ".", "-p", "test_*.py"],
   },
   {
     name: "ONNX export help",
