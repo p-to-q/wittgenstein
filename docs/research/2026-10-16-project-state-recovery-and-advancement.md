@@ -302,5 +302,6 @@ schemas); codec-image 153 passed / 1 skipped; schemas 66 passed;
 `pnpm m1b:audit-self-check` green (producer unit tests, 7-entry fixture check,
 codec-image subset, gitignore pins); typos rc=0.
 
-**Unchanged:** #402/#435 hosting + S7e remain the active M1B delivery lane;
-no training/compute beyond the audit re-runs; TiTok/MaskBit lanes untouched.
+**Unchanged:** #402/#435 hosting remains the active M1B delivery lane (S7e
+landed 2026-10-16: `32f7a7c` + `8288bda`); no training/compute beyond the
+audit re-runs; TiTok/MaskBit lanes untouched.

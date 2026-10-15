@@ -192,7 +192,10 @@ the LLM stage is *recorded*, exactly like a VCR cassette.
   `_CLASS_MISMATCH` (determinism class), `REPLAY_LATENTS_MISMATCH`,
   `REPLAY_DECODER_UNSUPPORTED`, `REPLAY_DECODER_UNAVAILABLE`,
   `REPLAY_ARTIFACT_READ_FAILED`, `MANIFEST_MISSING_LATENTS_DIGEST`,
-  `MANIFEST_MISSING_LLM_OUTPUT`, `MANIFEST_IMAGE_DECODER_INVALID`.
+  `MANIFEST_MISSING_LLM_OUTPUT`. Updated by S7e (`8288bda`): malformed
+  `image.decoder` rows now refuse at the manifest-schema boundary as
+  `MANIFEST_SCHEMA_INVALID` (typed row, path-precise issues); the former
+  `MANIFEST_IMAGE_DECODER_INVALID` code is retired.
 
 ## Revisions to prior structure (explicit)
 
@@ -201,8 +204,8 @@ the LLM stage is *recorded*, exactly like a VCR cassette.
 | S7b brief: "replay can verify a bridge run reproduced with the same decoder hash" (mechanism unspecified) | F2, F4 | Specified + extended: recorded-generation replay + decoder identity + latents digest + class-aware artifact parity (S7d, landed this session). |
 | #384 replay doctrine: byte-parity assertion | F1, F3 | Image lane verifies **at the decoder's declared class**; byte parity for `structural-parity` decoders is reported, not required. Byte-parity routes are unchanged. |
 | `ImageAdapterReceipt` had no decode-input digest | F2, F4 | **Landed:** `latentsSha256` added; it is the join point that makes structural-class verification meaningful. |
-| Receipts carried no runtime identity | F1 (KleidiAI case is Apple-Silicon CPU, ORT 1.27.x), diffusers version guidance | **Slated (S7e):** record the resolved `onnxruntime-node` version (and execution provider) on bridge receipts before any `byte-parity` decoder family ships; replay then reports it. Cannot be validated locally until weights land (#435), so it is not blindly added now. |
-| `image.decoder` / `image.adapter` rows are schema-undeclared (zod strips them on parse) while `audioRender` / `videoRender` are declared | F2 (self-describing receipts), local asymmetry | **Landed (closeout review, `c2ca18e`):** closed set single-sourced in `packages/schemas` (`MANIFEST_ROW_KEYS`); all keys declared in `RunManifestSchema` (parse-preservation); `ManifestRow.key` typed by the union; value promotion policy defined (first: `image.decoder` in S7e). See `2026-10-16-m1b-delivery-closeout-review.md` (CR1–CR3). |
+| Receipts carried no runtime identity | F1 (KleidiAI case is Apple-Silicon CPU, ORT 1.27.x), diffusers version guidance | **Landed (S7e, `32f7a7c` + `8288bda`):** bridge load captures the resolved `onnxruntime-node` version (`env.versions.node`, probe-verified across the declared peer range) and pins the *configured* execution-provider list (`["cpu"]`; ORT exposes no executed-provider introspection — configured is the scoped claim); receipts + the typed `image.decoder` row record it, and replay reports `baselineRuntime` / `replayRuntime` / advisory `runtimeParity` (drift never fails). Probe basis: [`2026-10-16-onnxruntime-node-runtime-identity-probe.md`](./2026-10-16-onnxruntime-node-runtime-identity-probe.md). |
+| `image.decoder` / `image.adapter` rows are schema-undeclared (zod strips them on parse) while `audioRender` / `videoRender` are declared | F2 (self-describing receipts), local asymmetry | **Landed (closeout review, `c2ca18e`):** closed set single-sourced in `packages/schemas` (`MANIFEST_ROW_KEYS`); all keys declared in `RunManifestSchema` (parse-preservation); `ManifestRow.key` typed by the union; value promotion policy defined — first promotion landed in S7e (`8288bda`: typed `ImageDecoderReceipt`; malformed rows refuse). See `2026-10-16-m1b-delivery-closeout-review.md` (CR1–CR3). |
 | `REPLAY_SUPPORTED_ROUTES` = local deterministic routes only | F4 | Image bridge lane joins as a **conditionally supported route** (bridge-lane manifests only); message + docs updated. |
 
 ## Open unknowns
@@ -210,7 +213,9 @@ the LLM stage is *recorded*, exactly like a VCR cassette.
 - Whether `onnxruntime-node >= 1.27` actually produces run-to-run drift for
   *our* exported graph on Apple Silicon is untestable locally (weights
   absent, #435). The S7d defaults are insensitive to this by construction;
-  a `byte-parity` family must land S7e first.
+  S7e landed 2026-10-16 (`32f7a7c` + `8288bda`), so the remaining gates for
+  a `byte-parity` family are #473's cross-device evidence and hosted, pinned
+  weights (#402/#435).
 - Whether to add a numeric tolerance channel (rtol/atol-style) for future
   non-structural decoders. Deferred; no shipped family needs it and #473's
   vocabulary already covers the current classes.

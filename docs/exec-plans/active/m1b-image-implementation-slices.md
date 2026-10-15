@@ -46,7 +46,7 @@ Unsafe claims:
 | S4. CLI inspection                    | Landed.                                                                                  | Keep human-facing summaries compact: semantic source and seed summary by default, raw image-code only behind `--show-image-code`. | `packages/cli/src/commands/image.ts`, `packages/cli/test/image.test.ts`                             | CLI JSON tests for `imageCode`, `semanticSummary`, and `seedSummary`.                                                    | Roll back if CLI starts dumping raw opaque token arrays by default.                                        |
 | S5. Eval hooks                        | Partially landed; active successor lanes remain.                                         | Treat parse-valid, adapter-valid, decoder-compat, deterministic replay, quality metrics, and Gate E as separate receipts.         | `research/validation/phase0a_emission_entropy.py`, `docs/acceptance/m1b-image.md`, future eval code | current probes plus future #393/#394 metrics.                                                                            | Roll back any metric that mixes candidate-decoder evidence with own-trained tokenizer evidence.            |
 | S6. Fixture / golden strategy         | Landed for lightweight receipts; heavy binary fixtures remain excluded.                  | Prefer JSON manifests and small audit fixtures; avoid committing model weights or large generated images.                         | `packages/codec-image/test/*`, `research/validation/fixtures/m1b-audit/*`, `.gitignore`             | `pnpm test`, artifact-check validators, tarball exclusion checks.                                                        | Roll back if fixtures make npm packages or CI dependent on private weights.                                |
-| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in + bridge-lane replay verification (S7d) + closeout review (row-schema symmetry CR1–CR3) landed (2026-10-16); hosting (#435; decision brief prepared 2026-10-16) + S7e remain. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
+| S7. Decoder delivery                  | Loader + install CLI + pipeline `decode()` wiring + CLI `--decoder` opt-in + bridge-lane replay verification (S7d) + closeout review (row-schema symmetry CR1–CR3) + S7e runtime identity (record `32f7a7c`, typed row + replay evidence `8288bda`) landed (2026-10-16); hosting (#435; decision brief prepared 2026-10-16) remains. | Wire lazy fetch/cache and the selected decoder-family bridge only after policy decisions.                                         | `packages/codec-image/src/decoders/*`, `packages/cli/src/commands/install.ts`, `doctor.ts`          | #402 acceptance: cache hit/miss, SHA mismatch, license refusal, runtime unavailable, corrupted cache, tarball exclusion. | Roll back if decoder loading falls back silently or fetches unverified bytes.                              |
 | S8. Training / adapter implementation | Open.                                                                                    | Train only narrow tokenizer/adapter/head slices after the receipt floor is in place.                                              | `research/training/*`, `python/image_adapter/*`, future package glue                                | #441/#399/#400 before expensive training; #393/#394/#396/#397/#398 for actual experiments.                               | Roll back if smoke runs are described as trained weights or if receipts omit dataset/runtime fingerprints. |
 
 ## S7b. Bridge → pipeline wiring brief (landed 2026-10-16 as `91ca0dd`, no schema change)
@@ -110,7 +110,9 @@ Design authority: `docs/research/2026-10-16-bridge-replay-parity-comparables.md`
   replay of the recorded scene; bridge-lane manifests without `latentsSha256`
   are refused (`MANIFEST_MISSING_LATENTS_DIGEST`); image manifests without
   `llmOutputRaw` are refused (`MANIFEST_MISSING_LLM_OUTPUT`); malformed
-  `image.decoder` rows are refused (`MANIFEST_IMAGE_DECODER_INVALID`).
+  `image.decoder` rows are refused — since the S7e typed promotion
+  (`8288bda`) by the canonical schema parse (`MANIFEST_SCHEMA_INVALID`,
+  path-precise issues; `MANIFEST_IMAGE_DECODER_INVALID` retired).
 - **D4 decoder resolution.** Replay resolves the recorded `decoderId` from
   the manifest spine (not a user flag) and loads the bridge **cache-only**
   (`cacheOnly: true` suppresses explicit URL, ambient env, and injected
@@ -123,8 +125,10 @@ Design authority: `docs/research/2026-10-16-bridge-replay-parity-comparables.md`
   `REPLAY_DECODER_HASH_MISMATCH` / `REPLAY_DECODER_CLASS_MISMATCH` /
   `REPLAY_DECODER_UNSUPPORTED` / `REPLAY_DECODER_UNAVAILABLE` /
   `REPLAY_ARTIFACT_READ_FAILED` (violations); `MANIFEST_MISSING_LATENTS_DIGEST` /
-  `MANIFEST_MISSING_LLM_OUTPUT` / `MANIFEST_IMAGE_DECODER_INVALID` /
-  `MANIFEST_LLM_OUTPUT_INVALID` (manifest-shape refusals). Completed
+  `MANIFEST_MISSING_LLM_OUTPUT` / `MANIFEST_LLM_OUTPUT_INVALID`
+  (manifest-shape refusals; malformed `image.decoder` rows additionally
+  refuse as `MANIFEST_SCHEMA_INVALID` since the S7e typed row, `8288bda`).
+  Completed
   comparisons print their verdict on stdout; refusals print structured JSON
   on stderr with exit 1.
 - **Validation.** `packages/cli/test/replay.test.ts` covers 27 cases: e2e
@@ -137,7 +141,38 @@ Design authority: `docs/research/2026-10-16-bridge-replay-parity-comparables.md`
   honored per #473); no schema change (the digest lives on the runtime
   receipt + row, mirroring `image.decoder`); no recording of the resolved
   `onnxruntime-node` version / execution provider on bridge receipts — that
-  is S7e, required before any `byte-parity` decoder family ships.
+  is S7e, required before any `byte-parity` decoder family ships (landed
+  separately on 2026-10-16; see below).
+
+### S7e — runtime identity on bridge receipts (landed 2026-10-16)
+
+Record the resolved `onnxruntime-node` version + configured execution
+providers on bridge receipts before any `byte-parity` decoder family ships.
+Probe basis: `docs/research/2026-10-16-onnxruntime-node-runtime-identity-probe.md`.
+
+- **S7e-a (`32f7a7c`) — capture.** The bridge captures identity at load
+  (`captureOnnxRuntimeIdentity`: `env.versions.node`, fallback
+  `env.versions.common` — probe-verified equal to the npm version at both
+  the 1.18 peer floor and 1.30.0) and pins the configured provider list
+  `EXECUTION_PROVIDERS = ["cpu"]` explicitly (an empty list defaults to CPU
+  natively, but as an implementation accident, not a contract). No version
+  ⇒ identity omitted + an `image/decoder-runtime-identity-missing` decode
+  warning — never invented. `runtime` is optional on the receipt so pre-S7e
+  receipts keep parsing.
+- **S7e-b (`8288bda`) — typed row + replay evidence.** First in-place value
+  promotion (CR3): `RunManifestSchema["image.decoder"]` is the typed
+  `ImageDecoderReceipt`; malformed rows refuse a canonical parse as
+  `MANIFEST_SCHEMA_INVALID` with path-precise issues (replay's
+  hand-validated `MANIFEST_IMAGE_DECODER_INVALID` refusal retired). Replay
+  reads the validated receipt and reports `baselineRuntime` /
+  `replayRuntime` / advisory `runtimeParity` — drift is evidence, never a
+  violation.
+- **Validation.** schemas 71/71 · core 107/107 · cli 88/88 (incl. e2e
+  placeholder replay; runtime evidence + schema-boundary tests) ·
+  codec-image 157 + 1 skip; workspace typecheck + lint clean.
+- **Do not do here.** No executed-provider introspection (ORT exposes none;
+  the receipt's scope stays "configured"); no `byte-parity` promotion of
+  any family (still #473's gate + hosted weights).
 
 ## Successor issue map
 
@@ -163,20 +198,20 @@ called for. Design authority + evidence assessment:
   #402's acceptance bullets are all covered by landed tests (cache hit/miss,
   SHA mismatch, license refusal, runtime unavailable, tarball guard); what
   remains is the owner-gated canonical ONNX hosting + manifest pin, which also
-  gates #403's real fetch recipe and S7e. No delivery-line code debt blocks
-  that decision.
+  gates #403's real fetch recipe. (S7e landed ahead of it, 2026-10-16:
+  `32f7a7c` + `8288bda`.) No delivery-line code debt blocks that decision.
 - **CR1–CR3 (landed).** The closed row-key set is now single-sourced in
   `packages/schemas/src/codec/v2/manifest-rows.ts`; `RunManifestSchema`
   declares every key (a canonical parse preserves rows instead of stripping
   them); `ManifestRow.key` is typed by the closed union; value typing stays a
-  per-key promotion step (first: `image.decoder` in S7e). Declaration only —
-  no on-disk shape change, golden row-set pins intact.
+  per-key promotion step (first promotion landed in S7e, `8288bda`).
+  Declaration only — no on-disk shape change, golden row-set pins intact.
 - **Validation.** schemas 66/66 · core 107/107 · codec-image 153 + 1 skip ·
   codec-audio 22 + 3 skip · cli 85/85 · repo-wide typecheck + lint Done ·
   boundaries + no-research-imports + publish-surface green.
 - **Remaining.** Canonical ONNX hosting decision (#435-class) → then #402
-  manifest pin + install fetch recipe, S7e (runtime identity on bridge
-  receipts), and the issue closeout comments.
+  manifest pin + install fetch recipe, and the issue closeout comments.
+  (S7e landed 2026-10-16: `32f7a7c` + `8288bda`.)
 
 ## Research / engineer / hacker review
 

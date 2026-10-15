@@ -114,8 +114,9 @@ tracks: [#402, #403, #435, #473]
    - `wittgenstein install image` becomes a real fetch (progress + sha256 +
      atomic promotion already implemented) and `doctor` tier readiness
      follows automatically — this closes #403's remainder;
-   - S7e (record resolved `onnxruntime-node` version + execution provider on
-     bridge receipts) stays the next slice after hosting.
+   - S7e (runtime identity on bridge receipts) landed ahead of hosting on
+     2026-10-16 (`32f7a7c` capture + `8288bda` typed row/replay evidence) —
+     it never depended on the hosted bytes.
 6. **Verification protocol after upload** (before flipping defaults):
    fetch the resolve URL with an empty cache, confirm `lfs.oid` ==
    `weightsSha256`, then run the repo's skippable real-bridge smoke against

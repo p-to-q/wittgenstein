@@ -83,16 +83,21 @@ Acceptance vs reality (verified against the repo this session):
 ### #473 / S7e
 
 - #473 stays the open gate-policy lane (unchanged by this review).
-- S7e (record resolved `onnxruntime-node` version + execution provider on
-  bridge receipts before any `byte-parity` family ships) stays slated behind
-  hosting: it cannot be validated locally with weights absent. Under CR1–CR3
-  below, its new fields extend the declared `image.decoder` value.
+- S7e — **landed 2026-10-16** (`32f7a7c` capture at bridge load; `8288bda`
+  first value promotion + replay evidence): the resolved `onnxruntime-node`
+  version + configured execution providers are recorded on bridge receipts
+  and the typed `image.decoder` row; replay reports `baselineRuntime` /
+  `replayRuntime` / advisory `runtimeParity`. Probe basis:
+  [`2026-10-16-onnxruntime-node-runtime-identity-probe.md`](./2026-10-16-onnxruntime-node-runtime-identity-probe.md).
+  The cross-device drift question stays #473's gate — now measurable rather
+  than unimplemented.
 
 ### Closeout verdict
 
 The S7 delivery line is reduced to **one owner decision** (weights hosting +
-pin) plus two follow-through slices that depend on it (install fetch recipe,
-S7e). No delivery-line code debt remains that blocks the decision. #384 needs
+pin) plus one follow-through slice that depends on it (install fetch
+recipe; S7e landed 2026-10-16 and never depended on the hosted bytes). No
+delivery-line code debt remains that blocks the decision. #384 needs
 nothing further; #402/#403 cannot close truthfully before hosting lands.
 
 ## Part 2 — Research: how receipt formats evolve without breaking (comparables)
@@ -193,8 +198,9 @@ keeps its key and location (single-location rule).
 inspect raw reads in this slice (they read both recorded baselines and
 runtime objects uniformly); new consumers may rely on parse-preservation.
 Value promotion = a typed schema at the same key, per row, when a consumer
-depends on it. First scheduled promotions: `image.decoder` in S7e
-(runtime-identity fields); the RFC-0007 "shape fired" receipt lands as a
+depends on it. First promotion landed: `image.decoder` in S7e (`8288bda`
+— typed receipt incl. runtime identity; malformed rows refuse). The
+RFC-0007 "shape fired" receipt lands as a
 field on the existing `image.code` / `image.decoder` rows when that RFC
 activates — no new location.
 
