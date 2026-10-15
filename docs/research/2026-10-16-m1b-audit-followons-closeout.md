@@ -53,7 +53,7 @@ follows-from: docs/research/2026-10-16-openmagvit2-gate-cd-audit.md
   the `artifacts/m1b-audit/` rule; lab copy at
   `/tmp/om2/out/om2-vqgan-gate-audit-331.json`).
 
-## Findings recorded (not fixed in this slice)
+## Findings and follow-ons (one resolved same day, one deferred)
 
 1. **Candidate-label constraint for any future seed manifest.**
    `candidateMatchesFamily` accepts a receipt `candidate` only when it equals
@@ -70,9 +70,10 @@ follows-from: docs/research/2026-10-16-openmagvit2-gate-cd-audit.md
    - `m1bGateCDeterminism` (#334) / `m1bGateDOnnxCpu` (#335) closed 2026-05-28
      (COMPLETED) but sit in `TRACKERS` with "VQGAN-class" comments.
    Per the file's own convention these are closed-but-referenced provenance and
-   belong in `CLOSED_TRACKERS`, with a successor named for the umbrella. New
-   follow-on; kept as its own slice because it is a schema-package surface
-   change, not tooling.
+   belong in `CLOSED_TRACKERS`, with a successor named for the umbrella.
+   **Resolved 2026-10-16** (`0da0f6d`): all three constants re-bucketed; no
+   emitted URL changed — `seed.ts` still emits the #283 umbrella URL as
+   provenance.
 
 ## Cross-references
 

@@ -257,9 +257,11 @@ exact ONNX boundary and weight-selection conventions.
    today (the blessing schema is exercised by tests only). Recommendation:
    stay with the LlamaGen floor; pick the seed bridge up as a slice only if
    the LlamaGen delivery path fails, or when a second family is explicitly
-   wanted. Decision tracker remains #331/#283. Recommended disposition:
-   #331's audit deliverable is complete with this note; close it once the note
-   is pushed — the delivery/selection question stays live under #283.
+   wanted. Decision tracker remains #331 — the umbrella #283 closed
+   2026-05-13 (radar break-out complete). Recommended disposition: #331's
+   audit deliverable is complete with this note; close it once the note is
+   pushed — the delivery/selection question stays live under #331 plus the
+   delivery trackers (#402).
 2. **Wire the producers into the Python CI half (recommended, separate
    slice).** `research/validation` tests are local-only today
    (`m1b:audit-self-check`); `test_m1b_metric_producers.py` and
