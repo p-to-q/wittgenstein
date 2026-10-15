@@ -19,6 +19,7 @@
 import type { DecoderFamily, ImageLatentCodes } from "../schema.js";
 import type { DecodedRaster } from "../pipeline/decoder.js";
 import type { DecoderWeightsAsset, DecoderWeightsManifest } from "./weights.js";
+import type { codecV2 } from "@wittgenstein/schemas";
 
 /**
  * Determinism class of a decoder bridge's output.
@@ -35,7 +36,18 @@ import type { DecoderWeightsAsset, DecoderWeightsManifest } from "./weights.js";
  *   ratifies this as the acceptable shipping contract for cross-platform
  *   trained-model decoders. See #374 for the image-side decision tracker.
  */
-export type DecoderDeterminismClass = "byte-parity" | "structural-parity";
+export type DecoderDeterminismClass = codecV2.DecoderDeterminismClass;
+
+/**
+ * Identity of the inference runtime that produced a bridge decode (S7e).
+ *
+ * Single-sourced from `@wittgenstein/schemas` (`codecV2.DecoderRuntimeIdentity`)
+ * so capability advertisements, receipts, and the `image.decoder` manifest
+ * row type one contract. `runtimeTier` names the tier ("node-onnx-cpu");
+ * this identity pins the concrete resolved runtime (version + requested
+ * execution providers).
+ */
+export type DecoderRuntimeIdentity = codecV2.DecoderRuntimeIdentity;
 
 /**
  * Runtime tier the bridge runs under. Locks the doctrine that the canonical
@@ -94,6 +106,15 @@ export interface ImageDecoderCapabilities {
 
   /** Runtime tier this bridge ran under. See `DecoderRuntimeTier`. */
   readonly runtimeTier: DecoderRuntimeTier;
+
+  /**
+   * Concrete runtime identity (S7e): the resolved inference-runtime
+   * version and the requested execution providers, recorded on bridge
+   * receipts. Optional — bridges whose runtime cannot report a version
+   * omit it and surface a decode warning instead of a silent gap, and
+   * receipts written before S7e lack it.
+   */
+  readonly runtime?: DecoderRuntimeIdentity;
 
   /**
    * Codec + license posture. Required by ADR-0020: the canonical M-phase

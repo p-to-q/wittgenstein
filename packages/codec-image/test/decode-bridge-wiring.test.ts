@@ -35,6 +35,7 @@ import {
   DecoderBridgeOutputMismatchError,
   DecoderBridgeShapeUnsupportedError,
   decodeLatentsToRaster,
+  toImageDecoderReceipt,
   type BridgeDecodeReceipt,
 } from "../src/pipeline/decoder.js";
 import { encodeRgbaAsPng } from "../src/png.js";
@@ -159,6 +160,50 @@ describe("decode bridge wiring (S7b) — injected bridge lane", () => {
       determinismClass: "byte-parity",
       warnings: [],
     } satisfies BridgeDecodeReceipt);
+  });
+
+  it("carries the bridge runtime identity onto the lane receipt (S7e)", async () => {
+    const ctx = await makeRenderCtx("runtime-identity");
+    const runtime = {
+      name: "onnxruntime-node" as const,
+      version: "1.30.0",
+      executionProviders: ["cpu"],
+    };
+    const { bridge } = makeStubBridge({ capabilities: { runtime } });
+
+    const raster = await decodeLatentsToRaster(makeLatents(), ctx, { bridge });
+
+    expect(raster.bridge).toEqual({
+      decoderId: "stub-bridge",
+      decoderHash: "stub-weights-sha256",
+      determinismClass: "byte-parity",
+      warnings: [],
+      runtime,
+    } satisfies BridgeDecodeReceipt);
+  });
+
+  it("toImageDecoderReceipt copies runtime only when present (S7e)", () => {
+    const runtime = {
+      name: "onnxruntime-node" as const,
+      version: "1.30.0",
+      executionProviders: ["cpu"],
+    };
+    const base = {
+      decoderId: "stub-bridge",
+      decoderHash: "stub-weights-sha256",
+      determinismClass: "byte-parity" as const,
+      warnings: [],
+    };
+
+    expect(toImageDecoderReceipt({ ...base, runtime })).toEqual({
+      lane: "injected-bridge",
+      decoderId: "stub-bridge",
+      decoderHash: "stub-weights-sha256",
+      determinismClass: "byte-parity",
+      runtime,
+    });
+    const withoutRuntime = toImageDecoderReceipt(base);
+    expect("runtime" in withoutRuntime).toBe(false);
   });
 
   it("no bridge → placeholder lane unchanged, no lane receipt", async () => {
@@ -473,6 +518,13 @@ describe("decode bridge wiring (S7b) — real bridge smoke behind the install la
       expect(raster.bridge?.decoderId).toBe(LLAMAGEN_DECODER_ID);
       expect(raster.bridge?.determinismClass).toBe("structural-parity");
       expect(raster.bridge?.decoderHash).toBe(LLAMAGEN_MANIFEST.weightsSha256);
+      // S7e: real installs must record the resolved runtime identity, and
+      // the pipeline must carry it onto the decode receipt.
+      const runtimeIdentity = bridge.capabilities.runtime;
+      expect(runtimeIdentity?.name).toBe("onnxruntime-node");
+      expect(runtimeIdentity?.version).toMatch(/^\d+\.\d+\.\d+/);
+      expect(runtimeIdentity?.executionProviders).toEqual(["cpu"]);
+      expect(raster.bridge?.runtime).toEqual(runtimeIdentity);
     } finally {
       await bridge.unload();
     }

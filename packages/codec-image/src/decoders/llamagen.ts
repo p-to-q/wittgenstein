@@ -9,8 +9,10 @@
  *   2. Resolve weights through the shared cache + sha256 resolver
  *      (`./weights.ts`): cache-hit, or fetch + verify + atomic promote when a
  *      `weightsBaseUrl` is configured (cache-only otherwise — see below).
- *   3. Load `onnxruntime-node` (optional peer) via `./runtime.ts` and build a
- *      CPU inference session.
+ *   3. Load `onnxruntime-node` (optional peer) via `./runtime.ts`, build a CPU
+ *      inference session (execution providers pinned to `["cpu"]`), and
+ *      capture the runtime identity for receipts (S7e: resolved version +
+ *      requested providers).
  *   4. Advertise capabilities and expose `decode(codes)` per `./types.ts`.
  *
  * Decode math (evidence-pinned, upstream commit `ce98ec4`):
@@ -40,13 +42,14 @@
 import manifestJson from "./llamagen/manifest.json" with { type: "json" };
 import type { ImageLatentCodes } from "../schema.js";
 import { encodeRgbaAsPng } from "../png.js";
-import { ensureOnnxRuntime, type OnnxRuntime } from "./runtime.js";
+import { captureOnnxRuntimeIdentity, ensureOnnxRuntime, type OnnxRuntime } from "./runtime.js";
 import {
   DecoderWeightsManifestSchema,
   resolveDecoderWeights,
   type DecoderWeightsManifest,
 } from "./weights.js";
 import type {
+  DecoderRuntimeIdentity,
   ImageDecoderBridge,
   ImageDecoderCapabilities,
   ImageDecoderResult,
@@ -67,6 +70,16 @@ const CODEBOOK_VERSION = "FoundationVision/LlamaGen@81e41139" as const;
 const TOKEN_GRID = [16, 16] as const;
 const OUTPUT_PIXELS = [256, 256] as const;
 const WEIGHTS_URL_ENV = "WITTGENSTEIN_LLAMAGEN_WEIGHTS_URL";
+
+/**
+ * Execution providers pinned on every session (S7e). The M1B audits
+ * (Gate C exactness + Gate D ≤30s CPU decode) ran CPU and `runtimeTier`
+ * claims `node-onnx-cpu`; pinning the list makes the receipt's runtime
+ * identity a statement about configuration, not about ORT's
+ * platform-dependent default (empty list → CPU-only today, but that is not
+ * a contract).
+ */
+const EXECUTION_PROVIDERS = ["cpu"] as const;
 
 /** Structural surface of the ONNX session the bridge actually uses. */
 type SessionLike = {
@@ -184,6 +197,20 @@ export async function loadLlamagenDecoderBridge(
 
   const runtime = await ensureOnnxRuntime();
   const session = await createSession(runtime, resolved.weightsPath, manifest);
+  const runtimeIdentity = captureOnnxRuntimeIdentity(runtime, EXECUTION_PROVIDERS);
+  // Receipt honesty (S7e): when the runtime cannot report its version we
+  // omit the identity and say so on every decode result instead of writing
+  // a half-empty receipt.
+  const loadWarnings: ImageDecoderResult["warnings"] = runtimeIdentity
+    ? []
+    : [
+        {
+          code: "image/decoder-runtime-identity-missing",
+          message:
+            "onnxruntime-node did not report its version (`env.versions` unavailable); "
+            + "the image.decoder receipt will omit runtime identity (S7e).",
+        },
+      ];
   let releasePromise: Promise<void> | null = null;
   const unload = (): Promise<void> => {
     releasePromise ??= Promise.resolve(session.release()).catch(() => undefined);
@@ -191,7 +218,7 @@ export async function loadLlamagenDecoderBridge(
   };
 
   return {
-    capabilities: llamagenCapabilities(manifest),
+    capabilities: llamagenCapabilities(manifest, runtimeIdentity ?? undefined),
     async decode(codes: ImageLatentCodes): Promise<ImageDecoderResult> {
       assertShapeSupported(codes);
       assertCodebookMatches(codes);
@@ -215,7 +242,7 @@ export async function loadLlamagenDecoderBridge(
 
       return {
         raster: onnxOutputToPng(output),
-        warnings: [],
+        warnings: loadWarnings,
         decoderHash: manifest.weightsSha256,
       };
     },
@@ -270,7 +297,9 @@ async function createSession(
   manifest: DecoderWeightsManifest,
 ): Promise<SessionLike> {
   try {
-    const created = await runtime.InferenceSession.create(weightsPath);
+    const created = await runtime.InferenceSession.create(weightsPath, {
+      executionProviders: [...EXECUTION_PROVIDERS],
+    });
     return created as unknown as SessionLike;
   } catch (error) {
     throw new DecoderSessionFailedError(manifest, error);
@@ -278,7 +307,10 @@ async function createSession(
 }
 
 /** Advertise the locked capability table from the bridge README + audits. */
-export function llamagenCapabilities(manifest: DecoderWeightsManifest): ImageDecoderCapabilities {
+export function llamagenCapabilities(
+  manifest: DecoderWeightsManifest,
+  runtimeIdentity?: DecoderRuntimeIdentity,
+): ImageDecoderCapabilities {
   return {
     family: "llamagen",
     decoderId: LLAMAGEN_DECODER_ID,
@@ -287,6 +319,7 @@ export function llamagenCapabilities(manifest: DecoderWeightsManifest): ImageDec
     codebookVersion: CODEBOOK_VERSION,
     determinismClass: "structural-parity",
     runtimeTier: "node-onnx-cpu",
+    ...(runtimeIdentity ? { runtime: runtimeIdentity } : {}),
     codeLicense: manifest.license.code,
     weightsLicense: manifest.license.weights,
   };

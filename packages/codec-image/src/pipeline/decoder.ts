@@ -15,6 +15,7 @@ import type { RenderCtx } from "@wittgenstein/schemas";
 import type { ImageLatentCodes } from "../schema.js";
 import type {
   DecoderDeterminismClass,
+  DecoderRuntimeIdentity,
   DecoderShapeSupport,
   ImageDecoderBridge,
   ImageDecoderCapabilities,
@@ -53,6 +54,13 @@ export interface BridgeDecodeReceipt {
     readonly message: string;
     readonly detail?: unknown;
   }>;
+  /**
+   * Runtime identity of the loaded bridge (S7e): resolved version +
+   * requested execution providers. Absent when the bridge's runtime could
+   * not report a version (the loader then attaches a decode warning) or
+   * for bridge implementations that predate S7e.
+   */
+  readonly runtime?: DecoderRuntimeIdentity;
 }
 
 export interface DecodedRaster {
@@ -82,6 +90,7 @@ export function toImageDecoderReceipt(bridge: BridgeDecodeReceipt): ImageDecoder
     decoderId: bridge.decoderId,
     decoderHash: bridge.decoderHash,
     determinismClass: bridge.determinismClass,
+    ...(bridge.runtime ? { runtime: bridge.runtime } : {}),
   };
 }
 
@@ -238,6 +247,7 @@ async function decodeViaInjectedBridge(
       decoderHash: result.decoderHash,
       determinismClass: capabilities.determinismClass,
       warnings: result.warnings,
+      ...(capabilities.runtime ? { runtime: capabilities.runtime } : {}),
     },
   };
 }

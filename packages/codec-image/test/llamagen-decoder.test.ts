@@ -50,13 +50,15 @@ const mocks = vi.hoisted(() => {
   const runtime = {
     InferenceSession: { create: vi.fn(async () => session) },
     Tensor: FakeTensor,
+    env: { versions: { common: "1.30.0", node: "1.30.0" } },
   };
+  const ensureOnnxRuntime = vi.fn(async () => runtime);
   const resolveDecoderWeights = vi.fn(async (options: { manifest: DecoderWeightsManifest }) => ({
     weightsPath: "/fake/llamagen_vq_ds16_decoder.onnx",
     weightsSha256: options.manifest.weightsSha256,
     source: "cache-hit" as const,
   }));
-  return { run, release, runtime, resolveDecoderWeights };
+  return { run, release, runtime, ensureOnnxRuntime, resolveDecoderWeights };
 });
 
 vi.mock("../src/decoders/weights.js", async (importOriginal) => {
@@ -66,7 +68,7 @@ vi.mock("../src/decoders/weights.js", async (importOriginal) => {
 
 vi.mock("../src/decoders/runtime.js", async (importOriginal) => {
   const mod = (await importOriginal()) as typeof runtimeModule;
-  return { ...mod, ensureOnnxRuntime: vi.fn(async () => mocks.runtime) };
+  return { ...mod, ensureOnnxRuntime: mocks.ensureOnnxRuntime };
 });
 
 const SHIPPED_SHA = "fd6800b3df8193968656e3e6b01ab48bd8899ebede829dfd1166da5f5b9f9389";
@@ -233,6 +235,7 @@ describe("loadLlamagenDecoderBridge (#402 contract-fill)", () => {
       codebookVersion: "FoundationVision/LlamaGen@81e41139",
       determinismClass: "structural-parity",
       runtimeTier: "node-onnx-cpu",
+      runtime: { name: "onnxruntime-node", version: "1.30.0", executionProviders: ["cpu"] },
       codeLicense: "MIT",
       weightsLicense: "permissive",
     });
@@ -322,6 +325,28 @@ describe("loadLlamagenDecoderBridge (#402 contract-fill)", () => {
     await expect(bridge.decode(validLatents())).rejects.toMatchObject({
       code: "DECODER_INFERENCE_FAILED",
     });
+  });
+
+  it("pins the CPU execution provider on the ONNX session (S7e)", async () => {
+    await loadLlamagenDecoderBridge({ manifest: manifestFixture() });
+    expect(mocks.runtime.InferenceSession.create).toHaveBeenCalledWith(
+      "/fake/llamagen_vq_ds16_decoder.onnx",
+      { executionProviders: ["cpu"] },
+    );
+  });
+
+  it("omits runtime identity and warns when the runtime cannot report a version (S7e)", async () => {
+    mocks.ensureOnnxRuntime.mockResolvedValueOnce({
+      InferenceSession: mocks.runtime.InferenceSession,
+      Tensor: mocks.runtime.Tensor,
+    });
+    mocks.run.mockResolvedValue({ recon_rgb: { data: new Float32Array(3 * 256 * 256), dims: [1, 3, 256, 256] } });
+    const bridge = await loadLlamagenDecoderBridge({ manifest: manifestFixture() });
+    expect(bridge.capabilities.runtime).toBeUndefined();
+    const result = await bridge.decode(validLatents());
+    expect(result.warnings).toEqual([
+      expect.objectContaining({ code: "image/decoder-runtime-identity-missing" }),
+    ]);
   });
 
   it("unload is idempotent and releases the session once", async () => {

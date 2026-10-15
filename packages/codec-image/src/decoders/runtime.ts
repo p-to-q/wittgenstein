@@ -25,6 +25,7 @@
 //     so the package can compile cleanly without the peer installed.
 import { z } from "zod";
 import { CLOSED_TRACKERS } from "@wittgenstein/schemas";
+import type { DecoderRuntimeIdentity } from "./types.js";
 
 /**
  * The minimal structural surface a bridge needs from `onnxruntime-node`.
@@ -40,6 +41,16 @@ export interface OnnxRuntime {
     data: ArrayLike<number> | ArrayLike<bigint>,
     dims: readonly number[],
   ) => unknown;
+
+  /**
+   * Minimal surface of the runtime `env` used for receipt telemetry
+   * (S7e). `onnxruntime-node` exposes `env.versions` (`{common, node}`)
+   * at least since the 1.18 peer floor; optional so this module compiles
+   * without the peer and degrades honestly when a build omits it.
+   */
+  readonly env?: {
+    readonly versions?: Readonly<Record<string, string>>;
+  };
 }
 
 export interface RuntimeUnavailableDetails {
@@ -99,4 +110,28 @@ export async function ensureOnnxRuntime(): Promise<OnnxRuntime> {
       },
     );
   }
+}
+
+/**
+ * Capture the loaded runtime's identity for bridge receipts (S7e): the
+ * native binding version (`env.versions.node`, falling back to
+ * `env.versions.common`) plus the execution providers the session options
+ * request. Returns null when the runtime reports no version — callers omit
+ * the identity and surface a warning instead of inventing one (no silent
+ * fallback).
+ */
+export function captureOnnxRuntimeIdentity(
+  runtime: OnnxRuntime,
+  executionProviders: readonly string[],
+): DecoderRuntimeIdentity | null {
+  const versions = runtime.env?.versions;
+  const version = versions?.["node"] ?? versions?.["common"];
+  if (typeof version !== "string" || version.length === 0) {
+    return null;
+  }
+  return {
+    name: "onnxruntime-node",
+    version,
+    executionProviders: [...executionProviders],
+  };
 }

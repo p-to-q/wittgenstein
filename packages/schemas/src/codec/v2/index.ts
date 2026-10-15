@@ -21,3 +21,15 @@ export { createRunSidecar } from "./sidecar.js";
 export type { CodecWarning } from "./warning.js";
 export { CodecPhase } from "./warning.js";
 export type { StandardSchemaV1 } from "./standard-schema.js";
+// Decoder-lane receipt value schema (S7e promotion of the `image.decoder`
+// row; scheduled by the 2026-10-16 closeout review CR3).
+export {
+  DecoderDeterminismClassSchema,
+  DecoderRuntimeIdentitySchema,
+  ImageDecoderReceiptSchema,
+} from "./image-decoder.js";
+export type {
+  DecoderDeterminismClass,
+  DecoderRuntimeIdentity,
+  ImageDecoderReceipt,
+} from "./image-decoder.js";
