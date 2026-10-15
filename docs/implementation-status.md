@@ -99,7 +99,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 | Image-code manifest receipts                  | ✅ Ships       | `metadata.imageCode` / manifest `image.code` records intent; `renderPath` and `image.adapter` record fired tier, fallback reasons, and seed-expander id; every row key is declared in `RunManifestSchema` (closeout review CR1, `c2ca18e`) |
 | `decoder.ts` — latent codes → raster          | ⚠️ Partial     | `renderSky()` / `renderTerrain()` functional; `tryDecodeReferenceLandscape()` fires when reference weights present                                      |
 | `package.ts` — raster → PNG                   | ✅ Ships       |                                                                                                                                                         |
-| `decoders/llamagen.ts`                        | 🔴 Stub        | Throws `NotImplementedError` — bridge to LlamaGen VQ-VAE decoder, not yet wired                                                                         |
+| `decoders/llamagen.ts`                        | ⚠️ Partial     | Loader wired end-to-end (cache + sha256 weights resolve, ONNX CPU session, decode → PNG); cache-only until #402 hosting pin — miss surfaces `WEIGHTS_NOT_INSTALLED` with install hint |
 | `decoders/seed.ts`                            | 🔴 Stub        | Throws `SEED_BRIDGE_NOT_IMPLEMENTED` — bridge to SEED decoder; OpenMAGVIT2 Gate C/D measured PASS 2026-10-16 (structural policy), delivery not selected |
 | `training/`                                   | 📋 Recipe only | Seed-expansion training direction is locked; concrete tokenizer family, dataset, and weights remain open                                                |
 
@@ -167,7 +167,7 @@ encode path is an opt-in repo-owned renderer (Chrome/Chromium + FFmpeg).
 
 | Codec                | Protocol | Notes |
 | -------------------- | -------- | ----- |
-| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`), bridge-lane replay verification landed (`23f2055`, S7d — recorded-generation replay, `latentsSha256` decode-input digest, class-aware parity); closeout review + row-schema symmetry landed (`c2ca18e`, CR1–CR3); delivery left: canonical ONNX URL (#435) + issue closeout |
+| image                | v2       | `produce()` + `manifestRows()`; #402 loader + #403 install CLI code landed (2026-10-16), S7b bridge→pipeline `decode()` wiring landed (`91ca0dd`, injected-bridge lane, no silent fallback), CLI `--decoder llamagen` opt-in landed (`8fd1a24`), bridge-lane replay verification landed (`23f2055`, S7d — recorded-generation replay, `latentsSha256` decode-input digest, class-aware parity); closeout review + row-schema symmetry landed (`c2ca18e`, CR1–CR3); delivery left: owner action on the canonical weights URL (#402 — decision brief `136b015` landed; default `weightsBaseUrl` flips once the pin is verified) + delivery closeout |
 | audio                | v2       | Kokoro-82M canonical (ADR-0015); procedural default |
 | sensor               | v2       | patchGrammar landed; recursion-seam invariant green |
 | video                | v1       | Repo-owned HyperFrames-shaped distilled-internal renderer; MP4 = structural cross-platform parity |
