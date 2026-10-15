@@ -54,7 +54,7 @@ export async function fetchWithTimeout(
 
 /**
  * Parse an HTTP `Retry-After` header into milliseconds. Accepts both delta
- * seconds and an HTTP-date. Returns `null` when absent or unparseable.
+ * seconds and an HTTP-date. Returns `null` when absent or unparsable.
  */
 export function parseRetryAfterHeader(value: string | null | undefined): number | null {
   if (!value) {
