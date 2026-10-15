@@ -266,11 +266,16 @@ exact ONNX boundary and weight-selection conventions.
    `test_vqgan_gate_audit.py` are stdlib-only (numpy optional, skip-guarded)
    and would run cheaply in the existing Node+Python job after the numpy
    install step. Keep `m1b:audit-self-check` local (it exercises pnpm build
-   outputs).
+   outputs). **Landed 2026-10-16** (`a33f7c0`) — see the
+   [follow-on closeout](2026-10-16-m1b-audit-followons-closeout.md).
 3. **Tooling fix before any seed manifest cross-check.** `vqgan_gate_audit.py`
    hardcodes the #334/#335 trackers and VQGAN-class wording; add
    tracker overrides (or derive from `--candidate`) so a seed-family receipt
    can pass the `gateReceipt.tracker === manifest.tracker` rule honestly.
+   **Landed 2026-10-16** (`73b3794`): `--gate-c-tracker` / `--gate-d-tracker`
+   overrides plus family-neutral wording; the
+   [follow-on closeout](2026-10-16-m1b-audit-followons-closeout.md) also
+   records the candidate-label constraint found for the future seed manifest.
 
 ## Reproducibility — sources and tools
 
