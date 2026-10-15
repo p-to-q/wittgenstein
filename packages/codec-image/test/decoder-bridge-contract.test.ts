@@ -72,12 +72,12 @@ describe("decoder bridge contract (M1B prep)", () => {
     expect(err.details?.gateStatus).toEqual({
       gateA: "passed",
       gateB: "passed",
-      gateC: "blocked",
-      gateD: "blocked",
+      gateC: "passed",
+      gateD: "passed",
     });
     const blockers = err.details?.blockers as Record<string, string> | undefined;
-    expect(blockers?.gateC).toMatch(/^https:\/\/github\.com\/p-to-q\/wittgenstein\/issues\/331$/);
-    expect(blockers?.gateD).toMatch(/^https:\/\/github\.com\/p-to-q\/wittgenstein\/issues\/331$/);
+    expect(blockers?.selection).toMatch(/^https:\/\/github\.com\/p-to-q\/wittgenstein\/issues\/331$/);
+    expect(blockers?.umbrella).toMatch(/^https:\/\/github\.com\/p-to-q\/wittgenstein\/issues\/283$/);
   });
 
   it("the bridge contract is implementable — a stub satisfies ImageDecoderBridge", async () => {

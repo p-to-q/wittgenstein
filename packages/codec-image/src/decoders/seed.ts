@@ -3,12 +3,14 @@
  *
  * Same shape as `./llamagen.ts` — signature locked, impl gated on M1B
  * radar audits. The radar's per-candidate audit for OpenMAGVIT2/SEED-Voken
- * is at #331 (Priority 3). Gate A/B are externally cleared against the
- * Apache-2.0 HF model card and downloadable checkpoint filenames; full impl
- * waits on empirical Gates C+D for whichever candidate is selected.
+ * is at #331 (Priority 3). All four gates are cleared at audit level — A/B
+ * externally (2026-05-31 closeout), C/D empirically (2026-10-15/16 lab runs
+ * under the structural policy) — but no seed-family decoder is selected for
+ * runtime delivery yet; the M1B floor remains `llamagen`.
  *
  * Refs:
  *   - Audit (P3-5): `docs/research/2026-05-13-audits-fsq-openmagvit2-titok-maskbit.md`
+ *   - Gate C/D verdict: `docs/research/2026-10-16-openmagvit2-gate-cd-audit.md`
  *   - Bridge contract: `./types.ts`
  */
 import { TRACKERS } from "@wittgenstein/schemas";
@@ -24,7 +26,7 @@ export async function loadSeedDecoderBridge(
 
 function createBridgeNotImplementedError(): Error & { code: string; details: object } {
   const error = new Error(
-    "Seed-family decoder bridge is not yet wired. OpenMAGVIT2/SEED-Voken cleared external Gate A/B inspection, but empirical Gates C/D still need local compute before any seed-family decoder can be blessed.",
+    "Seed-family decoder bridge is not yet wired. OpenMAGVIT2 (LFQ) cleared all four audit gates — A/B externally, C/D via the 2026-10-15/16 lab runs under the structural policy — but the seed family is not selected for runtime delivery yet; the M1B floor remains `llamagen`.",
   );
   Object.assign(error, {
     name: "WittgensteinError",
@@ -35,12 +37,11 @@ function createBridgeNotImplementedError(): Error & { code: string; details: obj
       gateStatus: {
         gateA: "passed",
         gateB: "passed",
-        gateC: "blocked",
-        gateD: "blocked",
+        gateC: "passed",
+        gateD: "passed",
       },
       blockers: {
-        gateC: TRACKERS.m1bOpenMagvit2Audit,
-        gateD: TRACKERS.m1bOpenMagvit2Audit,
+        selection: TRACKERS.m1bOpenMagvit2Audit,
         umbrella: TRACKERS.m1bImageDecoderUmbrella,
       },
     },
