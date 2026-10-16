@@ -4,7 +4,7 @@
 numpy>=2.4.6
 scipy>=1.18.0
 Pillow>=12.3.0
-matplotlib>=3.11.1
+matplotlib>=3.11.2
 
 # Optional — only needed for GPU-accelerated or extended audio paths
 # torch>=2.1               # not required by default
