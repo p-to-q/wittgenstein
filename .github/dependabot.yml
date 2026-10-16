@@ -19,6 +19,8 @@
 # When to revisit:
 #   - After M1 (image) lands → consider unfreezing typescript major.
 #   - After M5b (benchmarks) → consider unfreezing zod, react/next majors.
+#   - When a kokoro-js release allows @huggingface/transformers >=4 → unfreeze
+#     the transformers major ignore (PR #652).
 #   - Any time a CVE lands → security updates bypass `ignore` automatically.
 
 version: 2
@@ -98,6 +100,14 @@ updates:
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # @huggingface/transformers 4.x is blocked on kokoro-js: kokoro-js@1.2.1
+      # (latest) depends on this package at ^3.5.1, and codec-audio pins the
+      # exact shared instance that backs the post-load weights SHA-256 check
+      # (packages/codec-audio/src/decoders/kokoro). A 4.x pin would nest a
+      # second instance under kokoro-js and split that cache contract.
+      # See PR #652; unfreeze when kokoro-js allows transformers >= 4.
+      - dependency-name: "@huggingface/transformers"
         update-types: ["version-update:semver-major"]
 
   # ---------------------------------------------------------------------------
