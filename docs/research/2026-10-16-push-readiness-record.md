@@ -275,3 +275,57 @@ and the two mechanical caveats on the push path are now closed.
 State delta: local `main` = this commit → **51 ahead / 0 behind** GitHub
 `b62bec5`; 52 ahead of mirror `main` (still `8aef787`). Nothing has been
 pushed.
+
+## Post-push closeout (2026-10-17, post-push session)
+
+The push executed at 03:16:33 CST (`b62bec5..b741eb7`, rc=0). Everything
+below has since been verified or landed on GitHub `main`.
+
+**Verification of the push itself.** First main CI since 2026-06-02 went
+green on `b741eb7` (run `38953730150`, 45/45 steps, ~2m27s); CodeQL
+`38953730111` green. Link-check hardening landed (`46baa91` GITHUB_TOKEN;
+`63978c9` hono.dev) and the scheduled check is fully clean (1596 OK,
+0 errors, 0 timeouts; #584 closed). Reviewdog markdownlint bumped to v0.31.5
+(`f1838ef`, bullseye apt-404 fix) and validated green on #645.
+
+**Node floor (ADR-0021).** Floor raised to `>=22.22.0` across `engines`,
+`.nvmrc`, all four workflows (CI pinned to the floor exactly), the npm
+artifact generator, `install.sh`, and `wittgenstein doctor`'s
+`NODE_ENGINE_MINIMUM` (`fb79727`, `cf653a4`, `a38800c`, `fca618b`; ADR-0021
++ ADR-0002 amendment). CI on `fca618b` green under Node 22.22.0; Node 20.19
+now refuses install with `ERR_PNPM_UNSUPPORTED_ENGINE` (verified locally
+with the checksum-matched 20.19.0 tarball). Local-only caveat recorded:
+`packages/codec-image` produce/lazy-import tests (5 tests, ~3.4–3.8s locally
+vs 0.3–1.0s on CI) can cross the 5s default in recursive local runs under
+co-tenant load — identical under Node 20 and 22, isolated runs green, CI
+margins 5–10x. No pin widening (class discipline).
+
+**Dependabot queue cleared.** Merged on green rebased heads: #588 (commander
+15, ESM-only — satisfied by the floor, `require(esm)` needs Node ≥22.12),
+#599 (actions/cache 6), #630 (pillow ≥12.3), #640 (react-router 8.4,
+ESM-only; site build + Vercel preview green), #648 (actions/checkout 7.0.1),
+#651 (vitest 5). Auto-merged by the dependabot workflow on open: #647 (dev
+group), #649 (npm-prod group, 29 radix/lucide minors), #650 (eslint-stack
+group). Follow-up fix: checkout pins moved to v7.0.1's SHA but dependabot
+left the inline `# v6` comments — corrected to `# v7.0.1` in the 8 workflow
+files (`274a320`), reconciled with merge commit `8e6f598` after `main` moved.
+
+**Parked with analysis.** #652 (@huggingface/transformers 4.3.1): blocked on
+kokoro-js — `kokoro-js@1.2.1` (latest on npm) requires `^3.5.1`, and
+codec-audio's exact pin keeps our `env.cacheDir` integrity check on the
+*same* module instance as the runtime; 4.x would split the instance. Closed,
+with a semver-major `ignore` + revisit trigger added to `dependabot.yml`.
+#653 (recharts 3): `pnpm typecheck` fails (`ui/chart.tsx` recharts-2 types);
+left open as the tracking PR for a small migration slice.
+
+**Open questions recorded.** (a) The Auto-merge workflow merged grouped PRs
+within seconds of opening (#647/#649/#650) even though the repo API reports
+`allow_auto_merge: false`; observed behavior wins for now — grouped
+minor/patch merges fire without waiting for checks, majors never auto-merge.
+(b) undici 8.x had not been opened by dependabot as of this record; when it
+appears it needs the codec-audio review noted in `dependabot.yml`.
+
+**Repo state at close.** GitHub `main` = this record's commit (pushed with
+the transformers-ignore commit); local mirror synced; only #653 remains open
+among dependabot PRs; #584/#331 closed this session; #645/#646 merged
+earlier.
