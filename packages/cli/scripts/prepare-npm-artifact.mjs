@@ -40,7 +40,7 @@ const slim = {
   },
   files: ["dist/bundle.cjs", "dist/loupe.py", "bin/wittgenstein.mjs", "README.md"],
   engines: {
-    node: ">=20.19.0",
+    node: ">=22.22.0",
   },
   keywords: ["wittgenstein", "cli", "llm", "codec", "minimax"],
   ...optionalPeerContract,

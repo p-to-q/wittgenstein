@@ -5,7 +5,7 @@
   "description": "Wittgenstein — harness-first multimodal runtime: text LLMs, typed codecs, traceable artifacts.",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=20.19.0",
+    "node": ">=22.22.0",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.12.0",

@@ -67,7 +67,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20.19.0
+          node-version: 22.22.0
           cache: pnpm
 
       - name: Install
@@ -118,7 +118,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20.19.0
+          node-version: 22.22.0
           cache: pnpm
 
       - name: Install
