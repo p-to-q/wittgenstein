@@ -81,11 +81,75 @@ eslint-plugin-react-refresh 0.5.3 → 0.5.7 in `apps/site`), `package.json`,
 - `test:golden` ✓ · `reviewer-bench` ✓ · `format:check:maintained` ✓ ·
   `lint:deps` ✓ · `lint:publish-surface` ✓ · `typos` rc=0 ·
   `m1b:audit-self-check` ✓.
-- CI-only unknowns (unchanged by design): Node 20.19 (no local Node 20);
+- CI-only unknowns (unchanged by design): Node 20.19 (superseded — now run locally; see addendum);
   research/validation discovery runs with numpy on CI (system py3.10 locally
   skips 2 numpy cases); dependency-review runs on PRs only. The push will
   produce the first true CI run of the Python 3.12 floor + discovery step +
   merged eslint stack against this line.
+
+## CI-mirror verification of the JS half (addendum, 2026-10-16 ~09:1x–09:5x CST)
+
+The "no local Node 20" caveat above is retired. Node 20.19.0 (official
+`node-v20.19.0-darwin-arm64` tarball; SHA-256
+`c016cd1975a264a29dc1b07c6fbe60d5df0a0c2beb4113c0450e3d998d1a0d9c` verified
+against `SHASUMS256.txt`; pnpm 9.12.0 via corepack) has now run the JS half
+of `ci.yml` against this tree:
+
+- `pnpm typecheck` · `pnpm lint` · `pnpm lint:deps` ·
+  `pnpm lint:publish-surface` · `pnpm format:check` · `pnpm test:golden` ·
+  `pnpm reviewer-bench` · `typos` · `pnpm m1b:audit-self-check` — all rc=0
+  (logs `/private/tmp/node20-gate-*.log`, `/private/tmp/node20-typecheck-after-pins.log`).
+- `pnpm -r --workspace-concurrency=1 run test` (plain `pnpm test`, vitest's
+  default 5s test timeout): **final run rc=0 — all 14 projects green**
+  (cli 12 files / 100 tests; codec-image 19 files, 157 pass + 1 skip;
+  core 111; process-runner 20; schemas 71; the rest as previously recorded).
+  Log: `/private/tmp/node20-sweep-final-a.log`.
+
+Earlier runs of the same command were flaky on this machine and shaped the
+outcome:
+
+- The session-start sweep flaked `doctor.test.ts`'s npx-backend probe
+  (timed out; 7255 ms elapsed), and a later sweep flaked
+  `replay.test.ts`'s "reports invalid recorded requests" (timed out;
+  5454 ms measured) — single-spawn tests whose siblings ran up to 8.7s
+  under load. Fix (`4bafa00`): every spawn-based test in
+  `packages/cli/test` now carries the 30s allowance (class closure over
+  `doctor`/`bin`/`install`/`install.flow` + the 12 remaining end-to-end
+  replay tests; the in-process S7d/S7e unit describe and all non-spawn
+  tests keep the 5s guard — per-test pins chosen over a package-wide
+  `testTimeout` so fast tests keep the tight hang guard). Pins follow the
+  `e87a1a1` / `eb46b1f` convention; test-harness only, no product code, no
+  workflow change. Post-pin the cli suite is green even under load average
+  ~15 (a sibling ran 9.1s and passed).
+- One sweep hit a transient machine-wide stall inside `codec-image`
+  (8 timeouts across 6 in-process test files while co-tenant sessions
+  — Codex CLI, Chrome, Python — held the load average at ~14–16; the same
+  suite passed cleanly before and after). Sweep logs now open with
+  `date; uptime`: treat a red run at load average 12+ as suspect and re-run when
+  quiet. Re-run recipe: `export PATH=/private/tmp/node20/bin:$PATH` then
+  `pnpm -r --workspace-concurrency=1 run test`.
+
+### Dependabot CI is base-red at the Python step — step-verified
+
+`gh api repos/p-to-q/wittgenstein/actions/runs/<id>/jobs` for #645
+(38678114742) and #646 (38678114571): every JS step passes on GitHub
+runners — Install, Format, Lint, Lint deps, Lint publish surface,
+Typecheck, **Test**, Golden tests, Reviewer bench — and the job dies at
+**Install Python deps** (`No matching distribution found for
+scipy>=1.18.0` on Python 3.11; scipy 1.18.x requires ≥3.12). Same failure
+in #630's 2026-09-01 run (99729921836); it predates the dependency bumps.
+Local `bd9f404` (Python 3.12) + `a33f7c0` (research/validation discovery
+step) fix this, so once this line is pushed the previously red PRs should
+go green after a rebase.
+
+Also confirmed: **no CI has run on `main` since 2026-06-02**, because
+dependabot auto-merges (`app/github-actions`, `auto-merge-dependabot.yml`)
+push with `GITHUB_TOKEN` and token-authored pushes do not trigger
+workflows. The push below is the first main CI run in months.
+
+State delta: local main `4bafa00` = 49 commits ahead of GitHub `b62bec5`
+and 50 ahead of the local mirror (still `8aef787`), 0 behind; this
+addendum is the next commit on top. Nothing has been pushed.
 
 ## Push options
 
