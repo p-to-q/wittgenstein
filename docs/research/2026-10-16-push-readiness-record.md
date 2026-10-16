@@ -156,7 +156,8 @@ addendum is the next commit on top. Nothing has been pushed.
 1. **Direct push** (simplest, works with the current state):
    `git push https://github.com/p-to-q/wittgenstein.git main`
    CI runs via the `ci.yml` push trigger. If git asks for credentials:
-   `gh auth setup-git` once.
+   `gh auth setup-git` once — already configured and dry-run-verified
+   (2026-10-17; see §Pre-push re-verification).
 2. **Branch + PR** (review trail; note the repo's rule that authoring a PR
    does not ratify it — an independent review is required for
    doctrine-bearing changes):
@@ -241,3 +242,36 @@ four-gate audit"; "decoder manifests, audit receipts, validators, preflight
 checks, and review gates are in repo". Unsafe: "M1B completed"; "working
 LlamaGen decoder bridge"; "image quality validated end to end"; "a tokenizer /
 adapter / image-emitting model has been trained".
+
+## Pre-push re-verification (2026-10-17 ~03:0x CST)
+
+Re-checked right before the pending owner decision — the remote did not move
+and the two mechanical caveats on the push path are now closed.
+
+- **Remote unchanged.** Fresh fetch of GitHub `main` → still `b62bec5`;
+  `main...FETCH_HEAD` = `50 0` and the remote tip is an ancestor, so the push
+  is a plain fast-forward. No new workflow runs since the record was written;
+  the open set is unchanged (17 issues / 7 dependabot PRs: #646 #645 #640
+  #630 #601 #599 #588); `main` is still unprotected.
+- **Push mechanics verified.** `git push --dry-run` passes for **both**
+  options below with no credential prompt — direct `main:main` (reports
+  `b62bec5..2b1b4b0`) and `main:refs/heads/delivery-2026-10` (reports a new
+  branch). The global git credential helper is already configured
+  (`!gh auth git-credential`; gh authed as `Jah-yee`), so the "if git asks
+  for credentials" caveat is retired.
+- **Safety copy added.** The local mirror now carries
+  `backup/delivery-2026-10` = this pre-push tip; it guards against local
+  repo damage only — the single-copy risk ends with the GitHub push. Delete
+  after the push lands:
+  `git -C /Users/dujiayi/code/wittgenstein.git branch -D backup/delivery-2026-10`.
+- **#402 still owner-pending.** `wittgenstein-harness/image-vqgan-v1` still
+  does not resolve (HTTP 401 on `api/models/...`), so the audited ONNX bytes
+  are still not uploaded.
+- **Hygiene.** Working tree clean at `2b1b4b0` + this docs commit;
+  `git fsck --connectivity-only` rc=0; `artifacts/runs` = 305; no
+  secret-like strings or oversized blobs in `b62bec5..main`; the witt-repo
+  sentinel machine is green (`last_exit 0`).
+
+State delta: local `main` = this commit → **51 ahead / 0 behind** GitHub
+`b62bec5`; 52 ahead of mirror `main` (still `8aef787`). Nothing has been
+pushed.
