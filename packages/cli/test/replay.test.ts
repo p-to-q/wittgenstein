@@ -56,6 +56,12 @@ afterEach(async () => {
 });
 
 describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
+  // 30s allowance (repo-wide local convention): every test in this describe
+  // spawns the replay CLI (tsx startup per spawn; the baseline+replay trio
+  // below spawns twice). Under the 2026-10-16 Node 20.19 CI-mirror sweep
+  // these ran up to 8.7s, and one single-spawn refusal timed out at the 5s
+  // default (5454 ms measured) — plain `pnpm test` (CI) must pass. The
+  // in-process unit describe below keeps the default.
   // 30s allowance: two CLI spawns (baseline + replay, tsx startup each)
   // exceed vitest's 5s default under load — plain `pnpm test` (CI) must
   // pass; found 2026-10-16 during the pre-push CI-mirror sweep.
@@ -289,7 +295,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(errOutput.decoderId).toBe(LLAMAGEN_DECODER_ID);
     expect(errOutput.decoderCode).toBe("WEIGHTS_NOT_INSTALLED");
     expect(errOutput.installHint).toContain("install image");
-  });
+  }, 30_000);
 
   it("refuses recorded decoders this build does not know", async () => {
     const manifestPath = await writeManifest("bridge-decoder-unknown", {
@@ -312,7 +318,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string; decoderId: string };
     expect(errOutput.code).toBe("REPLAY_DECODER_UNSUPPORTED");
     expect(errOutput.decoderId).toBe("future-decoder-v9");
-  });
+  }, 30_000);
 
   it("refuses image manifests without a recorded llmOutputRaw (no stub substitution)", async () => {
     const manifestPath = await writeManifest("image-no-llm-output", {
@@ -330,7 +336,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replay.status).toBe(1);
     const errOutput = JSON.parse(replay.stderr) as { code: string };
     expect(errOutput.code).toBe("MANIFEST_MISSING_LLM_OUTPUT");
-  });
+  }, 30_000);
 
   it("refuses malformed image.decoder rows at the manifest-schema boundary (S7e promotion)", async () => {
     const manifestPath = await writeManifest("image-bad-decoder-row", {
@@ -361,7 +367,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(
       errOutput.issues.some((issue) => issue.path.join(".") === "image.decoder.decoderId"),
     ).toBe(true);
-  });
+  }, 30_000);
 
   it("refuses bridge-lane manifests whose receipts predate S7d (no latents digest)", async () => {
     const manifestPath = await writeManifest("bridge-no-digest", {
@@ -384,7 +390,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string; decoderId: string };
     expect(errOutput.code).toBe("MANIFEST_MISSING_LATENTS_DIGEST");
     expect(errOutput.decoderId).toBe(LLAMAGEN_DECODER_ID);
-  });
+  }, 30_000);
 
   it("refuses non-image routes that recorded a live LLM call", async () => {
     const manifestPath = await writeManifest("sensor-live-llm", {
@@ -404,7 +410,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replay.status).toBe(1);
     const errOutput = JSON.parse(replay.stderr) as { code: string };
     expect(errOutput.code).toBe("REPLAY_LIVE_LLM_UNSUPPORTED");
-  });
+  }, 30_000);
 
   it("refuses replay on a manifest missing the request field", async () => {
     const fakeManifestPath = await writeManifest("fake-no-request", {
@@ -422,7 +428,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(replay.status).toBe(1);
     const errOutput = JSON.parse(replay.stderr) as { code: string };
     expect(errOutput.code).toBe("MANIFEST_MISSING_REQUEST");
-  });
+  }, 30_000);
 
   it("refuses non-local svg manifests based on the recorded request", async () => {
     const fakeManifestPath = await writeManifest("fake-svg-engine", {
@@ -440,7 +446,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string; route: string };
     expect(errOutput.code).toBe("REPLAY_UNSUPPORTED_ROUTE");
     expect(errOutput.route).toBe("svg-engine");
-  });
+  }, 30_000);
 
   it("refuses non-local asciipng manifests based on the recorded request", async () => {
     const fakeManifestPath = await writeManifest("fake-asciipng-minimax", {
@@ -458,7 +464,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string; route: string };
     expect(errOutput.code).toBe("REPLAY_UNSUPPORTED_ROUTE");
     expect(errOutput.route).toBe("asciipng-minimax");
-  });
+  }, 30_000);
 
   it("refuses manifests whose codec disagrees with the recorded request", async () => {
     const fakeManifestPath = await writeManifest("fake-codec-request-mismatch", {
@@ -481,7 +487,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     expect(errOutput.code).toBe("MANIFEST_REQUEST_CODEC_MISMATCH");
     expect(errOutput.codec).toBe("svg");
     expect(errOutput.requestModality).toBe("sensor");
-  });
+  }, 30_000);
 
   it("reports replay bootstrap failures as structured errors", async () => {
     const fakeManifestPath = await writeManifest("fake-bad-config", {
@@ -504,7 +510,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string; cause: string };
     expect(errOutput.code).toBe("REPLAY_EXECUTION_FAILED");
     expect(errOutput.cause).toContain("wittgenstein-missing-config.toml");
-  });
+  }, 30_000);
 
   it("reports invalid recorded requests before replay execution", async () => {
     const fakeManifestPath = await writeManifest("fake-invalid-request", {
@@ -525,7 +531,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     };
     expect(errOutput.code).toBe("MANIFEST_REQUEST_INVALID");
     expect(errOutput.issues.some((issue) => issue.path.includes("prompt"))).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe("replay bridge-lane verification chain (S7d/S7e, unit)", () => {

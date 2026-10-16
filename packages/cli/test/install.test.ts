@@ -8,6 +8,10 @@ const packageRoot = resolve(testDir, "..");
 const cliBin = resolve(packageRoot, "src/cli-main.ts");
 
 describe("install tier command", () => {
+  // 30s allowance (repo-wide local convention): each test below spawns the
+  // CLI once (`node --import tsx`, tsx startup per spawn); local runs
+  // observed 3.1-4.5s — plain `pnpm test` (what CI runs, 5s default)
+  // must pass.
   it("prints an image install plan without fetching weights", () => {
     const install = spawnSync(
       "node",
@@ -55,7 +59,7 @@ describe("install tier command", () => {
     expect(payload.decoderPreflight.details.decisionTracker).toMatch(/issues\/402$/);
     expect(payload.decoderPreflight.details.gateCDeterminism).toMatch(/issues\/334$/);
     expect(payload.decoderPreflight.details.gateDOnnxCpu).toMatch(/issues\/335$/);
-  });
+  }, 30_000);
 
   it("refuses the image GPU tier until an onnxruntime-gpu bridge ships", () => {
     const install = spawnSync(
@@ -77,7 +81,7 @@ describe("install tier command", () => {
     expect(payload.ok).toBe(false);
     expect(payload.code).toBe("TIER_INSTALL_GPU_UNSUPPORTED");
     expect(payload.supportedTiers).toEqual(["image"]);
-  });
+  }, 30_000);
 
   it("refuses real installation until a decoder manifest exists", () => {
     const install = spawnSync("node", ["--import", "tsx", cliBin, "install", "image"], {
@@ -90,7 +94,7 @@ describe("install tier command", () => {
 
     expect(payload.ok).toBe(false);
     expect(payload.code).toBe("TIER_INSTALL_BLOCKED_BY_DECODER_MANIFEST");
-  });
+  }, 30_000);
 
   it("rejects unknown install tiers with a structured error", () => {
     const install = spawnSync("node", ["--import", "tsx", cliBin, "install", "audio"], {
@@ -103,5 +107,5 @@ describe("install tier command", () => {
 
     expect(payload.ok).toBe(false);
     expect(payload.code).toBe("INVALID_INSTALL_TIER");
-  });
+  }, 30_000);
 });

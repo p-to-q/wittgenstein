@@ -8,6 +8,10 @@ import { describe, expect, it } from "vitest";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("@wittgenstein/cli bin", () => {
+  // 30s allowance (repo-wide local convention): each test below spawns the
+  // bin stub, which itself spawns `node --import tsx` (tsx startup per
+  // spawn); local runs observed 2.8-4.8s — plain `pnpm test` (what CI
+  // runs, 5s default) must pass.
   it("executes the CLI entrypoint from the workspace bin stub", () => {
     const result = spawnSync(process.execPath, ["./bin/wittgenstein.js", "--version"], {
       cwd: packageRoot,
@@ -17,7 +21,7 @@ describe("@wittgenstein/cli bin", () => {
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe("0.1.0");
     expect(result.stderr).toBe("");
-  });
+  }, 30_000);
 
   it("rejects malformed seed values before running a codec", () => {
     const result = spawnSync(
@@ -34,7 +38,7 @@ describe("@wittgenstein/cli bin", () => {
     expect(result.stderr).toContain(
       "error: option '--seed <number>' argument '12abc' is invalid. Seed must be an integer.",
     );
-  });
+  }, 30_000);
 
   it("rejects malformed positive numeric options before running a codec", () => {
     const result = spawnSync(
@@ -58,7 +62,7 @@ describe("@wittgenstein/cli bin", () => {
     expect(result.stderr).toContain(
       "error: option '--duration-sec <number>' argument '12abc' is invalid. Value must be a positive number.",
     );
-  });
+  }, 30_000);
 
   it("rejects malformed positive integer options before running a codec", () => {
     const result = spawnSync(
@@ -75,7 +79,7 @@ describe("@wittgenstein/cli bin", () => {
     expect(result.stderr).toContain(
       "error: option '--columns <n>' argument '10xyz' is invalid. Value must be a positive integer.",
     );
-  });
+  }, 30_000);
 });
 
 describe("config refusals", () => {
@@ -92,7 +96,7 @@ describe("config refusals", () => {
     const payload = JSON.parse(result.stderr) as Record<string, unknown>;
     expect(payload).toMatchObject({ ok: false, code: "CONFIG_LOAD_FAILED" });
     expect(payload["details"]).toEqual({ configPath: missing });
-  });
+  }, 30_000);
 
   it("prints a structured CONFIG_SCHEMA_INVALID refusal for schema-invalid config values", () => {
     const dir = mkdtempSync(join(tmpdir(), "witt-config-refusal-"));
@@ -114,5 +118,5 @@ describe("config refusals", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

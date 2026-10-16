@@ -18,6 +18,11 @@ afterEach(() => {
 });
 
 describe("install image decoder manifest flow", () => {
+  // 30s allowance (repo-wide local convention): every test in this describe
+  // spawns the CLI install once (`node --import tsx`, tsx startup per spawn;
+  // the fetch test adds an HTTP server + a second spawn). Under the
+  // 2026-10-16 Node 20.19 CI-mirror sweep these ran 1.9-7.6s — plain
+  // `pnpm test` (CI, 5s default) must pass.
   it("reports ready when a blessed manifest, receipts, cached weights, and runtime peer resolve", () => {
     const fixture = writeDecoderFixture();
 
@@ -88,7 +93,7 @@ describe("install image decoder manifest flow", () => {
       codebookSha256: fixture.codebookSha,
       runtimeVerified: true,
     });
-  });
+  }, 30_000);
 
   // 30s allowance: local HTTP server + two CLI install spawns (tsx startup
   // each) exceed vitest's 5s default under load — plain `pnpm test` (CI)
@@ -192,7 +197,7 @@ describe("install image decoder manifest flow", () => {
     expect(payload.status).toBe("blocked");
     expect(payload.manifestPath).toBeNull();
     expect(payload.decoderPreflight.reason).toBe("manifest-missing");
-  });
+  }, 30_000);
 
   it("blocks invalid manifests with structured preflight issues", () => {
     const dir = makeTempDir();
@@ -212,7 +217,7 @@ describe("install image decoder manifest flow", () => {
     expect(payload.manifestPath).toBe(manifestPath);
     expect(payload.decoderPreflight.reason).toBe("manifest-invalid");
     expect(payload.decoderPreflight.details.issues.length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   it("blocks manifests that are not blessed", () => {
     const fixture = writeDecoderFixture({ manifestStatus: "candidate" });
@@ -228,7 +233,7 @@ describe("install image decoder manifest flow", () => {
     expect(payload.decoderPreflight.reason).toBe("manifest-not-blessed");
     expect(payload.decoderPreflight.decoderId).toBe("llamagen-vqgan-phase0");
     expect(payload.decoderPreflight.details.status).toBe("candidate");
-  });
+  }, 30_000);
 
   it.each(["missing", "invalid"] as const)(
     "blocks blessed manifests whose audit receipt is %s",
@@ -246,6 +251,7 @@ describe("install image decoder manifest flow", () => {
       expect(payload.decoderPreflight.reason).toBe("audit-receipt-invalid");
       expect(payload.decoderPreflight.details.issues.length).toBeGreaterThanOrEqual(1);
     },
+    30_000,
   );
 
   it("needs a weights base URL when declared weights are not installed", () => {
@@ -270,7 +276,7 @@ describe("install image decoder manifest flow", () => {
     expect(payload.modelOwnerTracker).toMatch(/issues\/435$/);
     expect(payload.decoderPreflight.reason).toBe("weights-not-installed");
     expect(payload.decoderPreflight.installHint).toBe("wittgenstein install image");
-  });
+  }, 30_000);
 
   it("blocks and removes corrupted cached weights", () => {
     const fixture = writeDecoderFixture({ cacheState: "invalid" });
@@ -287,7 +293,7 @@ describe("install image decoder manifest flow", () => {
     expect(payload.decoderPreflight.reason).toBe("weights-invalid");
     expect(payload.decoderPreflight.details.code).toBe("WEIGHTS_SHA256_MISMATCH");
     expect(existsSync(fixture.weightsPath)).toBe(false);
-  });
+  }, 30_000);
 });
 
 interface InstallBlockedPayload {

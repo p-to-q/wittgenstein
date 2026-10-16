@@ -27,6 +27,10 @@ describe("doctor tier readiness", () => {
     expect(isNodeVersionAtLeast("not-a-node-version", [20, 19, 0])).toBe(false);
   });
 
+  // 30s allowance (repo-wide local convention): each test below spawns the
+  // CLI once (`node --import tsx`); the npx-backend test timed out at 7255 ms
+  // elapsed under the 2026-10-16 Node 20.19 CI-mirror sweep — plain
+  // `pnpm test` (what CI runs, 5s default) must pass.
   it("prints the current tier readiness table", () => {
     const doctor = runDoctor();
 
@@ -131,7 +135,7 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.blockers.decoderDelivery).toMatch(/issues\/402$/);
     expect(payload.imageDecoder.blockers.gateCDeterminism).toMatch(/issues\/334$/);
     expect(payload.imageDecoder.blockers.gateDOnnxCpu).toMatch(/issues\/335$/);
-  });
+  }, 30_000);
 
   it("reports the installed-tiers receipt when one exists", () => {
     const receiptPath = join(makeTempDir(), "installed-tiers.json");
@@ -171,7 +175,7 @@ describe("doctor tier readiness", () => {
       tier: "image",
       weightsSha256: "a".repeat(64),
     });
-  });
+  }, 30_000);
 
   it("reports a corrupt installed-tiers receipt as invalid (never as ready)", () => {
     const receiptPath = join(makeTempDir(), "installed-tiers.json");
@@ -187,7 +191,7 @@ describe("doctor tier readiness", () => {
     expect(payload.installReceipt.status).toBe("invalid");
     expect(payload.installReceipt.tiers).toBeNull();
     expect(payload.tiers.tier1.ready).toBe(false);
-  });
+  }, 30_000);
 
   it("flags a configured model missing from the pricing table", () => {
     const dir = makeTempDir();
@@ -208,7 +212,7 @@ describe("doctor tier readiness", () => {
     expect(payload.llmPricing.hint).toMatch(
       /No pricing rate for openai-compatible\/gpt-future-2030/,
     );
-  });
+  }, 30_000);
 
   it("prints structured video dependency checks when HyperFrames MP4 rendering is enabled", () => {
     const doctor = runDoctor({ WITTGENSTEIN_HYPERFRAMES_RENDER: "1" });
@@ -235,7 +239,7 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.ffmpeg.tier).toBe("video");
     expect(payload.videoRender.chrome.runtime).toBe("chrome");
     expect(payload.videoRender.chrome.tier).toBe("video");
-  });
+  }, 30_000);
 
   it("checks HyperFrames CLI when the npx backend is selected", () => {
     const doctor = runDoctor({
@@ -261,7 +265,7 @@ describe("doctor tier readiness", () => {
     expect(payload.videoRender.hyperframesNode.tier).toBe("video");
     expect(payload.videoRender.hyperframesCli.runtime).toBe("hyperframes");
     expect(payload.videoRender.hyperframesCli.tier).toBe("video");
-  });
+  }, 30_000);
 
   it("reports a ready image decoder when the selected blessed manifest has cached weights", () => {
     const fixture = writeDecoderFixture();
@@ -310,7 +314,7 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.details.weights.source).toBe("cache-hit");
     expect(payload.imageDecoder.details.weights.weightsSha256).toBe(fixture.weightsSha);
     expect(payload.imageDecoder.details.weights.codebookSha256).toBe(fixture.codebookSha);
-  });
+  }, 30_000);
 
   it("reports a structured blocked image decoder when the selected manifest is invalid", () => {
     const dir = makeTempDir();
@@ -337,7 +341,7 @@ describe("doctor tier readiness", () => {
     expect(payload.imageDecoder.reason).toBe("manifest-invalid");
     expect(payload.imageDecoder.weightsCached).toBeNull();
     expect(payload.imageDecoder.details.issues.length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 });
 
 function runDoctor(envOverrides: NodeJS.ProcessEnv = {}, args: string[] = []) {
