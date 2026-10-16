@@ -59,9 +59,10 @@ export WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli
 
 The default remains `distilled-internal` so M4 stays repo-owned. The `npx-cli` backend is useful for validation against upstream HyperFrames and for local experiments when the upstream CLI works better on a given machine.
 
-Note: the upstream `hyperframes` npm package currently advertises Node.js >=22,
-while Wittgenstein's repo baseline is Node 20.19+. `wittgenstein doctor` reports
-that mismatch when `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli` is selected.
+Note: the upstream `hyperframes` npm package requires Node.js >=22, which the
+repo runtime floor (Node 22.22+) satisfies, so `wittgenstein doctor`'s node probe
+passes on any supported runtime when `WITTGENSTEIN_HYPERFRAMES_BACKEND=npx-cli`
+is selected.
 
 To emit a real `.mp4` artifact at the harness `outPath`, enable:
 

@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/p-to-q/wittgenstein?include_prereleases&label=release)](https://github.com/p-to-q/wittgenstein/releases)
 [![Status](https://img.shields.io/badge/status-early--stage-orange)](./docs/implementation-status.md)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.19-brightgreen)](./.nvmrc)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.22-brightgreen)](./.nvmrc)
 [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D9.0-f69220)](./package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](./tsconfig.base.json)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](./polyglot-mini/requirements.txt)
@@ -379,7 +379,7 @@ nvm use && corepack enable && pnpm install && pnpm typecheck
 cd polyglot-mini && pip install -r requirements.txt
 ```
 
-Requirements: Node ≥ 20.19 (pinned by `.nvmrc`), pnpm ≥ 9.0, Python ≥ 3.10. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
+Requirements: Node ≥ 22.22 (pinned by `.nvmrc`), pnpm ≥ 9.0, Python ≥ 3.10. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
 for the full developer setup.
 
 ---

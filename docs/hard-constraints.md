@@ -25,7 +25,7 @@ it needs an RFC + ADR before it lands — not a PR comment.
 
 ## Runtime contracts
 
-- **TypeScript + Node 20.19+ + pnpm workspaces.**
+- **TypeScript + Node 22.22+ + pnpm workspaces.**
 - **Schema-first.** Every external boundary (LLM I/O, CLI, codec request)
   has a zod schema in `@wittgenstein/schemas`. Validate at the boundary,
   not three layers in.

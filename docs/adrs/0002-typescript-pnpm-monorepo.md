@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. Amended by ADR-0021 (2026-10-17): the Node 20+ runtime baseline is
+superseded by Node 22.22+; the TypeScript + pnpm workspace decision stands.
 
 ## Decision
 

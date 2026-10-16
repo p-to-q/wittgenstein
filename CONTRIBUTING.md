@@ -13,7 +13,7 @@ cd wittgenstein
 git remote add upstream https://github.com/p-to-q/wittgenstein.git
 
 # TypeScript side
-nvm use            # installs Node 20.19 if you use nvm
+nvm use            # installs Node 22.22 if you use nvm
 corepack enable
 pnpm install
 pnpm bootstrap

@@ -5,7 +5,7 @@ Architecture Decision Records capture decisions that should survive chat history
 ## Current ADRs
 
 - 0001 record ADR practice
-- 0002 TypeScript + pnpm monorepo
+- 0002 TypeScript + pnpm monorepo — **Node baseline amended by 0021**
 - 0003 five-layer harness foundation
 - 0004 sole neural image path
 - 0005 decoder not generator
@@ -24,6 +24,7 @@ Architecture Decision Records capture decisions that should survive chat history
 - 0018 visual seed code image route — ratifies the image-route correction from `scene-spec JSON as terminal image IR` toward `Visual Seed Token + optional Semantic IR + seed expansion + frozen decoder`; keeps one image path and decoder-not-generator doctrine intact while promoting `Visual Seed Token` to first-class status
 - 0019 queue label prefixes — allows `priority/*`, `size/*`, and `stage/*` queue-management labels on top of the semantic label taxonomy
 - 0020 code/weights license divergence policy — canonical M-phase path requires permissive code AND weights; research-only weights are opt-in via `--allow-research-weights` with manifest disclosure (ratifies the 2026-05-13 governance note opened via #353)
+- 0021 Node 22.22 runtime floor — moves `engines.node` to `>=22.22.0` (Node 20 is EOL; unblocks commander 15 / react-router 8 / undici 8); amends ADR-0002's Node baseline
 
 ## Lanes
 
