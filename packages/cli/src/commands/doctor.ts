@@ -23,7 +23,7 @@ import {
 
 type DoctorCheck = RuntimeProbeReceipt;
 
-const NODE_ENGINE_MINIMUM = [20, 19, 0] as const;
+const NODE_ENGINE_MINIMUM = [22, 22, 0] as const;
 const HYPERFRAMES_CLI_NODE_MINIMUM = [22, 0, 0] as const;
 
 interface DoctorFileCheck {
@@ -196,7 +196,7 @@ function checkNodeForHyperframesCli(): DoctorCheck {
     tier: "video",
     version: process.version,
     message:
-      "HyperFrames CLI currently requires Node.js >=22. Use the distilled internal backend on Node 20, or run the npx backend under Node 22+.",
+      "HyperFrames CLI currently requires Node.js >=22. Use the distilled internal backend, or upgrade to Node 22+ to run the npx backend.",
   });
 }
 
