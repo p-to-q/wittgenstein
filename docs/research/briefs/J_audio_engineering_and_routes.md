@@ -178,7 +178,7 @@ Net: M2 should be a **small-shape port**, not a local framework invention. The e
 - Brief H — `docs/research/briefs/H_codec_engineering_prior_art.md`
 - RFC-0001 — `docs/rfcs/0001-codec-protocol-v2.md`
 - Express routing — https://expressjs.com/en/guide/routing.html
-- Hono routing / grouping — https://hono.dev/docs/api/routing and https://www.honojs.com/docs/api/hono
+- Hono routing / grouping — https://hono.dev/docs/api/routing and https://hono.dev/docs/api/hono
 - Fastify plugins / encapsulation — https://fastify.dev/docs/latest/Reference/Plugins/ and https://fastify.dev/docs/latest/Reference/Encapsulation/
 - tRPC routers — https://trpc.io/docs/server/routers
 - Apollo Federation subgraph specification — https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/subgraph-spec
