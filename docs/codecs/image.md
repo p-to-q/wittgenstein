@@ -198,5 +198,6 @@ For agents reading this doc cold, the lineage from scene-spec doctrine to today'
 | Theoretical anchor             | `docs/research/2026-05-08-vsc-as-compression-prior.md`             | Why VSC is a defensible research bet, family-agnostic                                               |
 | Tokenizer/decoder radar        | `docs/research/2026-05-08-image-tokenizer-decoder-radar.md` (#258) | 11-family survey; gates trained-projector wiring                                                    |
 | M1B trained projector          | #70 (umbrella)                                                     | Gated on radar's four-step pre-wire audit (license / weights / determinism / Node-ONNX)             |
+| Total warning classifier       | #663 (`codec.ts`)                                                  | Preserves nine of nine `warn(...)` messages; unmapped text lands on `image/unclassified-warning`    |
 
 The lineage is intentionally additive: each step is reversible (no commit erased the prior framing) and citation-backed (every claim above resolves to a PR or a docs path). New work that touches the image code-layer should extend this table, not silently rewrite earlier rows.
