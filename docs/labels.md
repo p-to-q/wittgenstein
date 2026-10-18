@@ -191,6 +191,12 @@ Dependabot version-bump PR.
 
 Per-ecosystem dependabot routing labels. Cosmetic; safe to ignore.
 
+`.github/dependabot.yml` must spell these exactly as they appear above. Dependabot
+never creates a label: a name that does not exist on the repository is dropped
+silently, so the PR keeps only `dependencies` and gains a one-time "labels could
+not be found" comment. `github_actions` carries an underscore — the hyphenated
+spelling is not a label in this repository.
+
 ### Queue metadata
 
 Queue labels are operational triage metadata. They do not change whether an issue is agent-eligible. `tracker`, `discussion`, `horizon-spike`, and `blocked` remain excluded from auto-dispatch per `WORKFLOW.md`.

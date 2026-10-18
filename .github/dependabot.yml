@@ -16,6 +16,14 @@
 #   undici 8.x PR still needs a `codec-audio` review (EnvHttpProxyAgent /
 #   setGlobalDispatcher) before merge.
 #
+# Ecosystem labels:
+#   The `labels:` lists below must name labels that exist in the repository —
+#   `docs/labels.md` is the canonical vocabulary and declares the ecosystem set
+#   as `dependencies` plus `github_actions` / `python` / `javascript`. Dependabot
+#   does not create labels: an unknown name is silently dropped and the PR only
+#   receives a one-time "labels could not be found" comment. Keep the underscore
+#   in `github_actions`; it is the repository's spelling, not a typo.
+#
 # When to revisit:
 #   - After M1 (image) lands → consider unfreezing typescript major.
 #   - After M5b (benchmarks) → consider unfreezing zod, react/next majors.
@@ -35,7 +43,7 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "npm"
+      - "javascript"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -151,7 +159,7 @@ updates:
     open-pull-requests-limit: 2
     labels:
       - "dependencies"
-      - "github-actions"
+      - "github_actions"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
