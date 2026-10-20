@@ -26,6 +26,8 @@ WORKDIR /workspace
 # Python deps installed on top of the NGC PyTorch base. We intentionally
 # do NOT pin torch here — the base image owns that. The training stack
 # requirements skip torch via the `>=` floor.
+# Caveat: requirements.txt's `torch>=2.6.0` floor targets the venv/CPU path; against this
+# 24.08 base (torch ~2.4) it is unsatisfied and `pip install -r` would pull a PyPI torch over NGC.
 COPY research/training/requirements.txt /tmp/training-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/training-requirements.txt
 

@@ -24,8 +24,9 @@ deepspeed>=0.15.0 ; sys_platform == "linux"
 # --- Experiment tracking + data versioning --------------------------------
 # Manifest-spine integration glue lives in _shared/. These are the
 # external dashboards the receipts also point at.
-# PyPI latest verified as 3.29.1 on 2026-05-13; re-check before
-# operational training pins.
+# aim 3.29.1 is still PyPI-latest and affected by CVE-2026-85663 (no fixed release;
+# tracker server ships unauthenticated). Mitigation is architectural, not a version bump —
+# jsonl receipt floor + never exposing the server: docs/research/2026-10-16-training-infra-decision-briefs.md.
 aim>=3.29.1
 dvc[s3]>=3.55.0
 
