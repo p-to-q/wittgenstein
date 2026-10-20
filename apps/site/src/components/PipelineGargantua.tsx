@@ -246,7 +246,7 @@ export default function PipelineGargantua({ className }: PipelineGargantuaProps)
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
       alpha: false,
-      // Prefer the stronger GPU on dual-GPU machines; we already stop rendering off-screen.
+      // Browser-default GPU (no high-performance request); the off-screen stop, not GPU preference, carries perf.
       powerPreference: 'default',
       stencil: false,
       depth: false,
