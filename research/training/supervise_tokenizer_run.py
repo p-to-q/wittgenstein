@@ -47,6 +47,8 @@ def latest_step_checkpoint(out_root: Path, fallback: Path | None) -> Path | None
 
 
 def git_sha(repo_root: Path) -> str:
+    # Deliberate degradation: the git SHA is receipt metadata only (exported as
+    # WITT_GIT_SHA below), so an unavailable SHA leaves the receipt empty rather than failing the run.
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
@@ -104,6 +106,8 @@ def build_train_cmd(args: argparse.Namespace, resume: Path | None) -> list[str]:
 
 
 def terminate_process_group(proc: subprocess.Popen[bytes], log) -> int:
+    # Reference process-group termination (SIGTERM group → 30s wait → SIGKILL group,
+    # tolerating ProcessLookupError); the cross-language pattern for `packages/process-runner` W8 (report 12 §3.3).
     try:
         os.killpg(proc.pid, signal.SIGTERM)
     except ProcessLookupError:
