@@ -93,7 +93,10 @@ from research.training.tokenizer.model import (  # noqa: E402
 )
 from research.training.tokenizer.resume import (  # noqa: E402
     build_checkpoint_payload,
+    build_rng_entry,
+    capture_python_rng_state,
     load_for_resume,
+    restore_rng_state,
 )
 
 
@@ -156,6 +159,39 @@ def set_determinism(cfg: TrainConfig, rank: int):
         torch.backends.cudnn.deterministic = cfg.cudnn_deterministic
         torch.backends.cudnn.benchmark = cfg.cudnn_benchmark
     os.environ.setdefault("PYTHONHASHSEED", str(seed))
+
+
+def _current_rank() -> int:
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank()
+    return 0
+
+
+def _numpy_module():
+    try:
+        import numpy
+    except ImportError:
+        return None
+    return numpy
+
+
+def _capture_rng_entry() -> dict:
+    """Snapshot the RNG generators owned by this process, for checkpoint save (E3).
+
+    Torch's CPU generator, and its per-device CUDA generators when CUDA is
+    present, are always captured; stdlib `random` and numpy are captured when
+    available. Tagged with the rank so a resume on another rank refuses the
+    foreign stream (per-rank seed lineages stay distinct) rather than de-syncing.
+    """
+    cuda_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    numpy_module = _numpy_module()
+    return build_rng_entry(
+        python_state=capture_python_rng_state(),
+        torch_state=torch.get_rng_state(),
+        cuda_state=cuda_state,
+        numpy_state=numpy_module.random.get_state() if numpy_module is not None else None,
+        rank=_current_rank(),
+    )
 
 
 # ---------- LR schedule ----------
@@ -297,6 +333,15 @@ def train(cfg: TrainConfig) -> dict:
         if discriminator is not None and d_optim is not None and loaded.disc_optimizer is not None:
             d_optim.load_state_dict(loaded.disc_optimizer)
             _optimizer_to_device(d_optim, device)
+        # E3: restore RNG state before the loop's first step so the resumed run
+        # continues the checkpoint's exact stream. A legacy checkpoint has no
+        # rng entry (warning below); a state saved by another rank is refused so
+        # the per-rank seed lineages stay distinct.
+        if not loaded.rng.is_empty():
+            for warning in restore_rng_state(
+                loaded.rng, torch_module=torch, numpy_module=_numpy_module(), rank=rank
+            ):
+                print(f"[resume][rank {rank}] rng warning: {warning}", flush=True)
         if is_main(rank):
             restored = ["model", "step"]
             if loaded.optimizer is not None:
@@ -702,6 +747,7 @@ def _write_checkpoint(
         args=cfg_to_dict(cfg),
         discriminator=_unwrap(discriminator).state_dict() if discriminator is not None else None,
         disc_optimizer=d_optim.state_dict() if d_optim is not None else None,
+        rng=_capture_rng_entry(),
     )
     torch.save(payload, ckpt_path)
     # Smoke / synthetic data has no license encumbrance. For real data, the

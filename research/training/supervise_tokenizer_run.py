@@ -18,6 +18,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import signal
@@ -25,6 +26,12 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+from research.training._shared.manifest import assert_training_run_manifest_shape
+from research.training.tokenizer.resume import (
+    manifest_path_for,
+    run_id_from_sibling_manifest,
+)
 
 
 STEP_RE = re.compile(r"step_(\d+)\.pt$")
@@ -44,6 +51,51 @@ def latest_step_checkpoint(out_root: Path, fallback: Path | None) -> Path | None
     if not candidates:
         return fallback if fallback is not None and fallback.exists() else None
     return max(candidates, key=lambda p: (checkpoint_step(p), p.stat().st_mtime))
+
+
+def verify_resume_checkpoint(checkpoint: Path) -> str | None:
+    """D3: verify the chosen checkpoint against its sibling manifest receipt.
+
+    Returns ``None`` when verified, otherwise a human-readable failure reason.
+    The supervisor is stdlib-only and never imports torch, so the checkpoint
+    payload itself is not read here — the receipt spine (the sibling
+    ``*.manifest.json`` the trainer writes next to every checkpoint) is the
+    verifiable artifact. Fails closed: an absent, malformed, shape-invalid, or
+    disagreeing manifest is a reason, not a warning.
+    """
+    manifest_path = manifest_path_for(checkpoint)
+    if not manifest_path.exists():
+        return f"missing sibling manifest {manifest_path.name}"
+    try:
+        document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"unreadable sibling manifest {manifest_path.name}: {exc}"
+    try:
+        assert_training_run_manifest_shape(document)
+    except (TypeError, ValueError) as exc:
+        return f"sibling manifest {manifest_path.name} failed shape validation: {exc}"
+
+    step = checkpoint_step(checkpoint)
+    if step >= 0 and int(document.get("stepCount", -1)) != step:
+        return (
+            f"manifest stepCount={document.get('stepCount')} disagrees with "
+            f"checkpoint step {step} ({checkpoint.name})"
+        )
+    recorded = str((document.get("checkpoint") or {}).get("path", ""))
+    if recorded and Path(recorded).name != checkpoint.name:
+        return f"manifest checkpoint.path={recorded!r} disagrees with {checkpoint.name}"
+    # Run-id continuity: the trainer writes ckpts under <out_root>/<runId>/ckpts/,
+    # so the manifest runId must match the run directory. Only checked in that
+    # expected layout, so an explicitly rescued out-of-layout checkpoint is not
+    # falsely refused.
+    if checkpoint.parent.name == "ckpts":
+        run_id = run_id_from_sibling_manifest(checkpoint)
+        run_dir_name = checkpoint.parent.parent.name
+        if run_id is None:
+            return f"sibling manifest {manifest_path.name} carries no runId"
+        if run_dir_name and run_id != run_dir_name:
+            return f"manifest runId={run_id!r} disagrees with run dir {run_dir_name!r}"
+    return None
 
 
 def git_sha(repo_root: Path) -> str:
@@ -184,6 +236,14 @@ def main() -> int:
             print(message, file=log, flush=True)
         print(message, file=sys.stderr)
         return 2
+    if initial_resume is not None:
+        reason = verify_resume_checkpoint(initial_resume)
+        if reason is not None:
+            message = f"[supervise] refusing to resume from {initial_resume}: {reason}"
+            with open(log_path, "a", buffering=1) as log:
+                print(message, file=log, flush=True)
+            print(message, file=sys.stderr)
+            return 3
 
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
@@ -204,6 +264,15 @@ def main() -> int:
             attempt += 1
             remain = max(1.0, deadline - time.monotonic())
             resume = latest_step_checkpoint(out_root, fallback)
+            if resume is not None:
+                reason = verify_resume_checkpoint(resume)
+                if reason is not None:
+                    # D3: fail closed rather than hand an unverifiable checkpoint
+                    # to the run (smoke != training success; do not silently continue)
+                    message = f"[supervise] refusing to resume from {resume}: {reason}"
+                    print(message, file=log, flush=True)
+                    print(message, file=sys.stderr)
+                    return 3
             print(
                 f"[supervise] attempt={attempt} remain={remain:.0f}s resume={resume or 'none'}",
                 file=log,

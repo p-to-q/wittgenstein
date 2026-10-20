@@ -1,27 +1,33 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import random
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 try:  # optional: only the file-roundtrip test needs a real serializer
     import torch
 except ImportError:  # pragma: no cover - env-dependent
     torch = None  # type: ignore[assignment]
 
+from research.training import supervise_tokenizer_run
+from research.training._shared.smoke_manifest import build_smoke_manifest
 from research.training.closeout_tokenizer_run import latest_checkpoint
 from research.training.supervise_tokenizer_run import (
     build_train_cmd,
     checkpoint_step,
     latest_step_checkpoint,
+    verify_resume_checkpoint,
 )
 from research.training.tokenizer.resume import (
     WARN_ARGS_MISSING,
     WARN_RNG_MISSING,
+    WARN_RNG_RANK_MISMATCH,
     RngState,
     ResumeArgsDrift,
     ResumeArgsMissing,
@@ -163,6 +169,38 @@ class _StubTorch:
 
     def load(self, path, **kwargs):  # noqa: ANN001 - mirrors torch.load signature
         return self._payload
+
+
+class _StubRecorder:
+    """Records RNG restore calls so the hooks are assertable without torch."""
+
+    def __init__(self) -> None:
+        self.state = None
+
+    def set_rng_state(self, state) -> None:  # noqa: ANN001
+        self.state = state
+
+
+def _valid_manifest(run_id: str, step_count: int, checkpoint_basename: str) -> dict:
+    """Build a shape-valid manifest document via the canonical smoke writer."""
+    with tempfile.TemporaryDirectory() as seed_dir:
+        summary = build_smoke_manifest(Path(seed_dir), run_id=run_id)
+        document = json.loads(Path(summary["manifestPath"]).read_text(encoding="utf-8"))
+    document["stepCount"] = step_count
+    document["checkpoint"]["path"] = checkpoint_basename
+    return document
+
+
+def _resume_layout(root: Path, run_id: str, step: int) -> tuple[Path, Path, dict]:
+    """Lay out ``<root>/<run_id>/ckpts/step_*.pt`` + its sibling manifest."""
+    ckpts = root / run_id / "ckpts"
+    ckpts.mkdir(parents=True)
+    ckpt = ckpts / f"step_{step:08d}.pt"
+    ckpt.write_bytes(b"stub")
+    document = _valid_manifest(run_id, step, ckpt.name)
+    manifest = ckpts / f"step_{step:08d}.manifest.json"
+    manifest.write_text(json.dumps(document), encoding="utf-8")
+    return ckpt, manifest, document
 
 
 class TokenizerResumeHardeningTests(unittest.TestCase):
@@ -367,6 +405,162 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             self.assertEqual(decision.checkpoint.args, _saved_args())
             self.assertEqual(decision.start_step, 8)
             self.assertIsNotNone(decision.checkpoint.discriminator)
+
+    # ---- E3: RNG save/restore wiring --------------------------------------
+    def test_e3_build_rng_entry_records_cuda_and_rank(self) -> None:
+        entry = build_rng_entry(torch_state=b"t", cuda_state=[b"c0"], rank=2)
+        self.assertEqual(entry["cuda"], [b"c0"])
+        self.assertEqual(entry["rank"], 2)
+
+    def test_e3_restore_applies_torch_and_cuda_states(self) -> None:
+        record: dict = {}
+
+        class _CudaModule:
+            @staticmethod
+            def set_rng_state_all(states) -> None:  # noqa: ANN001
+                record["cuda"] = list(states)
+
+        class _TorchStub:
+            cuda = _CudaModule
+
+            @staticmethod
+            def set_rng_state(state) -> None:  # noqa: ANN001
+                record["torch"] = state
+
+        warnings = restore_rng_state(
+            RngState(torch=b"t", cuda=[b"c0", b"c1"]), torch_module=_TorchStub
+        )
+        self.assertEqual(warnings, ())
+        self.assertEqual(record["torch"], b"t")
+        self.assertEqual(record["cuda"], [b"c0", b"c1"])
+
+    def test_e3_restore_refuses_foreign_rank(self) -> None:
+        recorder = _StubRecorder()
+        warnings = restore_rng_state(RngState(torch=b"x", rank=0), torch_module=recorder, rank=3)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn(WARN_RNG_RANK_MISMATCH, warnings[0])
+        self.assertIsNone(recorder.state)  # never restored a foreign stream
+
+    def test_e3_rng_entry_roundtrips_through_stub_torch(self) -> None:
+        payload = build_checkpoint_payload(
+            model_state={"w": 1},
+            step=10,
+            optimizer_state={},
+            args=_saved_args(),
+            rng=build_rng_entry(torch_state=b"state-bytes", rank=0),
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00000010.pt"
+            ckpt.write_bytes(b"stub")
+            decision = load_for_resume(ckpt, _saved_args(), torch_module=_StubTorch(payload))
+        self.assertNotIn(WARN_RNG_MISSING, decision.warnings)
+        recorder = _StubRecorder()
+        warnings = restore_rng_state(decision.checkpoint.rng, torch_module=recorder, rank=0)
+        self.assertEqual(warnings, ())
+        self.assertEqual(recorder.state, b"state-bytes")
+
+    def test_e3_legacy_checkpoint_without_rng_warns_not_silent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00002000.pt"
+            ckpt.write_bytes(b"stub")
+            decision = load_for_resume(
+                ckpt, _saved_args(), torch_module=_StubTorch(_quartet_payload())
+            )
+        self.assertIn(WARN_RNG_MISSING, decision.warnings)
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_e3_torch_rng_roundtrip_reproduces_stream(self) -> None:
+        torch.manual_seed(7)
+        entry = build_rng_entry(
+            python_state=capture_python_rng_state(),
+            torch_state=torch.get_rng_state(),
+            rank=0,
+        )
+        expected = torch.rand(4)
+        torch.manual_seed(999)  # perturb, then restore
+        warnings = restore_rng_state(
+            RngState(python=entry["python"], torch=entry["torch"], rank=0),
+            torch_module=torch,
+            rank=0,
+        )
+        self.assertEqual(warnings, ())
+        self.assertTrue(torch.equal(torch.rand(4), expected))
+
+    # ---- E5: supervisor D3 manifest verification ---------------------------
+    def test_e5_verify_accepts_matching_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, _, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            self.assertIsNone(verify_resume_checkpoint(ckpt))
+
+    def test_e5_verify_rejects_missing_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, manifest, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            manifest.unlink()
+            reason = verify_resume_checkpoint(ckpt)
+        self.assertIsNotNone(reason)
+        self.assertIn("manifest", reason)
+
+    def test_e5_verify_rejects_step_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, manifest, document = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            document["stepCount"] = 1_500  # disagrees with the filename step
+            manifest.write_text(json.dumps(document), encoding="utf-8")
+            reason = verify_resume_checkpoint(ckpt)
+        self.assertIsNotNone(reason)
+        self.assertIn("stepCount", reason)
+
+    def test_e5_verify_rejects_shape_invalid_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, manifest, document = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            del document["runId"]
+            manifest.write_text(json.dumps(document), encoding="utf-8")
+            reason = verify_resume_checkpoint(ckpt)
+        self.assertIsNotNone(reason)
+        self.assertIn("shape", reason)
+
+    def test_e5_verify_rejects_run_id_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, manifest, document = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            # move the checkpoint into a differently-named run dir than its runId
+            wrong_dir = Path(tmp) / "tokenizer-some-other-run" / "ckpts"
+            wrong_dir.mkdir(parents=True)
+            moved = wrong_dir / ckpt.name
+            moved.write_bytes(b"stub")
+            moved_manifest = wrong_dir / manifest.name
+            moved_manifest.write_text(json.dumps(document), encoding="utf-8")
+            reason = verify_resume_checkpoint(moved)
+        self.assertIsNotNone(reason)
+        self.assertIn("runId", reason)
+
+    def test_e5_verify_rejects_unparseable_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, manifest, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            manifest.write_text("{not json", encoding="utf-8")
+            reason = verify_resume_checkpoint(ckpt)
+        self.assertIsNotNone(reason)
+        self.assertIn("unreadable", reason)
+
+    def test_e5_supervisor_fails_closed_without_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpts = Path(tmp) / "run" / "ckpts"
+            ckpts.mkdir(parents=True)
+            (ckpts / "step_00002000.pt").write_bytes(b"stub")  # no sibling manifest
+            argv = [
+                "supervise_tokenizer_run",
+                "--repo-root",
+                str(Path.cwd()),
+                "--train-data-root",
+                "/data/train",
+                "--out-root",
+                tmp,
+                "--log",
+                str(Path(tmp) / "run.log"),
+                "--deadline-hours",
+                "1",
+            ]
+            with mock.patch("sys.argv", argv), mock.patch("sys.stderr", new=io.StringIO()):
+                rc = supervise_tokenizer_run.main()
+        self.assertEqual(rc, 3)  # D3 fail-closed, before torchrun is launched
 
     # ---- file roundtrip (needs a real serializer) -------------------------
     @unittest.skipIf(torch is None, "torch not installed")
