@@ -45,9 +45,14 @@ can log the *original* run id (read from the checkpoint payload or its sibling
 
 The training loop wires to this module through two thin seams so the guarantees
 are unit-testable without importing the (torch-heavy) `train.py` entrypoint:
-`build_checkpoint_payload` (the D1 writer that adds the `args` snapshot) and
-`load_for_resume` (load + E2 drift check + E4 run id, called before the loop
-continues).
+`build_checkpoint_payload` (the D1 writer that adds the `args` snapshot and, for
+E3, the `rng` entry) and `load_for_resume` (load + E2 drift check + E4 run id,
+called before the loop continues). The loop captures torch/CUDA/numpy/python RNG
+state on save and restores it before the first post-resume step. Because only
+rank 0 writes checkpoints, the saved state is rank-tagged; a resume on another
+rank refuses to adopt it (`RESUME_RNG_RANK_MISMATCH`) rather than de-sync the
+per-rank lineages — that is the DDP branch, and bit-identical multi-rank restore
+would need a gathered per-rank map (see the E3 notes in the commit).
 
 Design constraints kept deliberately:
 
@@ -177,6 +182,8 @@ class ResumeArgsDrift(ResumeError):
 WARN_ARGS_MISSING = "RESUME_ARGS_MISSING"
 WARN_OPTIMIZER_MISSING = "RESUME_OPTIMIZER_MISSING"
 WARN_RNG_MISSING = "RESUME_RNG_MISSING"
+WARN_RNG_MODULE_MISSING = "RESUME_RNG_MODULE_MISSING"
+WARN_RNG_RANK_MISMATCH = "RESUME_RNG_RANK_MISMATCH"
 WARN_RUN_ID_MISSING = "RESUME_RUN_ID_MISSING"
 
 
@@ -187,16 +194,25 @@ WARN_RUN_ID_MISSING = "RESUME_RUN_ID_MISSING"
 class RngState:
     """Opaque RNG states captured at checkpoint time.
 
-    Values are the generators' native state objects (torch `ByteTensor`,
-    numpy tuple, python `tuple`). `torch`/`numpy` are never imported here.
+    Values are the generators' native state objects (torch `ByteTensor`, its
+    CUDA sibling list, numpy tuple, python `tuple`). `torch`/`numpy` are never
+    imported here. `rank` records which process produced the state so a resumed
+    rank can refuse to adopt a foreign rank's stream.
     """
 
     python: Any | None = None
     torch: Any | None = None
+    cuda: Any | None = None
     numpy: Any | None = None
+    rank: int | None = None
 
     def is_empty(self) -> bool:
-        return self.python is None and self.torch is None and self.numpy is None
+        return (
+            self.python is None
+            and self.torch is None
+            and self.cuda is None
+            and self.numpy is None
+        )
 
 
 def capture_python_rng_state() -> Any:
@@ -217,20 +233,29 @@ def build_rng_entry(
     *,
     python_state: Any | None = None,
     torch_state: Any | None = None,
+    cuda_state: Any | None = None,
     numpy_state: Any | None = None,
+    rank: int | None = None,
 ) -> dict[str, Any]:
     """Assemble a checkpoint `rng` sub-dict from caller-supplied states.
 
-    The caller owns torch/numpy capture (`torch.get_rng_state()`), so this
-    module stays import-light; omitted generators are simply not recorded.
+    The caller owns torch/numpy capture (`torch.get_rng_state()`,
+    `torch.cuda.get_rng_state_all()`), so this module stays import-light; omitted
+    generators are simply not recorded. `rank` tags the process the state belongs
+    to (only rank 0 writes checkpoints), so a resume on another rank can detect
+    the mismatch instead of adopting a foreign stream.
     """
     entry: dict[str, Any] = {}
     if python_state is not None:
         entry["python"] = python_state
     if torch_state is not None:
         entry["torch"] = torch_state
+    if cuda_state is not None:
+        entry["cuda"] = cuda_state
     if numpy_state is not None:
         entry["numpy"] = numpy_state
+    if rank is not None:
+        entry["rank"] = int(rank)
     return entry
 
 
@@ -239,10 +264,13 @@ def rng_state_from_checkpoint(payload: Mapping[str, Any]) -> RngState:
     entry = payload.get(RNG_KEY)
     if not isinstance(entry, Mapping):
         return RngState()
+    rank = entry.get("rank")
     return RngState(
         python=entry.get("python"),
         torch=entry.get("torch"),
+        cuda=entry.get("cuda"),
         numpy=entry.get("numpy"),
+        rank=rank if isinstance(rank, int) and not isinstance(rank, bool) else None,
     )
 
 
@@ -251,24 +279,34 @@ def restore_rng_state(
     *,
     torch_module: Any | None = None,
     numpy_module: Any | None = None,
+    rank: int | None = None,
 ) -> tuple[str, ...]:
     """Restore whichever RNG states are present and whose module was injected.
 
     Returns warning codes for states that were recorded but could not be
-    restored (missing module), so a caller can surface them instead of silently
-    continuing with an unpinned generator.
+    restored, so a caller can surface them instead of silently continuing with an
+    unpinned generator. When the state was captured by a rank other than `rank`,
+    restore is refused with `RESUME_RNG_RANK_MISMATCH` — adopting another rank's
+    stream would de-sync the per-rank seed lineages.
     """
+    if rng.rank is not None and rank is not None and rng.rank != rank:
+        return (f"{WARN_RNG_RANK_MISMATCH}:saved={rng.rank} current={rank}",)
     warnings: list[str] = []
     if rng.python is not None:
         restore_python_rng_state(rng.python)
     if rng.torch is not None:
         if torch_module is None:
-            warnings.append("RESUME_RNG_MODULE_MISSING:torch")
+            warnings.append(f"{WARN_RNG_MODULE_MISSING}:torch")
         else:
             torch_module.set_rng_state(rng.torch)
+    if rng.cuda is not None:
+        if torch_module is None:
+            warnings.append(f"{WARN_RNG_MODULE_MISSING}:cuda")
+        else:
+            torch_module.cuda.set_rng_state_all(list(rng.cuda))
     if rng.numpy is not None:
         if numpy_module is None:
-            warnings.append("RESUME_RNG_MODULE_MISSING:numpy")
+            warnings.append(f"{WARN_RNG_MODULE_MISSING}:numpy")
         else:
             numpy_module.random.set_state(rng.numpy)
     return tuple(warnings)
@@ -546,14 +584,16 @@ def build_checkpoint_payload(
     args: Any,
     discriminator: Any | None = None,
     disc_optimizer: Any | None = None,
+    rng: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the payload the training loop saves (`tokenizer/train.py`).
 
     Key spellings live here so writer and loader agree: wittgenstein writes the
     singular `step` (unchanged from before), and `args` is the additive
     four-piece entry (`D1`) that lets a later `assert_args_compatible` compare
-    the saved config against the current run. Optional adversarial parts are
-    only included when present, so the payload never gains a spurious key.
+    the saved config against the current run. `rng` (E3) is the optional
+    generator-state entry the loader can restore; optional parts are only
+    included when present, so the payload never gains a spurious key.
     """
     payload: dict[str, Any] = {
         MODEL_KEY: model_state,
@@ -565,6 +605,8 @@ def build_checkpoint_payload(
         payload[DISCRIMINATOR_KEY] = discriminator
     if disc_optimizer is not None:
         payload[DISC_OPTIMIZER_KEY] = disc_optimizer
+    if rng is not None:
+        payload[RNG_KEY] = dict(rng)
     return payload
 
 
