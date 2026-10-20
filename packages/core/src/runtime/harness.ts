@@ -199,6 +199,8 @@ export class Wittgenstein {
           artMeta.costUsd ?? 0,
         );
 
+        // Sticky metadata: promptExpanded/llmTokens keep their prior value when the
+        // codec omits them, whereas the `?? null` fields below reset to null.
         manifest.promptExpanded = artMeta.promptExpanded ?? manifest.promptExpanded;
         manifest.llmOutputRaw = artMeta.llmOutputRaw ?? null;
         manifest.llmOutputParsed = artMeta.llmOutputParsed ?? null;
@@ -217,6 +219,8 @@ export class Wittgenstein {
           manifest.costUsdReason = artMeta.costUsdReason;
         }
         manifest.artifactPath = produced.outPath;
+        // Unlike promptExpanded above, this one does not fall back: a codec that omits
+        // artifactSha256 leaves the manifest digest null.
         manifest.artifactSha256 = artMeta.artifactSha256 ?? null;
         applyLicenseReceipt(manifest, request, artMeta.license);
         foldManifestRows(manifest, codec.manifestRows(art));

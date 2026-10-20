@@ -167,6 +167,8 @@ function adapterReceipt(
 function placeholderLatents(parsed: ImageSceneSpec, ctx: RenderCtx): ImageLatentCodes {
   const [width, height] = parsed.decoder.latentResolution;
   const totalTokens = width * height;
+  // Placeholder codebook size (parity with PLACEHOLDER_CODEBOOK_SIZE in
+  // adapters/seed-expander*.ts); NOT the frozen decoder's K=16384.
   const codebookSize = 8192;
   const deterministicSeed = hashSpecToSeed(parsed);
   const tokens = new Array<number>(totalTokens);
@@ -222,6 +224,7 @@ function expandCoarseVqToLatents(
 function annotateLatents(parsed: ImageSceneSpec, latents: ImageLatentCodes): ImageLatentCodes {
   const seed = hashSpecToSeed(parsed);
   const tokens = [...latents.tokens];
+  // Bounded by the same placeholder codebook size as placeholderLatents above.
   if (tokens.length >= 4) {
     tokens[0] = inferSceneMode(parsed);
     tokens[1] = seed % 8192;

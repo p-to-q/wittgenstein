@@ -356,6 +356,8 @@ async function checkImageDecoderReadiness(workspaceRoot: string): Promise<ImageD
     };
   }
 
+  // A present-but-unreadable decoder manifest is a hard block; merely unchosen
+  // tiers are informational ("not-selected").
   if (selection.status === "read-error") {
     return {
       status: "blocked",
@@ -416,6 +418,8 @@ function imageDecoderBlockers(): ImageDecoderDoctor["blockers"] {
 }
 
 function checkOptionalNodePeer(packageName: string, installHint: string): DoctorCheck {
+  // Resolution is rooted at the CLI's own install dir (import.meta.url): a
+  // workspace-local peer install is deliberately not found.
   const requireFromDoctor = createRequire(import.meta.url);
   try {
     const resolvedPath = requireFromDoctor.resolve(packageName);
