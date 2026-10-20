@@ -14,6 +14,14 @@ import {
 } from "./http.js";
 import { DEFAULT_LLM_RETRY_POLICY } from "./openai-compatible.js";
 
+/**
+ * Default Anthropic Messages endpoint base. The `/messages` path is appended
+ * to the resolved base, so a configured `config.llm.baseUrl` (a gateway/proxy
+ * deployment) can replace the host — the same base+path join the
+ * openai-compatible lane uses (`DEFAULT_BASE_URLS` + `/chat/completions`).
+ */
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
+
 export class AnthropicLlmAdapter implements LlmAdapter {
   public readonly provider = "anthropic";
   private readonly retryPolicy: RetryPolicy;
@@ -46,8 +54,15 @@ export class AnthropicLlmAdapter implements LlmAdapter {
       throw new Error(`Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`);
     }
 
+    // Precedence mirrors the openai-compatible lane: explicit per-adapter
+    // `config.baseUrl` wins, else the provider default. Trailing slashes are
+    // trimmed so a base ending in "/" cannot emit a doubled separator before
+    // the Messages path.
+    const baseUrl = this.config.baseUrl ?? DEFAULT_ANTHROPIC_BASE_URL;
+    const messagesEndpoint = `${baseUrl.replace(/\/+$/, "")}/messages`;
+
     const response = await fetchWithTimeout(
-      "https://api.anthropic.com/v1/messages",
+      messagesEndpoint,
       {
         method: "POST",
         headers: {

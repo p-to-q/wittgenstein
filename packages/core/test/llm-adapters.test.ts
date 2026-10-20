@@ -272,3 +272,91 @@ describe("OpenAICompatibleLlmAdapter retry + timeout boundary", () => {
     expect(calls).toBe(3);
   });
 });
+
+describe("LLM adapter base URL resolution", () => {
+  const anthropicBody = (): Response =>
+    jsonResponse({
+      content: [{ type: "text", text: '{"ok":true}' }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+  const openaiBody = (): Response =>
+    jsonResponse({
+      choices: [{ message: { role: "assistant", content: '{"ok":true}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+
+  // Install a stub that records the exact URL passed to `fetch`, so we can
+  // assert where a request is routed (hermetic — no real vendor is reached).
+  function captureFetchUrls(body: () => Response): string[] {
+    const calls: string[] = [];
+    installFetchStub((input) => {
+      calls.push(String(input));
+      return Promise.resolve(body());
+    });
+    return calls;
+  }
+
+  it("routes an Anthropic request to the configured baseUrl", async () => {
+    const calls = captureFetchUrls(anthropicBody);
+    const adapter = new AnthropicLlmAdapter({
+      provider: "anthropic",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+      baseUrl: "https://gateway.example.com/anthropic/v1",
+    });
+
+    await adapter.generate(baseRequest);
+
+    expect(calls).toEqual(["https://gateway.example.com/anthropic/v1/messages"]);
+  });
+
+  it("defaults to api.anthropic.com when baseUrl is unset", async () => {
+    const calls = captureFetchUrls(anthropicBody);
+    const adapter = new AnthropicLlmAdapter({
+      provider: "anthropic",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+    });
+
+    await adapter.generate(baseRequest);
+
+    expect(calls).toEqual(["https://api.anthropic.com/v1/messages"]);
+  });
+
+  it("normalizes a trailing slash in the configured baseUrl", async () => {
+    const calls = captureFetchUrls(anthropicBody);
+    const adapter = new AnthropicLlmAdapter({
+      provider: "anthropic",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+      baseUrl: "https://gateway.example.com/anthropic/v1/",
+    });
+
+    await adapter.generate(baseRequest);
+
+    expect(calls).toEqual(["https://gateway.example.com/anthropic/v1/messages"]);
+  });
+
+  it("honors config.baseUrl with the same precedence as the openai-compatible lane", async () => {
+    const anthropicCalls = captureFetchUrls(anthropicBody);
+    await new AnthropicLlmAdapter({
+      provider: "anthropic",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+      baseUrl: "https://gateway.example.com/v1",
+    }).generate(baseRequest);
+
+    const openaiCalls = captureFetchUrls(openaiBody);
+    await new OpenAICompatibleLlmAdapter({
+      provider: "openai-compatible",
+      apiKeyEnv: "TEST_LLM_KEY",
+      model: "test-model",
+      baseUrl: "https://gateway.example.com/v1",
+    }).generate(baseRequest);
+
+    // The same configured base is honored by both lanes; only the
+    // lane-specific path suffix differs.
+    expect(anthropicCalls).toEqual(["https://gateway.example.com/v1/messages"]);
+    expect(openaiCalls).toEqual(["https://gateway.example.com/v1/chat/completions"]);
+  });
+});
