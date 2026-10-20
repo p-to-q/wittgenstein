@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ImageDecoderBridge } from "@wittgenstein/codec-image";
@@ -35,6 +35,10 @@ describe("@wittgenstein/core", () => {
 describe("run() entry-layer services passthrough (S7b/S7c)", () => {
   it("injects a decoder bridge into the image codec and records the lane receipt", async () => {
     tmp = await mkdtemp(join(tmpdir(), "witt-harness-bridge-"));
+    // The fingerprint measures wittgensteinVersion from the run cwd's
+    // package.json and fails closed when it is missing; provide an honest
+    // version instead of relying on the day-one forged "0.0.0".
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
     // Default registry includes the real image codec; dry-run skips
     // the LLM and the stub bridge decodes the dry-run adapter latents.
     const harness = await Wittgenstein.bootstrap();
@@ -77,6 +81,8 @@ describe("run() entry-layer services passthrough (S7b/S7c)", () => {
 describe("run() manifest write-path validation (2026-10-16 Stage B)", () => {
   it("persists a manifest for a valid v2 codec run", async () => {
     tmp = await mkdtemp(join(tmpdir(), "witt-harness-valid-"));
+    // Honest version fixture — see the bridge test above for why.
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
     const harness = await Wittgenstein.bootstrap({ registry: registryWith(fakeCodec()) });
 
     const outcome = await harness.run(imageRequest(), {
@@ -97,6 +103,8 @@ describe("run() manifest write-path validation (2026-10-16 Stage B)", () => {
 
   it("refuses to persist when a codec row violates the canonical schema", async () => {
     tmp = await mkdtemp(join(tmpdir(), "witt-harness-invalid-"));
+    // Honest version fixture — see the bridge test above for why.
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
     const harness = await Wittgenstein.bootstrap({
       registry: registryWith(fakeCodec([{ key: "route", value: 123 }])),
     });

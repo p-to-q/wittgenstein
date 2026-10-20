@@ -69,14 +69,40 @@ async function readGitSha(cwd: string): Promise<string | null> {
   }
 }
 
+/**
+ * Fail-closed counterpart of the old day-one behavior (commit 43218ca), which
+ * returned a forged `"0.0.0"` whenever package.json was unreadable, unparsable,
+ * or lacked a version field. `wittgensteinVersion` is replay provenance: a run
+ * that cannot state which version produced it cannot honestly claim one
+ * (doctrine: no silent fallbacks).
+ */
 async function readWittgensteinVersion(packageJsonPath: string): Promise<string> {
+  let parsed: { version?: unknown };
   try {
     const raw = await readFile(packageJsonPath, "utf8");
-    const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? "0.0.0";
-  } catch {
-    return "0.0.0";
+    parsed = JSON.parse(raw) as { version?: unknown };
+  } catch (cause) {
+    throw new WittgensteinError(
+      "MANIFEST_VERSION_UNREADABLE",
+      `Could not read the wittgenstein version from ${packageJsonPath} ` +
+        `(${cause instanceof Error ? cause.message : String(cause)}). The manifest's ` +
+        `wittgensteinVersion field is provenance for replay, so a run without a readable ` +
+        `version refuses to start instead of fabricating one.`,
+      { cause, details: { packageJsonPath } },
+    );
   }
+
+  if (typeof parsed.version !== "string") {
+    throw new WittgensteinError(
+      "MANIFEST_VERSION_UNREADABLE",
+      `package.json at ${packageJsonPath} does not declare a string "version" field. ` +
+        `A well-formed package.json always carries one, so this points at a broken install; ` +
+        `the manifest refuses to fabricate a placeholder version for it.`,
+      { details: { packageJsonPath } },
+    );
+  }
+
+  return parsed.version;
 }
 
 /**
