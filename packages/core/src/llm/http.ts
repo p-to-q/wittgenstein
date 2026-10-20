@@ -32,21 +32,32 @@ export class LlmHttpStatusError extends Error {
 }
 
 /**
- * `fetch` with a hard timeout. Uses an `AbortController` plus an *unref'ed*
+ * `fetch` with a hard timeout covering the WHOLE request→response cycle,
+ * including body consumption. Uses an `AbortController` plus an *unref'ed*
  * timer (unlike `AbortSignal.timeout`) so a pending timeout never keeps the
- * process alive; the timer is cleared once the fetch settles.
+ * process alive.
+ *
+ * Node/undici `fetch()` resolves as soon as the response HEADERS arrive; the
+ * body is a stream read afterwards. Clearing the timer when `fetch()` settles
+ * (the pre-2026-10-21 shape) left `response.json()`/`text()` reads with no
+ * timeout at all — a server that sends headers and then stalls the body hung
+ * the run forever. Here the timer stays armed until `consume` settles, so an
+ * abort interrupts the body read too (the `svg-generation.ts` posture). The
+ * timer is cleared only after the full exchange completes.
  */
-export async function fetchWithTimeout(
+export async function fetchWithTimeout<T>(
   input: Parameters<typeof fetch>[0],
   init: RequestInit,
   timeoutMs: number,
-): Promise<Response> {
+  consume: (response: Response) => Promise<T>,
+): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   timer.unref?.();
 
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    return await consume(response);
   } finally {
     clearTimeout(timer);
   }

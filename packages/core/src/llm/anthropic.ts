@@ -54,14 +54,12 @@ export class AnthropicLlmAdapter implements LlmAdapter {
       throw new Error(`Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`);
     }
 
-    // Precedence mirrors the openai-compatible lane: explicit per-adapter
-    // `config.baseUrl` wins, else the provider default. Trailing slashes are
-    // trimmed so a base ending in "/" cannot emit a doubled separator before
-    // the Messages path.
+    // Explicit configuration wins over the provider default; normalize the join.
     const baseUrl = this.config.baseUrl ?? DEFAULT_ANTHROPIC_BASE_URL;
     const messagesEndpoint = `${baseUrl.replace(/\/+$/, "")}/messages`;
 
-    const response = await fetchWithTimeout(
+    // Keep the timeout armed through both successful and error body reads.
+    const rawJson: unknown = await fetchWithTimeout(
       messagesEndpoint,
       {
         method: "POST",
@@ -86,18 +84,18 @@ export class AnthropicLlmAdapter implements LlmAdapter {
         }),
       },
       this.config.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS,
+      async (response) => {
+        if (!response.ok) {
+          const body = await response.text();
+          throw new LlmHttpStatusError(
+            response.status,
+            `Anthropic request failed with ${response.status}${attempt > 1 ? ` (attempt ${attempt})` : ""}: ${body}`,
+            parseRetryAfterHeader(response.headers.get("retry-after")),
+          );
+        }
+        return await response.json();
+      },
     );
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new LlmHttpStatusError(
-        response.status,
-        `Anthropic request failed with ${response.status}${attempt > 1 ? ` (attempt ${attempt})` : ""}: ${body}`,
-        parseRetryAfterHeader(response.headers.get("retry-after")),
-      );
-    }
-
-    const rawJson: unknown = await response.json();
     const parsed = llmSchemas.AnthropicMessagesResponseSchema.safeParse(rawJson);
     if (!parsed.success) {
       throw new WittgensteinError(
