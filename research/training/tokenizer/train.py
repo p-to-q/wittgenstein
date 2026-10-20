@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import random
 import sys
 import time
 from dataclasses import replace
@@ -151,6 +152,13 @@ def cleanup_distributed():
 # ---------- Determinism ----------
 
 
+def _cudnn_benchmark_conflict(cfg: TrainConfig) -> bool:
+    """True when the config asks for cuDNN determinism *and* timing-based cuDNN
+    benchmark selection — benchmark picks algorithms by timing, which defeats
+    determinism (PyTorch reproducibility note, "CUDA convolution benchmarking")."""
+    return bool(cfg.cudnn_deterministic and cfg.cudnn_benchmark)
+
+
 def set_determinism(cfg: TrainConfig, rank: int):
     seed = cfg.seed + rank  # different per-rank to avoid duplicate batches
     torch.manual_seed(seed)
@@ -158,7 +166,44 @@ def set_determinism(cfg: TrainConfig, rank: int):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = cfg.cudnn_deterministic
         torch.backends.cudnn.benchmark = cfg.cudnn_benchmark
+        if _cudnn_benchmark_conflict(cfg):
+            print(
+                "[determinism] cfg.cudnn_benchmark=True defeats cudnn.deterministic: "
+                "cuDNN selects algorithms by timing, so the choice is not reproducible; "
+                "set cudnn_benchmark=False for parity.",
+                flush=True,
+            )
+    # Mirror cfg.cudnn_deterministic with use_deterministic_algorithms so the
+    # training side is at least as deterministic as the validation gates
+    # (research/validation/m1b_gate_c_roundtrip.py::configure_determinism). On CPU
+    # this enforces the byte-parity contract; on CUDA it warns only, because known
+    # differentiable GPU paths (e.g. LPIPS/AlexNet AdaptiveAvgPool2d, bilinear
+    # interpolate) lack a deterministic implementation and the repo's contract is
+    # GPU structural-parity, not byte-parity (docs/research/briefs/I_audio_codec_landscape.md §5).
+    if cfg.cudnn_deterministic:
+        if torch.cuda.is_available():
+            # cuBLAS deterministic GEMMs require a fixed workspace configuration.
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(True, warn_only=torch.cuda.is_available())
     os.environ.setdefault("PYTHONHASHSEED", str(seed))
+
+
+def seed_worker(worker_id: int) -> None:
+    """Seed a DataLoader worker's numpy and stdlib RNGs from its torch seed.
+
+    `torch.initial_seed()` is the per-worker torch seed DataLoader already set
+    (`base_seed + worker_id`), so seeding numpy/stdlib from it keeps all three
+    streams a pure function of (base_seed, worker_id). torch >= 2.6 seeds
+    numpy/stdlib itself from a private derivation; re-deriving from the
+    documented `torch.initial_seed()` keeps the worker streams explicit and
+    version-stable. `worker_id` is unused because that seed already encodes it
+    (kept for the hook's required signature).
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    random.seed(worker_seed)
+    numpy_module = _numpy_module()
+    if numpy_module is not None:
+        numpy_module.random.seed(worker_seed)
 
 
 def _current_rank() -> int:
@@ -245,6 +290,12 @@ def train(cfg: TrainConfig) -> dict:
         sampler = None
         shuffle = True
 
+    # An explicit DataLoader generator makes the per-worker base seed a pure
+    # function of (cfg.seed, rank) instead of a draw from the global torch RNG,
+    # so worker streams stay reproducible across an E3 resume (PyTorch
+    # reproducibility note: pair worker_init_fn with generator=).
+    train_generator = torch.Generator()
+    train_generator.manual_seed(cfg.seed + rank)
     train_loader = DataLoader(
         train_ds,
         batch_size=cfg.batch_size_per_gpu,
@@ -254,6 +305,8 @@ def train(cfg: TrainConfig) -> dict:
         pin_memory=device.type == "cuda",
         drop_last=True,
         persistent_workers=cfg.num_workers > 0,
+        worker_init_fn=seed_worker,
+        generator=train_generator,
     )
 
     # ---- Model ----
@@ -427,6 +480,10 @@ def train(cfg: TrainConfig) -> dict:
     t0 = time.perf_counter()
     step = resumed_step
     model.train()
+    # DDP: reproduce epoch `step // len(train_loader)`'s shuffle from its start.
+    # DistributedSampler has no mid-epoch cursor, so a mid-epoch resume replays
+    # up to `step % len(train_loader)` already-trained batches (deterministic, no
+    # sample skipped) before the order realigns; world==1 reshuffles instead.
     if world > 1 and sampler is not None:
         sampler.set_epoch(int(step // max(1, len(train_loader))))
     epoch_iter = iter(train_loader)

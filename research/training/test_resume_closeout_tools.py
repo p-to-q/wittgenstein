@@ -15,6 +15,11 @@ try:  # optional: only the file-roundtrip test needs a real serializer
 except ImportError:  # pragma: no cover - env-dependent
     torch = None  # type: ignore[assignment]
 
+try:  # optional: the numpy-state roundtrip test needs numpy
+    import numpy
+except ImportError:  # pragma: no cover - env-dependent
+    numpy = None  # type: ignore[assignment]
+
 from research.training import supervise_tokenizer_run
 from research.training._shared.smoke_manifest import build_smoke_manifest
 from research.training.closeout_tokenizer_run import latest_checkpoint
@@ -499,6 +504,30 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
         # the captured entry loads as a valid rng state for restore
         self.assertFalse(rng_state_from_checkpoint({"rng": entry}).is_empty())
 
+    @unittest.skipIf(torch is None or numpy is None, "torch+numpy not installed")
+    def test_e3_numpy_state_survives_weights_only_roundtrip(self) -> None:
+        # regression guard: an unencoded numpy RNG state needs the numpy
+        # reconstruct global and is rejected by torch.load(weights_only=True)
+        numpy.random.seed(42)
+        state = numpy.random.get_state()
+        expected = numpy.random.random(3)
+        payload = build_checkpoint_payload(
+            model_state={"w": torch.zeros(1)},
+            step=1,
+            optimizer_state={},
+            args=_saved_args(),
+            rng=build_rng_entry(numpy_state=state, rank=0),
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00000001.pt"
+            torch.save(payload, ckpt)
+            loaded = load_checkpoint(ckpt)  # weights_only=True must accept it
+        self.assertIsInstance(loaded.rng.numpy, dict)  # encoded, not a raw ndarray
+        numpy.random.seed(999)  # perturb, then restore
+        warnings = restore_rng_state(loaded.rng, numpy_module=numpy, rank=0)
+        self.assertEqual(warnings, ())
+        self.assertTrue(numpy.allclose(numpy.random.random(3), expected))
+
     # ---- E5: supervisor D3 manifest verification ---------------------------
     def test_e5_verify_accepts_matching_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -574,6 +603,55 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             with mock.patch("sys.argv", argv), mock.patch("sys.stderr", new=io.StringIO()):
                 rc = supervise_tokenizer_run.main()
         self.assertEqual(rc, 3)  # D3 fail-closed, before torchrun is launched
+
+    # ---- robustness: worker seeding + deterministic algorithms -------------
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_seed_worker_yields_per_worker_deterministic_streams(self) -> None:
+        from research.training.tokenizer import train as train_mod
+
+        numpy_module = train_mod._numpy_module()
+
+        def draw(base: int, worker_id: int) -> tuple[float, float | None]:
+            # mimics DataLoader's per-worker torch seeding, then the hook
+            torch.manual_seed(base + worker_id)
+            train_mod.seed_worker(worker_id)
+            stdlib = random.random()
+            numpy_draw = numpy_module.random.random() if numpy_module is not None else None
+            return stdlib, numpy_draw
+
+        self.assertEqual(draw(1_000, 0), draw(1_000, 0))  # same worker_id → same
+        self.assertNotEqual(draw(1_000, 0)[0], draw(1_000, 1)[0])  # different → different
+        if numpy_module is not None:
+            self.assertNotEqual(draw(1_000, 0)[1], draw(1_000, 1)[1])
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_set_determinism_wires_use_deterministic_algorithms(self) -> None:
+        from research.training.tokenizer import train as train_mod
+        from research.training.tokenizer.config import TrainConfig
+
+        # cudnn_deterministic defaults True → the deterministic path is on
+        with mock.patch.object(torch, "use_deterministic_algorithms") as called:
+            train_mod.set_determinism(TrainConfig(), 0)
+        called.assert_called_once()
+        self.assertEqual(called.call_args.kwargs.get("warn_only"), torch.cuda.is_available())
+
+        off = TrainConfig()
+        off.cudnn_deterministic = False
+        with mock.patch.object(torch, "use_deterministic_algorithms") as not_called:
+            train_mod.set_determinism(off, 0)
+        not_called.assert_not_called()
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_cudnn_benchmark_conflict_predicate(self) -> None:
+        from research.training.tokenizer import train as train_mod
+        from research.training.tokenizer.config import TrainConfig
+
+        cfg = TrainConfig()  # deterministic=True, benchmark=False
+        self.assertFalse(train_mod._cudnn_benchmark_conflict(cfg))
+        cfg.cudnn_benchmark = True
+        self.assertTrue(train_mod._cudnn_benchmark_conflict(cfg))
+        cfg.cudnn_deterministic = False
+        self.assertFalse(train_mod._cudnn_benchmark_conflict(cfg))
 
     # ---- file roundtrip (needs a real serializer) -------------------------
     @unittest.skipIf(torch is None, "torch not installed")
