@@ -178,7 +178,7 @@ Under `packages/codec-image/test/`:
 - `round-trip.test.ts` — build a fake `ImageRequest`, run `codec.produce(req, ctx)`, assert artifact + manifest rows match. ≤20 lines.
 - `expand-flag.test.ts` — with `{ rounds: 2 }`, the second round runs and the manifest records both LLM calls.
 - `output-validation.test.ts` — assert `BaseCodec.produce` runs the output schema validation. Practice 1 invariant.
-- `warnings-channel.test.ts` — synthesize a palette-overflow case; assert `metadata.warnings` carries the declared `palette_overflow` messageId. Practice 2 + 3 invariant.
+- `warnings-channel.test.ts` — synthesize a palette-overflow case; assert `metadata.warnings` carries the declared `palette_overflow` messageId. Practice 2 + 3 invariant. _(Conditional: no palette-cap path can emit it today — [#662](https://github.com/p-to-q/wittgenstein/issues/662); deferred until that path lands.)_
 - `harness-modality-blind.test.ts` (in `packages/core/test/`) — greps `harness.ts` source for `request.modality === "image"` and fails if found.
 
 ## 10. Two hats checklist for this line

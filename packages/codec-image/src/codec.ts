@@ -246,6 +246,8 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
   ];
 
   readonly warnings = {
+    // Declared but not emittable: no palette-cap path exists yet (the schema sets no
+    // palette cap and the renderer never reads palette). Kept so the code stays stable when that path lands (#662).
     palette_overflow: "image/palette-overflow",
     provider_latents_invalid: "image/provider-latents-invalid",
     coarse_vq_invalid: "image/coarse-vq-invalid",

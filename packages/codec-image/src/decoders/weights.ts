@@ -190,6 +190,9 @@ export async function resolveDecoderWeights(
       throw new DecoderWeightsFetchFailedError(manifest, asset, error);
     }
 
+    // Local sha256 is the trust anchor: the HF `x-linked-etag` equals this hash, but transport
+    // metadata is never trusted. The body is read once (no double-fetch); an ETag HEAD pre-check
+    // is a possible future optimization for the 162 MB weights path.
     const actualSha256 = sha256(bytes);
     if (actualSha256 !== asset.sha256) {
       throw new DecoderWeightsSha256MismatchError(manifest, asset, actualSha256);
@@ -231,6 +234,7 @@ async function verifyFileSha256(
     return Promise.reject(new Error("missing"));
   }
 
+  // Re-verified on every cache read: a previously cached file is untrusted input too.
   const actualSha256 = sha256(bytes);
   if (actualSha256 !== asset.sha256) {
     await rm(path, { force: true });
