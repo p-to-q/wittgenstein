@@ -43,6 +43,7 @@ from research.training.tokenizer.resume import (
     load_for_resume,
     restore_python_rng_state,
     restore_rng_state,
+    rng_state_from_checkpoint,
     resume_metadata,
     resume_start_step,
     run_id_from_sibling_manifest,
@@ -485,6 +486,18 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
         )
         self.assertEqual(warnings, ())
         self.assertTrue(torch.equal(torch.rand(4), expected))
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_e3_capture_rng_entry_from_train_loop(self) -> None:
+        # exercises the E3 capture seam in train.py (torch-heavy import gated)
+        from research.training.tokenizer import train as train_mod
+
+        entry = train_mod._capture_rng_entry()
+        self.assertIn("torch", entry)
+        self.assertIn("python", entry)
+        self.assertEqual(entry["rank"], 0)  # single-process: no dist initialized
+        # the captured entry loads as a valid rng state for restore
+        self.assertFalse(rng_state_from_checkpoint({"rng": entry}).is_empty())
 
     # ---- E5: supervisor D3 manifest verification ---------------------------
     def test_e5_verify_accepts_matching_manifest(self) -> None:
