@@ -184,7 +184,7 @@ The merged backlog from report 13, status as of 2026-10-21 (report 15 §Part B):
 
 | W | Item | Status |
 |---|---|---|
-| W1 | Body-read timeout | **PR #670 open, all CI green** (incl. CodeRabbit + Vercel) — awaiting owner review |
+| W1 | Body-read timeout | **PR #670 open; CI checks green** (CodeRabbit rate-limited — no review; Vercel preview green) — awaiting owner review |
 | W2 | Manifest version typed error | **PR #669 open, all CI green** — awaiting owner review |
 | W3 | #659 warning-code mapping | **upgraded: reopen PR #663** (`fix/image-warning-classifier-total`; merge-base = main HEAD, zero rebase; tests 2→5; blocklist that closed it already withdrawn) |
 | W4 | E5/#662 comment & dead declaration | queued — Batch 2 |

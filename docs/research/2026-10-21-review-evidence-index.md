@@ -11,7 +11,7 @@ labels: [research-derived, handoff, external-review, index]
 > directory). It is not committed here; this index preserves the map — filename →
 > one-line content → key numbers — so a future session knows what exists and what
 > each item claimed. The engagement's synthesized, durable record is the handoff
-> note [`2026-10-21-external-review-and-training-handoff.md`](2026-10-21-external-review-and-training-handoff.md)
+> note [`2026-10-21-external-review-and-training-readiness-handoff.md`](2026-10-21-external-review-and-training-readiness-handoff.md)
 > on this branch; summaries below point back into it by section.
 
 ## Numbered reports (00–17; 06 was never issued)
