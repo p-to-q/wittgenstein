@@ -46,7 +46,10 @@ export class AnthropicLlmAdapter implements LlmAdapter {
       throw new Error(`Missing API key in env var ${this.config.apiKeyEnv} for Anthropic.`);
     }
 
-    const response = await fetchWithTimeout(
+    // The timeout window must cover the body reads too: `fetch()` resolves
+    // when headers arrive, so `response.json()`/`text()` run inside the
+    // guarded `consume` callback while the abort timer is still armed.
+    const rawJson: unknown = await fetchWithTimeout(
       "https://api.anthropic.com/v1/messages",
       {
         method: "POST",
@@ -71,18 +74,18 @@ export class AnthropicLlmAdapter implements LlmAdapter {
         }),
       },
       this.config.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS,
+      async (response) => {
+        if (!response.ok) {
+          const body = await response.text();
+          throw new LlmHttpStatusError(
+            response.status,
+            `Anthropic request failed with ${response.status}${attempt > 1 ? ` (attempt ${attempt})` : ""}: ${body}`,
+            parseRetryAfterHeader(response.headers.get("retry-after")),
+          );
+        }
+        return await response.json();
+      },
     );
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new LlmHttpStatusError(
-        response.status,
-        `Anthropic request failed with ${response.status}${attempt > 1 ? ` (attempt ${attempt})` : ""}: ${body}`,
-        parseRetryAfterHeader(response.headers.get("retry-after")),
-      );
-    }
-
-    const rawJson: unknown = await response.json();
     const parsed = llmSchemas.AnthropicMessagesResponseSchema.safeParse(rawJson);
     if (!parsed.success) {
       throw new WittgensteinError(
