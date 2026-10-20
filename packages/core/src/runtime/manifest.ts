@@ -77,10 +77,10 @@ async function readGitSha(cwd: string): Promise<string | null> {
  * (doctrine: no silent fallbacks).
  */
 async function readWittgensteinVersion(packageJsonPath: string): Promise<string> {
-  let parsed: { version?: unknown };
+  let parsed: unknown;
   try {
     const raw = await readFile(packageJsonPath, "utf8");
-    parsed = JSON.parse(raw) as { version?: unknown };
+    parsed = JSON.parse(raw) as unknown;
   } catch (cause) {
     throw new WittgensteinError(
       "MANIFEST_VERSION_UNREADABLE",
@@ -92,7 +92,22 @@ async function readWittgensteinVersion(packageJsonPath: string): Promise<string>
     );
   }
 
-  if (typeof parsed.version !== "string") {
+  // `JSON.parse` accepts `null`, `42`, `"x"`, and `[]` as valid JSON, none of
+  // which carry an object root. Reading `.version` off them would raise a bare
+  // TypeError that escapes this function's typed-error contract, so reject any
+  // non-object root here instead (fail-closed, doctrine: no silent fallbacks).
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new WittgensteinError(
+      "MANIFEST_VERSION_UNREADABLE",
+      `package.json at ${packageJsonPath} has a non-object root, so it declares no ` +
+        `string "version" field. A well-formed package.json is always an object; ` +
+        `the manifest refuses to fabricate a placeholder version for it.`,
+      { details: { packageJsonPath } },
+    );
+  }
+
+  const { version } = parsed as { version?: unknown };
+  if (typeof version !== "string") {
     throw new WittgensteinError(
       "MANIFEST_VERSION_UNREADABLE",
       `package.json at ${packageJsonPath} does not declare a string "version" field. ` +
@@ -102,7 +117,7 @@ async function readWittgensteinVersion(packageJsonPath: string): Promise<string>
     );
   }
 
-  return parsed.version;
+  return version;
 }
 
 /**

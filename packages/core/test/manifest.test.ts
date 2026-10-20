@@ -359,6 +359,46 @@ describe("collectRuntimeFingerprint — version provenance fail-closed", () => {
       packageJsonPath: join(tmp, "package.json"),
     });
   });
+
+  it("throws MANIFEST_VERSION_UNREADABLE instead of a bare TypeError when package.json parses to null", async () => {
+    // JSON.parse("null") is valid JSON, so the try/catch above lets it through;
+    // reading `.version` on the null root used to raise an untyped TypeError
+    // that escaped the typed-error contract (PR #669 / CodeRabbit review).
+    await writeFile(join(tmp, "package.json"), "null");
+    let caught: unknown;
+    try {
+      await collectRuntimeFingerprint(tmp);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect(caught).not.toBeInstanceOf(TypeError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_VERSION_UNREADABLE");
+    expect((caught as WittgensteinError).message).toContain(join(tmp, "package.json"));
+    expect((caught as WittgensteinError).details).toEqual({
+      packageJsonPath: join(tmp, "package.json"),
+    });
+  });
+
+  it("throws MANIFEST_VERSION_UNREADABLE for non-object JSON roots (number, string, array, boolean)", async () => {
+    for (const root of ["42", '"x"', "[]", "true"]) {
+      await writeFile(join(tmp, "package.json"), root);
+      let caught: unknown;
+      try {
+        await collectRuntimeFingerprint(tmp);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught, `root ${root} must fail as a typed error`).toBeInstanceOf(WittgensteinError);
+      expect(caught, `root ${root} must not leak a TypeError`).not.toBeInstanceOf(TypeError);
+      expect((caught as WittgensteinError).code, `root ${root} code`).toBe(
+        "MANIFEST_VERSION_UNREADABLE",
+      );
+      expect((caught as WittgensteinError).details, `root ${root} details`).toEqual({
+        packageJsonPath: join(tmp, "package.json"),
+      });
+    }
+  });
 });
 
 describe("assertRunManifestValid (2026-10-16 Stage B)", () => {
