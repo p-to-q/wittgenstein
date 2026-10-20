@@ -47,8 +47,9 @@ def latest_step_checkpoint(out_root: Path, fallback: Path | None) -> Path | None
 
 
 def git_sha(repo_root: Path) -> str:
-    # Deliberate degradation: the git SHA is receipt metadata only (exported as
-    # WITT_GIT_SHA below), so an unavailable SHA leaves the receipt empty rather than failing the run.
+    # Known gap, not deliberate: this "" is a silent fallback. The git SHA is receipt
+    # metadata (WITT_GIT_SHA below); "no silent fallbacks" (docs/hard-constraints.md) and
+    # the training receipt floor want a structured receipt signal here instead.
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
@@ -107,7 +108,7 @@ def build_train_cmd(args: argparse.Namespace, resume: Path | None) -> list[str]:
 
 def terminate_process_group(proc: subprocess.Popen[bytes], log) -> int:
     # Reference process-group termination (SIGTERM group → 30s wait → SIGKILL group,
-    # tolerating ProcessLookupError); the cross-language pattern for `packages/process-runner` W8 (report 12 §3.3).
+    # tolerating ProcessLookupError); mirrors the TS lane in `packages/process-runner/src/index.ts` (W8).
     try:
         os.killpg(proc.pid, signal.SIGTERM)
     except ProcessLookupError:
