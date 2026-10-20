@@ -184,6 +184,7 @@ WARN_OPTIMIZER_MISSING = "RESUME_OPTIMIZER_MISSING"
 WARN_RNG_MISSING = "RESUME_RNG_MISSING"
 WARN_RNG_MODULE_MISSING = "RESUME_RNG_MODULE_MISSING"
 WARN_RNG_RANK_MISMATCH = "RESUME_RNG_RANK_MISMATCH"
+WARN_RNG_STATE_UNSUPPORTED = "RESUME_RNG_STATE_UNSUPPORTED"
 WARN_RUN_ID_MISSING = "RESUME_RUN_ID_MISSING"
 
 
@@ -229,6 +230,35 @@ def restore_python_rng_state(state: Any) -> None:
     random.setstate(state)
 
 
+def encode_numpy_rng_state(state: Any) -> dict[str, Any]:
+    """Flatten a numpy RNG state to plain types safe for `torch.load(weights_only=True)`.
+
+    `numpy.random.get_state()` returns `(name, keys, pos, has_gauss, cached)` where
+    `keys` is a uint32 ndarray; unpickling that array needs `numpy..._reconstruct`,
+    which `weights_only=True` refuses (the loader would otherwise reject the whole
+    checkpoint). Encoding the 624 keys as plain ints keeps the payload loadable.
+    """
+    name, keys, pos, has_gauss, cached = state
+    return {
+        "name": str(name),
+        "keys": [int(key) for key in keys],
+        "pos": int(pos),
+        "hasGauss": int(has_gauss),
+        "cachedGaussian": float(cached),
+    }
+
+
+def decode_numpy_rng_state(encoded: Mapping[str, Any], numpy_module: Any) -> tuple:
+    """Inverse of `encode_numpy_rng_state`; requires the numpy module."""
+    return (
+        str(encoded["name"]),
+        numpy_module.array(encoded["keys"], dtype=numpy_module.uint32),
+        int(encoded["pos"]),
+        int(encoded["hasGauss"]),
+        float(encoded["cachedGaussian"]),
+    )
+
+
 def build_rng_entry(
     *,
     python_state: Any | None = None,
@@ -240,10 +270,12 @@ def build_rng_entry(
     """Assemble a checkpoint `rng` sub-dict from caller-supplied states.
 
     The caller owns torch/numpy capture (`torch.get_rng_state()`,
-    `torch.cuda.get_rng_state_all()`), so this module stays import-light; omitted
-    generators are simply not recorded. `rank` tags the process the state belongs
-    to (only rank 0 writes checkpoints), so a resume on another rank can detect
-    the mismatch instead of adopting a foreign stream.
+    `torch.cuda.get_rng_state_all()`, `numpy.random.get_state()`), so this module
+    stays import-light; omitted generators are simply not recorded. The numpy
+    state is encoded to plain types so the payload stays `weights_only`-loadable.
+    `rank` tags the process the state belongs to (only rank 0 writes checkpoints),
+    so a resume on another rank can detect the mismatch instead of adopting a
+    foreign stream.
     """
     entry: dict[str, Any] = {}
     if python_state is not None:
@@ -253,7 +285,7 @@ def build_rng_entry(
     if cuda_state is not None:
         entry["cuda"] = cuda_state
     if numpy_state is not None:
-        entry["numpy"] = numpy_state
+        entry["numpy"] = encode_numpy_rng_state(numpy_state)
     if rank is not None:
         entry["rank"] = int(rank)
     return entry
@@ -307,8 +339,11 @@ def restore_rng_state(
     if rng.numpy is not None:
         if numpy_module is None:
             warnings.append(f"{WARN_RNG_MODULE_MISSING}:numpy")
+        elif not isinstance(rng.numpy, Mapping):
+            # a native numpy state (not our plain encoding) cannot be rebuilt safely
+            warnings.append(f"{WARN_RNG_STATE_UNSUPPORTED}:numpy")
         else:
-            numpy_module.random.set_state(rng.numpy)
+            numpy_module.random.set_state(decode_numpy_rng_state(rng.numpy, numpy_module))
     return tuple(warnings)
 
 
