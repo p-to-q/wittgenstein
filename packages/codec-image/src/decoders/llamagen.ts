@@ -257,10 +257,13 @@ function resolveWeightsBaseUrl(options: LoadDecoderBridgeOptions): string | unde
 /**
  * Build a HuggingFace-style asset fetcher: `<base>/<repoId>/resolve/<revision>/<filename>`.
  * Timeout posture mirrors the core harness `fetchWithTimeout` contract
- * (AbortController + *unref'ed* timer, cleared once the fetch settles) so a
- * hung download can neither block a run forever nor keep the process alive;
- * this package cannot import core — codec packages depend on schemas only —
- * so the four-line pattern is reimplemented locally and pinned here.
+ * (AbortController + *unref'ed* timer) so a hung download can neither block a
+ * run forever nor keep the process alive; the timer stays armed until the
+ * body has been fully consumed — `fetch()` resolves when headers arrive, but
+ * the weights body (a ~162MB stream for the ONNX decoder) is read afterwards
+ * via `arrayBuffer()`, so that read must happen inside the guarded window.
+ * This package cannot import core — codec packages depend on schemas only —
+ * so the pattern is reimplemented locally and pinned here.
  */
 export function buildHuggingFaceAssetFetcher(
   baseUrl: string | undefined,
@@ -276,18 +279,20 @@ export function buildHuggingFaceAssetFetcher(
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     timer.unref?.();
 
-    let response: Response;
     try {
-      response = await fetch(url, { signal: controller.signal, redirect: "follow" });
-    } catch (error) {
-      throw new Error(`network error fetching ${url}`, { cause: error });
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal, redirect: "follow" });
+      } catch (error) {
+        throw new Error(`network error fetching ${url}`, { cause: error });
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText} fetching ${url}`);
+      }
+      return new Uint8Array(await response.arrayBuffer());
     } finally {
       clearTimeout(timer);
     }
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText} fetching ${url}`);
-    }
-    return new Uint8Array(await response.arrayBuffer());
   };
 }
 
