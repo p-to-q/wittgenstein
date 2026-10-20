@@ -43,6 +43,12 @@ E2 adds `assert_args_compatible`; E4 exposes `resume_metadata` so a supervisor
 can log the *original* run id (read from the checkpoint payload or its sibling
 `*.manifest.json`) instead of minting a fresh one; E6 is this docstring.
 
+The training loop wires to this module through two thin seams so the guarantees
+are unit-testable without importing the (torch-heavy) `train.py` entrypoint:
+`build_checkpoint_payload` (the D1 writer that adds the `args` snapshot) and
+`load_for_resume` (load + E2 drift check + E4 run id, called before the loop
+continues).
+
 Design constraints kept deliberately:
 
   * This module stays torch-free at import time. `load_checkpoint` imports
@@ -527,6 +533,84 @@ def load_checkpoint(
         if run_id is None:
             warnings.append(WARN_RUN_ID_MISSING)
     return dataclasses.replace(loaded, run_id=run_id, warnings=tuple(warnings))
+
+
+# ---- Training-loop seams (D1) ----------------------------------------------
+
+
+def build_checkpoint_payload(
+    *,
+    model_state: Any,
+    step: int,
+    optimizer_state: Any,
+    args: Any,
+    discriminator: Any | None = None,
+    disc_optimizer: Any | None = None,
+) -> dict[str, Any]:
+    """Assemble the payload the training loop saves (`tokenizer/train.py`).
+
+    Key spellings live here so writer and loader agree: wittgenstein writes the
+    singular `step` (unchanged from before), and `args` is the additive
+    four-piece entry (`D1`) that lets a later `assert_args_compatible` compare
+    the saved config against the current run. Optional adversarial parts are
+    only included when present, so the payload never gains a spurious key.
+    """
+    payload: dict[str, Any] = {
+        MODEL_KEY: model_state,
+        "step": step,
+        OPTIMIZER_KEY: optimizer_state,
+        ARGS_KEY: args,
+    }
+    if discriminator is not None:
+        payload[DISCRIMINATOR_KEY] = discriminator
+    if disc_optimizer is not None:
+        payload[DISC_OPTIMIZER_KEY] = disc_optimizer
+    return payload
+
+
+@dataclass(frozen=True)
+class ResumeDecision:
+    """What the training loop needs to continue a run from a checkpoint."""
+
+    checkpoint: LoadedCheckpoint
+    start_step: int
+    run_id: str | None
+    warnings: tuple[str, ...] = ()
+
+
+def load_for_resume(
+    path: Path | str,
+    current_args: Any,
+    *,
+    require_args: bool = True,
+    require_optimizer: bool = True,
+    torch_module: Any | None = None,
+) -> ResumeDecision:
+    """Load a checkpoint for resume, enforcing the E1/E2/E4 guarantees.
+
+    Fails closed *before* the training loop continues: a legacy checkpoint
+    without `args` raises `ResumeArgsMissing`, and a math-relevant drift from
+    the currently configured run raises `ResumeArgsDrift`. `start_step` follows
+    the unchanged `resume_start_step` naming contract; `run_id` carries the
+    original run id when the payload or its sibling manifest supplies one.
+
+    `require_args=False` deliberately opts out of the drift guard (an absent
+    `args` then surfaces as a warning on `warnings` rather than a raise).
+    """
+    loaded = load_checkpoint(
+        path,
+        require_args=require_args,
+        require_optimizer=require_optimizer,
+        torch_module=torch_module,
+    )
+    if loaded.args is not None:
+        assert_args_compatible(loaded.args, current_args, source=loaded.source)
+    return ResumeDecision(
+        checkpoint=loaded,
+        start_step=resume_start_step(loaded.step, Path(path)),
+        run_id=loaded.run_id,
+        warnings=loaded.warnings,
+    )
 
 
 # ---- Supervisor-facing metadata (E4) ---------------------------------------

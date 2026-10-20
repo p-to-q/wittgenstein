@@ -91,7 +91,10 @@ from research.training.tokenizer.model import (  # noqa: E402
     latent_grid,
     param_count,
 )
-from research.training.tokenizer.resume import resume_start_step  # noqa: E402
+from research.training.tokenizer.resume import (  # noqa: E402
+    build_checkpoint_payload,
+    load_for_resume,
+)
 
 
 # ---------- DDP plumbing ----------
@@ -271,33 +274,43 @@ def train(cfg: TrainConfig) -> dict:
     )
 
     resumed_step = 0
+    resumed_run_id: str | None = None
     resume_from = Path(cfg.resume_from) if cfg.resume_from else None
     if resume_from is not None:
         if not resume_from.exists():
             raise FileNotFoundError(f"--resume-from checkpoint not found: {resume_from}")
-        ckpt = torch.load(resume_from, map_location="cpu", weights_only=True)
-        model.load_state_dict(ckpt["model"])
-        checkpoint_step = int(ckpt.get("step", 0))
-        resumed_step = resume_start_step(checkpoint_step, resume_from)
-        if "optimizer" in ckpt:
-            optim.load_state_dict(ckpt["optimizer"])
+        # Validate the four-piece payload and reject config drift BEFORE the
+        # loop continues: a legacy checkpoint without `args` raises
+        # RESUME_ARGS_MISSING, a drifted run raises RESUME_ARGS_DRIFT — neither
+        # is a silent pass. run_id carries the original id when recoverable.
+        decision = load_for_resume(resume_from, cfg_to_dict(cfg))
+        loaded = decision.checkpoint
+        model.load_state_dict(loaded.model)
+        checkpoint_step = loaded.step
+        resumed_step = decision.start_step
+        resumed_run_id = decision.run_id
+        if loaded.optimizer is not None:
+            optim.load_state_dict(loaded.optimizer)
             _optimizer_to_device(optim, device)
-        if discriminator is not None and "discriminator" in ckpt:
-            _unwrap(discriminator).load_state_dict(ckpt["discriminator"])
-        if discriminator is not None and d_optim is not None and "disc_optimizer" in ckpt:
-            d_optim.load_state_dict(ckpt["disc_optimizer"])
+        if discriminator is not None and loaded.discriminator is not None:
+            _unwrap(discriminator).load_state_dict(loaded.discriminator)
+        if discriminator is not None and d_optim is not None and loaded.disc_optimizer is not None:
+            d_optim.load_state_dict(loaded.disc_optimizer)
             _optimizer_to_device(d_optim, device)
         if is_main(rank):
             restored = ["model", "step"]
-            if "optimizer" in ckpt:
+            if loaded.optimizer is not None:
                 restored.append("optimizer")
-            if discriminator is not None and "discriminator" in ckpt:
+            if discriminator is not None and loaded.discriminator is not None:
                 restored.append("discriminator")
-            if discriminator is not None and "discriminator" not in ckpt:
+            if discriminator is not None and loaded.discriminator is None:
                 print("[resume] checkpoint has no discriminator state; discriminator starts fresh", flush=True)
+            for warning in decision.warnings:
+                print(f"[resume] warning: {warning}", flush=True)
             print(
                 f"[resume] loaded {resume_from} checkpoint_step={checkpoint_step} "
-                f"next_step={resumed_step} ({', '.join(restored)})",
+                f"next_step={resumed_step} run_id={resumed_run_id or '<none>'} "
+                f"({', '.join(restored)})",
                 flush=True,
             )
 
@@ -318,7 +331,10 @@ def train(cfg: TrainConfig) -> dict:
     # on the same run_dir (matters when other ranks want to read the manifest
     # back, e.g. in smoke_test).
     if is_main(rank):
-        run_id = new_run_id("tokenizer")
+        # On resume, carry the original run id (from the checkpoint payload or
+        # its sibling manifest) so a continued run keeps one identity; a fresh
+        # id is minted only when no original id is recoverable (E4).
+        run_id = resumed_run_id or new_run_id("tokenizer")
     else:
         run_id = ""  # will be filled by broadcast below
     if world > 1:
@@ -679,11 +695,14 @@ def _write_checkpoint(
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
     state = _unwrap(model).state_dict()
-    payload = {"model": state, "step": step, "optimizer": optim.state_dict()}
-    if discriminator is not None:
-        payload["discriminator"] = _unwrap(discriminator).state_dict()
-    if d_optim is not None:
-        payload["disc_optimizer"] = d_optim.state_dict()
+    payload = build_checkpoint_payload(
+        model_state=state,
+        step=step,
+        optimizer_state=optim.state_dict(),
+        args=cfg_to_dict(cfg),
+        discriminator=_unwrap(discriminator).state_dict() if discriminator is not None else None,
+        disc_optimizer=d_optim.state_dict() if d_optim is not None else None,
+    )
     torch.save(payload, ckpt_path)
     # Smoke / synthetic data has no license encumbrance. For real data, the
     # operator must declare the corpus license; default research-only keeps an

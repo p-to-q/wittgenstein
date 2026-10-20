@@ -29,10 +29,12 @@ from research.training.tokenizer.resume import (
     ResumeQuartetIncomplete,
     ResumeStepsMissing,
     assert_args_compatible,
+    build_checkpoint_payload,
     build_rng_entry,
     capture_python_rng_state,
     load_checkpoint,
     load_checkpoint_payload,
+    load_for_resume,
     restore_python_rng_state,
     restore_rng_state,
     resume_metadata,
@@ -147,6 +149,20 @@ def _quartet_payload(**overrides) -> dict:
     }
     payload.update(overrides)
     return payload
+
+
+class _StubTorch:
+    """Minimal torch stand-in so the resume seam is testable without torch.
+
+    `load_checkpoint` receives the module by injection, which is exactly the
+    extension point that keeps resume.py torch-free.
+    """
+
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def load(self, path, **kwargs):  # noqa: ANN001 - mirrors torch.load signature
+        return self._payload
 
 
 class TokenizerResumeHardeningTests(unittest.TestCase):
@@ -269,6 +285,88 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
     def test_e5_resume_start_step_distinguishes_step_and_final_naming(self) -> None:
         self.assertEqual(resume_start_step(2_000, Path("step_00002000.pt")), 2_001)
         self.assertEqual(resume_start_step(2_000, Path("final.pt")), 2_000)
+
+    # ---- D1: training-loop seams (save args, drift guard, run-id) ----------
+    def test_d1_build_checkpoint_payload_adds_args_and_preserves_keys(self) -> None:
+        payload = build_checkpoint_payload(
+            model_state={"w": 1},
+            step=2_000,
+            optimizer_state={"state": {}},
+            args=_saved_args(),
+        )
+        # additive: existing keys and their spellings are untouched
+        self.assertEqual(payload["model"], {"w": 1})
+        self.assertEqual(payload["step"], 2_000)
+        self.assertEqual(payload["optimizer"], {"state": {}})
+        self.assertEqual(payload["args"], _saved_args())
+        # adversarial keys stay absent unless supplied (no spurious shape change)
+        self.assertNotIn("discriminator", payload)
+        self.assertNotIn("disc_optimizer", payload)
+
+    def test_d1_build_checkpoint_payload_includes_adversarial_when_present(self) -> None:
+        payload = build_checkpoint_payload(
+            model_state={"w": 1},
+            step=5,
+            optimizer_state={},
+            args=_saved_args(),
+            discriminator={"d": 1},
+            disc_optimizer={"do": 1},
+        )
+        self.assertEqual(payload["discriminator"], {"d": 1})
+        self.assertEqual(payload["disc_optimizer"], {"do": 1})
+
+    def test_d1_load_for_resume_rejects_drift_before_loop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00002000.pt"
+            ckpt.write_bytes(b"stub")
+            current = _saved_args()
+            current["optim"]["lr"] = 5e-5
+            with self.assertRaises(ResumeArgsDrift):
+                load_for_resume(ckpt, current, torch_module=_StubTorch(_quartet_payload()))
+
+    def test_d1_load_for_resume_rejects_legacy_missing_args(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00002000.pt"
+            ckpt.write_bytes(b"stub")
+            legacy = _quartet_payload()
+            del legacy["args"]
+            with self.assertRaises(ResumeArgsMissing):
+                load_for_resume(ckpt, _saved_args(), torch_module=_StubTorch(legacy))
+
+    def test_d1_load_for_resume_carries_run_id_and_start_step(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00002000.pt"
+            ckpt.write_bytes(b"stub")
+            (Path(tmp) / "step_00002000.manifest.json").write_text(
+                json.dumps({"runId": "tokenizer-original-9f2c6a84"}), encoding="utf-8"
+            )
+            decision = load_for_resume(
+                ckpt, _saved_args(), torch_module=_StubTorch(_quartet_payload())
+            )
+            self.assertEqual(decision.run_id, "tokenizer-original-9f2c6a84")
+            self.assertEqual(decision.start_step, 2_001)  # periodic naming
+            self.assertEqual(decision.checkpoint.args, _saved_args())
+            self.assertIn(WARN_RNG_MISSING, decision.warnings)
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_d1_torch_roundtrip_args_survive_weights_only(self) -> None:
+        # proves the D1 writer's args dict survives a real torch.save/load with
+        # weights_only=True (the loader path), not just the injected-stub path
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00000007.pt"
+            payload = build_checkpoint_payload(
+                model_state={"w": torch.zeros(2)},
+                step=7,
+                optimizer_state={"state": {}},
+                args=_saved_args(),
+                discriminator={"d": torch.zeros(1)},
+            )
+            torch.save(payload, ckpt)
+            decision = load_for_resume(ckpt, _saved_args())
+            self.assertEqual(decision.checkpoint.step, 7)
+            self.assertEqual(decision.checkpoint.args, _saved_args())
+            self.assertEqual(decision.start_step, 8)
+            self.assertIsNotNone(decision.checkpoint.discriminator)
 
     # ---- file roundtrip (needs a real serializer) -------------------------
     @unittest.skipIf(torch is None, "torch not installed")
