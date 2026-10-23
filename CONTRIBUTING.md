@@ -91,6 +91,13 @@ pnpm typecheck
 pnpm test
 ```
 
+`pnpm test` fans out across every workspace package at once. On a loaded machine that
+contention alone can push the image codec's real-time tests past their 5 s budget and turn a
+green suite red — the failure is the scheduler, not the change. `pnpm test:serial` runs the
+same suites one package at a time: reach for it when `uptime` reports a load average above
+~8, and treat a failure there as a real failure. The committed per-test timeouts stay as they
+are either way; a red run is never fixed by widening them.
+
 For Python-surface changes, run the affected `python3 -m polyglot.cli ...` path end-to-end
 at least once — the Python side doesn't have CI coverage today.
 
