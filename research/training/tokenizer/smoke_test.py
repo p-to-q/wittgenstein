@@ -30,6 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from research.training.tokenizer.config import smoke_config
 from research.training.tokenizer.train import train
+from research.training._shared.acceptance import assert_training_acceptance_shape
 from research.training._shared.experiment_tracking import assert_training_experiment_receipt_shape
 from research.training._shared.manifest import assert_training_run_manifest_shape
 
@@ -80,6 +81,22 @@ def main() -> int:
     if not metrics_lines:
         print("[smoke] FAIL: experiment metrics log is empty")
         return 1
+    acceptance_receipt_path = run_dir / "acceptance.json"
+    if not acceptance_receipt_path.exists():
+        print("[smoke] FAIL: acceptance receipt missing")
+        return 1
+    try:
+        acceptance_receipt = json.loads(acceptance_receipt_path.read_text(encoding="utf-8"))
+        assert_training_acceptance_shape(acceptance_receipt)
+    except Exception as exc:
+        print(f"[smoke] FAIL: acceptance receipt shape invalid: {exc}")
+        return 1
+    if acceptance_receipt["acceptance"].get("manifest_written") is not True:
+        print("[smoke] FAIL: acceptance receipt does not record the final manifest")
+        return 1
+    if "grad_norm_g" not in summary.get("final_components", {}):
+        print("[smoke] FAIL: grad_norm_g not recorded in final components")
+        return 1
     acceptance = summary.get("acceptance", {})
     if summary.get("final_step") != cfg.max_steps:
         print(
@@ -101,9 +118,18 @@ def main() -> int:
     if acceptance.get("used_synthetic_data") is not True:
         print("[smoke] FAIL: smoke run did not report synthetic dataset usage")
         return 1
-    if acceptance.get("dataset_corrupt_count", 0) != 0:
+    # Smoke reads synthetic data in-process, so an honest count is exactly 0 and
+    # MUST be known (not None). A multi-worker real run may legitimately report
+    # None, but this assertion is intentionally about the smoke case only.
+    if acceptance.get("dataset_corrupt_count") != 0:
         print(
             f"[smoke] FAIL: corrupt_count={acceptance.get('dataset_corrupt_count')} during smoke"
+        )
+        return 1
+    if acceptance.get("dataset_corrupt_count_known") is not True:
+        print(
+            f"[smoke] FAIL: smoke corrupt_count must be known, got "
+            f"known={acceptance.get('dataset_corrupt_count_known')}"
         )
         return 1
     print(f"[smoke] PASS: {len(manifests)} manifest(s) at {run_dir / 'ckpts'}")

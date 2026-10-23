@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import multiprocessing
 import os
 import sys
 import time
@@ -74,6 +75,8 @@ from research.training._shared.dataset import (  # noqa: E402
     ImageFolderDataset,
     SyntheticImageDataset,
 )
+from research.training._shared.acceptance import write_acceptance_receipt  # noqa: E402
+from research.training._shared.corrupt_count import resolve_dataset_corrupt_count  # noqa: E402
 from research.training.tokenizer.config import (  # noqa: E402
     OptimConfig,
     TrainConfig,
@@ -177,6 +180,19 @@ def _optimizer_to_device(optimizer, device: torch.device) -> None:
                 state[key] = value.to(device)
 
 
+def _total_grad_norm(parameters) -> float:
+    """Total L2 norm of the current parameter gradients, WITHOUT clipping.
+
+    Used for the D step, which clips nothing: reading the norm through
+    `get_total_norm` keeps the receipt additive (no new clipping side effect),
+    so a grads spike is citable without changing the update.
+    """
+    grads = [p.grad for p in parameters if p.grad is not None]
+    if not grads:
+        return 0.0
+    return float(nn.utils.get_total_norm(grads))
+
+
 # ---------- Train loop ----------
 
 
@@ -188,13 +204,23 @@ def train(cfg: TrainConfig) -> dict:
         print(f"[init] rank={rank} world={world} device={device} cfg.smoke={cfg.smoke}")
 
     # ---- Data ----
+    # The corrupt-sample count is only observable across workers if the parent
+    # shares a counter with them (see _shared/corrupt_count.py). Create one
+    # whenever real data is read with worker processes.
+    start_method = multiprocessing.get_start_method()
     if cfg.smoke or not cfg.train_data_root:
         train_ds = SyntheticImageDataset(n=64, image_size=cfg.image_size, seed=cfg.seed)
         if is_main(rank):
             print("[data] using SyntheticImageDataset (smoke / no real data)")
     else:
+        corrupt_tally = None
+        if cfg.num_workers > 0:
+            corrupt_tally = multiprocessing.get_context(start_method).Value("q", 0)
         train_ds = ImageFolderDataset(
-            Path(cfg.train_data_root), image_size=cfg.image_size, with_labels=False
+            Path(cfg.train_data_root),
+            image_size=cfg.image_size,
+            with_labels=False,
+            corrupt_tally=corrupt_tally,
         )
         if is_main(rank):
             print(f"[data] {cfg.train_data_root}: {len(train_ds)} images")
@@ -380,7 +406,9 @@ def train(cfg: TrainConfig) -> dict:
             "manifest_written": False,
             "final_checkpoint_written": False,
             "used_synthetic_data": bool(cfg.smoke or not cfg.train_data_root),
-            "dataset_corrupt_count": 0,
+            # None until resolved on rank 0; 0 here would be a false claim for
+            # any multi-worker run (see C4 in _shared/corrupt_count.py).
+            "dataset_corrupt_count": None,
         },
     }
 
@@ -425,11 +453,15 @@ def train(cfg: TrainConfig) -> dict:
         # shared graph) which we discard by zero_grad'ing d_optim below.
         optim.zero_grad(set_to_none=True)
         total_loss.backward()
+        core_model = model.module if world > 1 else model
         if cfg.optim.grad_clip_norm > 0:
-            nn.utils.clip_grad_norm_(
-                (model.module if world > 1 else model).parameters(),
-                cfg.optim.grad_clip_norm,
+            # clip_grad_norm_ returns the pre-clip total norm; persist it so a
+            # spike is citable (taming/LlamaGen clip but discard this number).
+            components["grad_norm_g"] = float(
+                nn.utils.clip_grad_norm_(core_model.parameters(), cfg.optim.grad_clip_norm)
             )
+        else:
+            components["grad_norm_g"] = _total_grad_norm(core_model.parameters())
         optim.step()
 
         # Discriminator step (after warmup): train D on real vs. detached recon
@@ -440,6 +472,7 @@ def train(cfg: TrainConfig) -> dict:
             fake_logits = discriminator(recon.detach())
             d_loss = discriminator_loss(real_logits, fake_logits)
             d_loss.backward()
+            components["grad_norm_d"] = _total_grad_norm(discriminator.parameters())
             d_optim.step()
             components["d_loss"] = float(d_loss.detach().cpu())
 
@@ -490,6 +523,17 @@ def train(cfg: TrainConfig) -> dict:
 
     summary["final_step"] = step
 
+    # Corrupt-sample count: reduced across workers AND ranks here so every rank
+    # joins the collective; only rank 0 records it. None means "unknowable",
+    # never a false 0 (see _shared/corrupt_count.py).
+    corrupt_count = resolve_dataset_corrupt_count(
+        train_ds,
+        num_workers=cfg.num_workers,
+        start_method=start_method,
+        world=world,
+        device=device,
+    )
+
     # ---- Final eval (best-effort) + checkpoint + manifest ----
     if is_main(rank):
         eval_snapshots = _maybe_run_eval(cfg, model, device, step, world)
@@ -534,9 +578,20 @@ def train(cfg: TrainConfig) -> dict:
         summary["acceptance"]["experiment_metrics_written"] = (
             run_dir / "experiment-metrics.jsonl"
         ).exists()
-        summary["acceptance"]["dataset_corrupt_count"] = int(
-            getattr(train_ds, "corrupt_count", 0)
-        )
+        summary["acceptance"]["dataset_corrupt_count"] = corrupt_count
+        summary["acceptance"]["dataset_corrupt_count_known"] = corrupt_count is not None
+        if corrupt_count is None:
+            print(
+                "[acceptance] dataset_corrupt_count is UNKNOWN (multi-worker gather "
+                "unavailable); it is NOT zero",
+                flush=True,
+            )
+        # Persist the run self-check so it is citable after the fact; it was
+        # computed and discarded at main() before this change. Written only on
+        # rank 0 (the sole rank whose acceptance block is authoritative) so
+        # non-zero ranks never race a partial receipt into run_dir.
+        acceptance_path = write_acceptance_receipt(run_dir, summary["acceptance"], run_id=run_id)
+        summary["acceptance"]["acceptance_receipt_written"] = acceptance_path.exists()
         elapsed = time.perf_counter() - t0
         print(f"[done] step={step} elapsed={elapsed:.1f}s run_dir={run_dir}")
 
@@ -557,6 +612,8 @@ _EVAL_METRIC_META = {
     "rfid": ("fid", False),
     "codebook_used_pct": ("fraction", True),
     "codebook_used_count": ("count", True),
+    # Codebook-usage perplexity (exp of usage entropy): higher = less collapse.
+    "perplexity": ("perplexity", True),
 }
 
 
@@ -788,7 +845,11 @@ def main():
             cfg.gan_enabled = args.gan_enabled
         if args.gan_on_step is not None:
             cfg.gan_on_step = args.gan_on_step
-    train(cfg)
+    # Pass the summary through instead of dropping it: train() already persisted
+    # the acceptance block to acceptance.json on rank 0, and returning it lets a
+    # caller (smoke_test, supervisors) inspect the run self-check.
+    summary = train(cfg)
+    return summary
 
 
 if __name__ == "__main__":
