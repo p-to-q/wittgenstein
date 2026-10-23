@@ -353,6 +353,12 @@ def train(cfg: TrainConfig) -> dict:
         else:
             train_data_root = Path(cfg.train_data_root)
             file_list = train_ds.file_list_for_manifest()
+            # The tokenizer pipeline enumerates every image under the data root
+            # with no seeded sampling (dataset.py), so the source input index and
+            # the selection coincide and requested == written today. The receipt
+            # still carries both digests and both counts so that a future sampler
+            # (or a dropped file) makes the gap visible instead of hiding it
+            # (report 19 F-1: replicate data_manifest.py, do not invent).
             dataset_fp = capture_dataset_fingerprint(
                 train_data_root.name,
                 files=file_list,
@@ -360,6 +366,10 @@ def train(cfg: TrainConfig) -> dict:
                 notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
                 cache_per_file=True,
                 root=train_data_root,
+                source_input=file_list,
+                selection=file_list,
+                requested_count=len(file_list),
+                written_count=len(file_list),
             )
 
     # ---- Train loop ----

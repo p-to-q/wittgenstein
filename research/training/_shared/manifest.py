@@ -22,7 +22,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
 TRAINING_RUN_MANIFEST_SCHEMA_VERSION = "witt.training.run-manifest/v0.1"
@@ -38,6 +38,14 @@ class TrainingRunDataset:
     dvcRev: str
     name: str
     sha256: str
+    # Deterministic dataset-receipt fields mirrored from
+    # polyglot-mini/train/data_manifest.py (report 19 F-1). Each is None when it
+    # cannot be grounded in the current pipeline; None is omitted from the
+    # emitted JSON rather than fabricated, so the optional TS fields stay absent.
+    sourceInputSha256: str | None = None
+    requestedCount: int | None = None
+    writtenCount: int | None = None
+    canonicalSelectionSha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +145,27 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def canonical_list_sha256(items: Iterable[str | Path], root: Path | None = None) -> str:
+    """SHA-256 over the sorted, newline-joined item list.
+
+    Mirrors polyglot-mini/train/data_manifest.py:prompts_canonical_sha256: the
+    same set of members re-emitted reproduces the digest, a different selection
+    does not. `root` relativizes paths so the digest is independent of the
+    checkout or mount point that held the dataset.
+    """
+
+    normalized: list[str] = []
+    for item in items:
+        path = Path(item)
+        if root is not None:
+            try:
+                path = path.relative_to(root)
+            except ValueError:
+                pass
+        normalized.append(path.as_posix())
+    return sha256_bytes("\n".join(sorted(normalized)).encode("utf-8"))
+
+
 def capture_git_sha(repo_root: Path | None = None) -> str:
     # Deployments that copy the source WITHOUT a .git dir (e.g. an ephemeral
     # cluster run that rsyncs only the tree) can't read the revision from git.
@@ -210,6 +239,11 @@ def capture_dataset_fingerprint(
     notes: str = "",
     cache_per_file: bool = True,
     root: Path | None = None,
+    *,
+    source_input: Iterable[str | Path] | None = None,
+    selection: Iterable[str | Path] | None = None,
+    requested_count: int | None = None,
+    written_count: int | None = None,
 ) -> TrainingRunDataset:
     """SHA-256 over sorted (path, file-sha-or-size) pairs.
 
@@ -219,6 +253,16 @@ def capture_dataset_fingerprint(
     mount point that happened to hold the dataset.
     `cache_per_file=False` is a development shortcut only; publishable training
     receipts must use the default content-level hashing or a DVC-pinned source.
+
+    The optional dataset-receipt arguments mirror
+    polyglot-mini/train/data_manifest.py so the training receipt carries the
+    same determinism the dataset manifest does:
+      `source_input`            -> sourceInputSha256 (source input INDEX hash),
+      `selection`               -> canonicalSelectionSha256 (sorted SELECTION),
+      `requested_count`         -> requestedCount,
+      `written_count`           -> writtenCount.
+    Each is emitted only when supplied; a value that cannot be grounded is
+    omitted rather than fabricated.
     """
 
     del notes
@@ -240,6 +284,14 @@ def capture_dataset_fingerprint(
         dvcRev=revision,
         name=name,
         sha256=sha256_bytes(json.dumps(sha_input, sort_keys=True).encode("utf-8")),
+        sourceInputSha256=(
+            canonical_list_sha256(source_input, root=root) if source_input is not None else None
+        ),
+        requestedCount=requested_count,
+        writtenCount=written_count,
+        canonicalSelectionSha256=(
+            canonical_list_sha256(selection, root=root) if selection is not None else None
+        ),
     )
 
 
@@ -293,6 +345,11 @@ def manifest_to_dict(manifest: TrainingRunManifest | dict[str, Any]) -> dict[str
     payload = asdict(manifest) if isinstance(manifest, TrainingRunManifest) else dict(manifest)
     if payload.get("trainingConfig") is None:
         payload.pop("trainingConfig", None)
+    # The dataset-receipt fields are optional, non-nullable in the TS schema, so
+    # an ungrounded value (None) must be omitted, never written as JSON null.
+    dataset = payload.get("dataset")
+    if isinstance(dataset, dict) and any(value is None for value in dataset.values()):
+        payload["dataset"] = {key: value for key, value in dataset.items() if value is not None}
     return payload
 
 
@@ -447,10 +504,23 @@ def _parse_timestamp(value: Any, label: str) -> datetime:
 def _validate_dataset(payload: Any) -> None:
     if not isinstance(payload, dict):
         raise ValueError("dataset must be an object")
-    _assert_keys(payload, {"dvcRev", "name", "sha256"}, set(), "dataset")
+    _assert_keys(
+        payload,
+        {"dvcRev", "name", "sha256"},
+        {"sourceInputSha256", "requestedCount", "writtenCount", "canonicalSelectionSha256"},
+        "dataset",
+    )
     if not payload["dvcRev"] or not payload["name"]:
         raise ValueError("dataset.dvcRev and dataset.name must be nonempty")
     _require_sha256(payload["sha256"], "dataset.sha256")
+    if "sourceInputSha256" in payload:
+        _require_sha256(payload["sourceInputSha256"], "dataset.sourceInputSha256")
+    if "canonicalSelectionSha256" in payload:
+        _require_sha256(payload["canonicalSelectionSha256"], "dataset.canonicalSelectionSha256")
+    if "requestedCount" in payload:
+        _require_nonnegative_int(payload["requestedCount"], "dataset.requestedCount")
+    if "writtenCount" in payload:
+        _require_nonnegative_int(payload["writtenCount"], "dataset.writtenCount")
 
 
 def _validate_hardware(payload: Any) -> None:
