@@ -28,6 +28,7 @@ Design:
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,28 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+
+
+def codebook_perplexity(counts: Any) -> float:
+    """Perplexity of the codebook-usage distribution = exp(entropy of counts).
+
+    A collapsed codebook (all mass on one code) -> 1.0; a codebook used
+    uniformly over `n` codes -> `n`. This is the standard VQ code-usage
+    perplexity and a second anti-collapse signal next to `codebook_used_pct`.
+    The vendored quantizer returns `perplexity=None`, so we derive it here from
+    the eval histogram the caller already accumulates. Returns 0.0 for an
+    empty histogram (no images evaluated).
+    """
+
+    total = sum(int(c) for c in counts)
+    if total <= 0:
+        return 0.0
+    entropy = 0.0
+    for c in counts:
+        if c > 0:
+            p = c / total
+            entropy -= p * math.log(p)
+    return math.exp(entropy)
 
 
 @dataclass
@@ -209,6 +232,9 @@ def evaluate_tokenizer_reconstruction(
         used = (codebook_hist > 0).sum().item()
         metrics["codebook_used_count"] = int(used)
         metrics["codebook_used_pct"] = float(used) / float(codebook_hist.numel())
+        # Perplexity of the eval-set codebook usage (exp of usage entropy) —
+        # a collapse signal that a raw "used count" can hide.
+        metrics["perplexity"] = codebook_perplexity(codebook_hist.tolist())
 
     metrics["degraded"] = len(degradation_reasons) > 0
     metrics["degradation_reasons"] = degradation_reasons
