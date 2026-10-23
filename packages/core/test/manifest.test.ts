@@ -88,6 +88,14 @@ describe("hashFileOrThrow (Issue #345)", () => {
 // the throw from `hashFileOrThrow` propagates to the outer catch and
 // serializes as `ARTIFACT_HASH_FAILED`.
 describe("Wittgenstein.run — v1 artifact-hash race regression (Issue #345)", () => {
+  beforeEach(async () => {
+    // harness.run() measures wittgensteinVersion from the run cwd's
+    // package.json and fails closed when it is missing. These tests exercise
+    // the codec/manifest pipeline, so give the run directory an honest
+    // version to measure instead of the day-one forged "0.0.0".
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
+  });
+
   it("sets ok=false and error.code=ARTIFACT_HASH_FAILED when render artifact is missing", async () => {
     const { Wittgenstein } = await import("../src/runtime/harness.js");
     const { CodecRegistry } = await import("../src/runtime/registry.js");
@@ -267,14 +275,17 @@ describe("Wittgenstein.run — v1 artifact-hash race regression (Issue #345)", (
 
 describe("collectRuntimeFingerprint", () => {
   it("returns the spine shape for a directory with no git or lockfile", async () => {
+    // A readable package.json is required for the version to be measured;
+    // git and the lockfile stay optional (gitSha/lockfileHash may be null).
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
     const fp = await collectRuntimeFingerprint(tmp);
 
     // gitSha is null because tmpdir is not a git repo.
     expect(fp.gitSha).toBeNull();
     // lockfile is missing in tmpdir, so its hash is null too.
     expect(fp.lockfileHash).toBeNull();
-    // wittgensteinVersion falls back to 0.0.0 when package.json is absent.
-    expect(fp.wittgensteinVersion).toBe("0.0.0");
+    // wittgensteinVersion is measured from package.json, never fabricated.
+    expect(fp.wittgensteinVersion).toBe("1.2.3");
     // Node version is a real value, like "v20.x.y".
     expect(fp.nodeVersion).toBe(process.version);
     expect(fp.nodeVersion).toMatch(/^v\d+\.\d+\.\d+/);
@@ -287,6 +298,7 @@ describe("collectRuntimeFingerprint", () => {
   });
 
   it("reads lockfile hash when pnpm-lock.yaml is present", async () => {
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
     const lockfilePath = join(tmp, "pnpm-lock.yaml");
     await writeFile(lockfilePath, "lockfileVersion: '6.0'\n");
 
@@ -294,6 +306,98 @@ describe("collectRuntimeFingerprint", () => {
 
     const expected = createHash("sha256").update("lockfileVersion: '6.0'\n").digest("hex");
     expect(fp.lockfileHash).toBe(expected);
+  });
+});
+
+// The day-one implementation (commit 43218ca) answered every failure below with
+// a forged "0.0.0". These tests pin the fail-closed replacement: the version
+// is provenance, so it must be measured or the run must refuse to start.
+describe("collectRuntimeFingerprint — version provenance fail-closed", () => {
+  it("throws MANIFEST_VERSION_UNREADABLE for a missing package.json with the path in details", async () => {
+    let caught: unknown;
+    try {
+      await collectRuntimeFingerprint(tmp);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_VERSION_UNREADABLE");
+    expect((caught as WittgensteinError).message).toContain(join(tmp, "package.json"));
+    expect((caught as WittgensteinError).details).toEqual({
+      packageJsonPath: join(tmp, "package.json"),
+    });
+  });
+
+  it("throws MANIFEST_VERSION_UNREADABLE for malformed package.json JSON", async () => {
+    await writeFile(join(tmp, "package.json"), "{ not valid json");
+    let caught: unknown;
+    try {
+      await collectRuntimeFingerprint(tmp);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_VERSION_UNREADABLE");
+    expect((caught as WittgensteinError).message).toContain(join(tmp, "package.json"));
+    expect((caught as WittgensteinError).details).toEqual({
+      packageJsonPath: join(tmp, "package.json"),
+    });
+  });
+
+  it("throws MANIFEST_VERSION_UNREADABLE when package.json has no version field", async () => {
+    await writeFile(join(tmp, "package.json"), JSON.stringify({ name: "no-version-declared" }));
+    let caught: unknown;
+    try {
+      await collectRuntimeFingerprint(tmp);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_VERSION_UNREADABLE");
+    expect((caught as WittgensteinError).message).toContain("version");
+    expect((caught as WittgensteinError).details).toEqual({
+      packageJsonPath: join(tmp, "package.json"),
+    });
+  });
+
+  it("throws MANIFEST_VERSION_UNREADABLE instead of a bare TypeError when package.json parses to null", async () => {
+    // JSON.parse("null") is valid JSON, so the try/catch above lets it through;
+    // reading `.version` on the null root used to raise an untyped TypeError
+    // that escaped the typed-error contract (PR #669 / CodeRabbit review).
+    await writeFile(join(tmp, "package.json"), "null");
+    let caught: unknown;
+    try {
+      await collectRuntimeFingerprint(tmp);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(WittgensteinError);
+    expect(caught).not.toBeInstanceOf(TypeError);
+    expect((caught as WittgensteinError).code).toBe("MANIFEST_VERSION_UNREADABLE");
+    expect((caught as WittgensteinError).message).toContain(join(tmp, "package.json"));
+    expect((caught as WittgensteinError).details).toEqual({
+      packageJsonPath: join(tmp, "package.json"),
+    });
+  });
+
+  it("throws MANIFEST_VERSION_UNREADABLE for non-object JSON roots (number, string, array, boolean)", async () => {
+    for (const root of ["42", '"x"', "[]", "true"]) {
+      await writeFile(join(tmp, "package.json"), root);
+      let caught: unknown;
+      try {
+        await collectRuntimeFingerprint(tmp);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught, `root ${root} must fail as a typed error`).toBeInstanceOf(WittgensteinError);
+      expect(caught, `root ${root} must not leak a TypeError`).not.toBeInstanceOf(TypeError);
+      expect((caught as WittgensteinError).code, `root ${root} code`).toBe(
+        "MANIFEST_VERSION_UNREADABLE",
+      );
+      expect((caught as WittgensteinError).details, `root ${root} details`).toEqual({
+        packageJsonPath: join(tmp, "package.json"),
+      });
+    }
   });
 });
 
