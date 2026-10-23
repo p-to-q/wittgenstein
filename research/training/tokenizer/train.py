@@ -185,6 +185,9 @@ def set_determinism(cfg: TrainConfig, rank: int):
             # cuBLAS deterministic GEMMs require a fixed workspace configuration.
             os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.use_deterministic_algorithms(True, warn_only=torch.cuda.is_available())
+    # PYTHONHASHSEED cannot affect this already-started interpreter (Python reads
+    # it once at startup); the main-process seed must be set in the launcher env
+    # (torchrun env / Docker ENV). It still propagates to spawn-based workers.
     os.environ.setdefault("PYTHONHASHSEED", str(seed))
 
 
@@ -261,6 +264,21 @@ def _optimizer_to_device(optimizer, device: torch.device) -> None:
                 state[key] = value.to(device)
 
 
+def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: int) -> None:
+    """Fail closed when the loader yields zero batches.
+
+    `drop_last=True` drops any unterminated final batch, so fewer than
+    `batch_size` samples (or an empty/synthetic-less data root) produce an empty
+    loader and the step loop would silently train nothing.
+    """
+    if len(train_loader) == 0:
+        raise RuntimeError(
+            "empty train loader: dataset has "
+            f"{dataset_len} samples but batch_size_per_gpu={batch_size} with "
+            "drop_last=True yields 0 batches; add data or lower the batch size"
+        )
+
+
 # ---------- Train loop ----------
 
 
@@ -308,6 +326,9 @@ def train(cfg: TrainConfig) -> dict:
         worker_init_fn=seed_worker,
         generator=train_generator,
     )
+    # Fail closed before touching the model: an empty loader would loop forever
+    # without ever consuming a batch.
+    _require_nonempty_train_loader(train_loader, len(train_ds), cfg.batch_size_per_gpu)
 
     # ---- Model ----
     model = build_tokenizer(cfg.tokenizer).to(device)
@@ -775,6 +796,24 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
         return []
 
 
+def _atomic_torch_save(payload, path) -> None:
+    """Save to a sibling temp, fsync, then `os.replace` (atomic on one fs).
+
+    A crash mid-save must not leave a truncated `step_*.pt` that
+    `latest_checkpoint` / `load_for_resume` would pick up as valid. The
+    selectors' `step_*.pt` / `final.pt` globs ignore the `.pt.tmp` sibling.
+    """
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        torch.save(payload, tmp)
+        with open(tmp, "rb") as fh:
+            os.fsync(fh.fileno())  # flush bytes before the rename is visible
+    except BaseException:
+        tmp.unlink(missing_ok=True)  # best-effort: no `.pt.tmp` litter on failure
+        raise
+    os.replace(tmp, path)
+
+
 def _write_checkpoint(
     run_dir,
     model,
@@ -806,7 +845,7 @@ def _write_checkpoint(
         disc_optimizer=d_optim.state_dict() if d_optim is not None else None,
         rng=_capture_rng_entry(),
     )
-    torch.save(payload, ckpt_path)
+    _atomic_torch_save(payload, ckpt_path)
     # Smoke / synthetic data has no license encumbrance. For real data, the
     # operator must declare the corpus license; default research-only keeps an
     # undeclared run un-publishable. Anything other than "permissive" is

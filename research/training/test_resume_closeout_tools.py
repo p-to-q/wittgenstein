@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import random
 import tempfile
 import time
@@ -100,7 +101,19 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
         self.assertIn("--no-lpips", cmd)
         self.assertIn("--no-gan", cmd)
 
-    def test_closeout_latest_checkpoint_considers_final_checkpoint(self) -> None:
+    def test_closeout_selects_max_step_not_mtime(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpts = Path(tmp) / "run" / "ckpts"
+            ckpts.mkdir(parents=True)
+            step10 = ckpts / "step_00000010.pt"
+            step09 = ckpts / "step_00000009.pt"
+            step10.write_text("10", encoding="utf-8")
+            time.sleep(0.01)
+            step09.write_text("09", encoding="utf-8")  # WRONG mtime: newest = lower step
+
+            self.assertEqual(latest_checkpoint(Path(tmp)), step10)
+
+    def test_closeout_final_is_fallback_only_without_step_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ckpts = Path(tmp) / "run" / "ckpts"
             ckpts.mkdir(parents=True)
@@ -108,9 +121,19 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
             final = ckpts / "final.pt"
             step.write_text("step", encoding="utf-8")
             time.sleep(0.01)
-            final.write_text("final", encoding="utf-8")
+            final.write_text("final", encoding="utf-8")  # newer mtime, still not chosen
 
+            # final.pt is a fallback: a periodic checkpoint always wins
+            self.assertEqual(latest_checkpoint(Path(tmp)), step)
+
+            step.unlink()
             self.assertEqual(latest_checkpoint(Path(tmp)), final)
+
+    def test_closeout_no_checkpoint_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "run" / "ckpts").mkdir(parents=True)
+            with self.assertRaises(FileNotFoundError):
+                latest_checkpoint(Path(tmp))
 
     def test_resume_start_step_does_not_repeat_periodic_checkpoint_step(self) -> None:
         self.assertEqual(resume_start_step(2000, Path("step_00002000.pt")), 2001)
@@ -670,6 +693,75 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             self.assertEqual(loaded.step, 10)
             self.assertEqual(loaded.args, _saved_args())
             self.assertFalse(loaded.rng.is_empty())
+
+
+class TokenizerDurabilityHardeningTests(unittest.TestCase):
+    """①③⑧: atomic checkpoint save, empty-loader guard, PYTHONHASHSEED propagation."""
+
+    # ---- ① atomic checkpoint save -----------------------------------------
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_atomic_save_success_writes_target_and_leaves_no_tmp(self) -> None:
+        from research.training.tokenizer import train as train_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "ckpts" / "final.pt"
+            target.parent.mkdir(parents=True)
+            train_mod._atomic_torch_save({"k": 1}, target)
+            self.assertTrue(target.exists())
+            self.assertEqual(list(target.parent.glob("*.tmp")), [])
+
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_atomic_save_failure_keeps_target_and_removes_tmp(self) -> None:
+        from research.training.tokenizer import train as train_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "ckpts" / "step_00000001.pt"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"prior-good")
+            with mock.patch.object(
+                train_mod.torch, "save", side_effect=RuntimeError("disk full")
+            ):
+                with self.assertRaises(RuntimeError):
+                    train_mod._atomic_torch_save({"k": 1}, target)
+            # the prior checkpoint is untouched and no `.pt.tmp` litter remains
+            self.assertEqual(target.read_bytes(), b"prior-good")
+            self.assertEqual(list(target.parent.glob("*.tmp")), [])
+
+    # ---- ⑧ empty-loader guard ---------------------------------------------
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_empty_train_loader_guard_fails_closed(self) -> None:
+        from research.training.tokenizer import train as train_mod
+
+        class _Loader:
+            def __init__(self, n: int) -> None:
+                self._n = n
+
+            def __len__(self) -> int:
+                return self._n
+
+        # fewer samples than batch_size with drop_last=True → 0 batches
+        with self.assertRaises(RuntimeError) as ctx:
+            train_mod._require_nonempty_train_loader(_Loader(0), dataset_len=2, batch_size=8)
+        self.assertIn("empty train loader", str(ctx.exception))
+        self.assertIn("batch_size_per_gpu=8", str(ctx.exception))
+        self.assertIn("drop_last=True", str(ctx.exception))
+        # a non-empty loader passes
+        self.assertIsNone(
+            train_mod._require_nonempty_train_loader(_Loader(3), dataset_len=24, batch_size=8)
+        )
+
+    # ---- ③ PYTHONHASHSEED propagation to spawn workers ---------------------
+    @unittest.skipIf(torch is None, "torch not installed")
+    def test_set_determinism_sets_pythonhashseed_env(self) -> None:
+        from research.training.tokenizer import train as train_mod
+        from research.training.tokenizer.config import TrainConfig
+
+        cfg = TrainConfig()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PYTHONHASHSEED", None)
+            train_mod.set_determinism(cfg, 0)
+            # no-op for this interpreter, but feeds spawn-based worker processes
+            self.assertEqual(os.environ.get("PYTHONHASHSEED"), str(cfg.seed))
 
 
 if __name__ == "__main__":
