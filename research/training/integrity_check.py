@@ -6,7 +6,9 @@ Read-only. Verifies a step_*.pt against its sibling manifest and itself:
   - report training step recorded in ckpt vs manifest
   - codebook embedding norm stats (sanity: not all-zero / not exploded)
 
-No repo imports -> runs anywhere with torch. Prints a report to stdout.
+No repo imports outside stdlib -> the field helpers below import cleanly without
+torch; `main()` pulls torch in lazily so the audit still runs anywhere torch is
+installed. Prints a report to stdout.
 """
 
 from __future__ import annotations
@@ -16,7 +18,11 @@ import hashlib
 import json
 import os
 
-import torch
+
+# Canonical manifest digest field. Legacy receipts used a bare top-level key
+# (`weights_sha256`, ...); those are honored only as a fallback.
+_CANONICAL_DIGEST_FIELD = "checkpoint.sha256"
+_LEGACY_DIGEST_KEYS = ("sha256", "sha", "digest", "checkpoint_sha256", "hash", "weights_sha256")
 
 
 def sha256(path: str, buf: int = 1 << 20) -> str:
@@ -28,20 +34,43 @@ def sha256(path: str, buf: int = 1 << 20) -> str:
 
 
 def find_digest(m: dict) -> tuple[str, str] | None:
-    keys = ("sha256", "sha", "digest", "checkpoint_sha256", "hash", "weights_sha256")
-    for k in keys:
-        if isinstance(m.get(k), str):
-            return (k, m[k])
-    for parent in ("checkpoint", "artifact", "receipt"):
+    """Locate the checkpoint digest, canonical shape first.
+
+    The canonical manifest stores it at `checkpoint.sha256`; a stray legacy
+    top-level key must never shadow it.
+    """
+    checkpoint = m.get("checkpoint")
+    if isinstance(checkpoint, dict) and isinstance(checkpoint.get("sha256"), str):
+        return (_CANONICAL_DIGEST_FIELD, checkpoint["sha256"])
+    for parent in ("artifact", "receipt", "checkpoint"):
         sub = m.get(parent)
         if isinstance(sub, dict):
-            for k in keys:
+            for k in _LEGACY_DIGEST_KEYS:
                 if isinstance(sub.get(k), str):
                     return (f"{parent}.{k}", sub[k])
+    for k in _LEGACY_DIGEST_KEYS:
+        if isinstance(m.get(k), str):
+            return (k, m[k])
     return None
 
 
+def manifest_step(m: dict) -> tuple[str | None, object]:
+    """Return (field_name, value) for the manifest's step count.
+
+    The canonical manifest field is `stepCount`; older receipts may still carry
+    a legacy `step` key, which is read only as a fallback and flagged by the
+    caller. Returns (None, None) when neither is present.
+    """
+    if "stepCount" in m:
+        return "stepCount", m["stepCount"]
+    if "step" in m:
+        return "step", m["step"]
+    return None, None
+
+
 def main() -> None:
+    import torch  # lazy: keep the field helpers importable without torch
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
     args = ap.parse_args()
@@ -58,7 +87,13 @@ def main() -> None:
         with open(man) as f:
             m = json.load(f)
         print(f"[integ] manifest_keys={sorted(m.keys())}")
-        print(f"[integ] manifest_step={m.get('step')}")
+        step_field, step_value = manifest_step(m)
+        if step_field == "stepCount":
+            print(f"[integ] manifest_step={step_value}")
+        elif step_field == "step":
+            print(f"[integ] manifest_step={step_value} (legacy 'step'; canonical is 'stepCount')")
+        else:
+            print("[integ] manifest has NO 'stepCount' field")
         found = find_digest(m)
         if found:
             match = found[1] == digest

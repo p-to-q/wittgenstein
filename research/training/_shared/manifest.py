@@ -22,7 +22,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 
 TRAINING_RUN_MANIFEST_SCHEMA_VERSION = "witt.training.run-manifest/v0.1"
@@ -31,6 +31,16 @@ GIT_SHA_RE = re.compile(r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
 SUBPROGRAMS = {"tokenizer", "adapter", "llm-head"}
 MODALITIES = {"image", "audio", "sensor", "svg", "video", "asciipng"}
 WEIGHTS_LICENSES = {"permissive", "research-only"}
+
+# Typed marker for "this dataset was NOT pinned to a DVC revision". It is a
+# recognized, non-empty sentinel (the manifest requires dvcRev to be nonempty)
+# and must never be swapped for a plausible-looking fake rev such as
+# "uncommitted" — an unknown provenance value has to read AS unknown.
+UNVERSIONED_DATASET_REVISION = "unversioned"
+
+# Label for the lockfile provenance: `research/training/requirements.txt` is an
+# unpinned ">=" floor, so `lockfileSha256` must not read as a locked env.
+REQUIREMENTS_FLOOR_LABEL = "requirements-floor (unpinned)"
 
 
 @dataclass(frozen=True)
@@ -203,10 +213,53 @@ def capture_hardware() -> TrainingRunHardware:
     )
 
 
+def build_receipt_provenance(
+    dataset_revision: str,
+    *,
+    dvc_pinned: bool,
+    lockfile_source: str,
+    unused_config_fields: Sequence[str],
+) -> dict[str, Any]:
+    """Provenance labels that keep a training receipt honest (F-3.1/F-3.2/F-3.3).
+
+    Recorded in the run's `config.json` (which the manifest references), so a
+    bare `dvcRev`/`lockfileSha256` field is never read as more than it holds:
+    `dvcPinned` states whether the revision is a real DVC pin (False for a
+    `UNVERSIONED_DATASET_REVISION` marker or synthetic smoke data), the lockfile
+    hash is labelled as an unpinned floor, and declared-but-inert config fields
+    are listed so they are not mistaken for live knobs.
+    """
+    return {
+        "datasetRevision": {
+            "source": "WITT_DVC_REV",
+            "value": dataset_revision,
+            "dvcPinned": bool(dvc_pinned),
+        },
+        "lockfileSha256": {
+            "source": lockfile_source,
+            "pinned": False,
+            "label": REQUIREMENTS_FLOOR_LABEL,
+        },
+        "unusedConfigFields": list(unused_config_fields),
+    }
+
+
+def capture_dataset_revision(env_value: str | None = None) -> str:
+    """Resolve the dataset DVC revision recorded in the receipt.
+
+    Honors `WITT_DVC_REV` (injected by the launcher / DVC pin, mirroring the
+    `WITT_GIT_SHA` convention). When it is absent the dataset is genuinely not
+    version-controlled, so this returns `UNVERSIONED_DATASET_REVISION` — an
+    explicit, typed "unknown" marker. It never invents a real-looking rev.
+    """
+    raw = env_value if env_value is not None else os.environ.get("WITT_DVC_REV", "")
+    return (raw or "").strip() or UNVERSIONED_DATASET_REVISION
+
+
 def capture_dataset_fingerprint(
     name: str,
     files: list[Path],
-    revision: str = "uncommitted",
+    revision: str = UNVERSIONED_DATASET_REVISION,
     notes: str = "",
     cache_per_file: bool = True,
     root: Path | None = None,

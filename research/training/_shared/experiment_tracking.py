@@ -81,6 +81,15 @@ class JsonlExperimentTracker:
     def log_metrics(self, step: int, metrics: dict[str, Any]) -> None:
         self._append({"type": "metrics", "at": utc_now_iso(), "step": step, "metrics": metrics})
 
+    def log_event(self, event: str, **fields: Any) -> None:
+        """Append a structured, non-metric event (e.g. a best-effort eval failure).
+
+        Metric lines carry {step, metrics}; events are a separate record type so
+        a silently-skipped step stays visible after the fact via the persisted
+        jsonl without polluting the metric series.
+        """
+        self._append({"type": "event", "at": utc_now_iso(), "event": event, **fields})
+
     def finish(self, manifest: TrainingExperimentManifestReference | None = None) -> None:
         self.write_receipt(finished_at=utc_now_iso(), manifest=manifest)
 

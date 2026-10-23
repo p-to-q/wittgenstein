@@ -49,11 +49,14 @@ from research.training._shared.experiment_tracking import (  # noqa: E402
 )
 from research.training._shared.manifest import (  # noqa: E402
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
+    UNVERSIONED_DATASET_REVISION,
     TrainingRunManifest,
     TrainingRunEvalDataset,
     TrainingRunEvalMetric,
     TrainingRunEvalSnapshot,
+    build_receipt_provenance,
     capture_dataset_fingerprint,
+    capture_dataset_revision,
     capture_docker_image_sha,
     capture_git_sha,
     capture_hardware,
@@ -75,6 +78,7 @@ from research.training._shared.dataset import (  # noqa: E402
     SyntheticImageDataset,
 )
 from research.training.tokenizer.config import (  # noqa: E402
+    UNUSED_CONFIG_FIELDS,
     OptimConfig,
     TrainConfig,
     smoke_config,
@@ -335,6 +339,9 @@ def train(cfg: TrainConfig) -> dict:
     if is_main(rank):
         started_at = utc_now_iso()
         git_sha = capture_git_sha(_REPO_ROOT)
+        # F-3.2: research/training/requirements.txt is an unpinned ">=" floor, not
+        # a resolved lock. Hash it (deterministic, no subprocess) but label the
+        # provenance in the receipt so `lockfileSha256` is not read as a locked env.
         lockfile_sha = capture_lockfile_sha256(
             _REPO_ROOT / "research" / "training" / "requirements.txt"
         )
@@ -342,12 +349,37 @@ def train(cfg: TrainConfig) -> dict:
         hardware = capture_hardware()
         experiment_tracker = JsonlExperimentTracker(run_dir, run_id)
         experiment_tracker.log_params({"subprogram": "tokenizer", "config": cfg_to_dict(cfg)})
+        # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
+        # corpus is recorded as a typed "unversioned" marker, never a fabricated
+        # "uncommitted". Synthetic smoke data has no rev at all.
+        use_synthetic_data = cfg.smoke or not cfg.train_data_root
+        if use_synthetic_data:
+            dataset_revision = "synthetic-smoke"
+            dvc_pinned = False
+        else:
+            dataset_revision = capture_dataset_revision()
+            dvc_pinned = dataset_revision != UNVERSIONED_DATASET_REVISION
+            if not dvc_pinned:
+                print(
+                    "[data] WARNING: dataset is not DVC-pinned (WITT_DVC_REV unset); "
+                    f"receipt records dvcRev={dataset_revision!r}",
+                    flush=True,
+                )
         config_payload = cfg_to_dict(cfg)
         config_payload["experimentTracking"] = experiment_tracker.config_reference()
+        # Provenance labels keep the receipt honest where a bare field would
+        # imply more than it holds (F-3.1/F-3.2) or imply an inert knob took
+        # effect (F-3.3).
+        config_payload["receiptProvenance"] = build_receipt_provenance(
+            dataset_revision,
+            dvc_pinned=dvc_pinned,
+            lockfile_source="research/training/requirements.txt",
+            unused_config_fields=UNUSED_CONFIG_FIELDS,
+        )
         config_ref = write_training_config_snapshot(run_dir / "config.json", config_payload)
-        if cfg.smoke or not cfg.train_data_root:
+        if use_synthetic_data:
             dataset_fp = capture_dataset_fingerprint(
-                "synthetic", files=[], revision="synthetic-smoke",
+                "synthetic", files=[], revision=dataset_revision,
                 notes="SyntheticImageDataset; no on-disk files",
             )
         else:
@@ -356,7 +388,7 @@ def train(cfg: TrainConfig) -> dict:
             dataset_fp = capture_dataset_fingerprint(
                 train_data_root.name,
                 files=file_list,
-                revision="uncommitted",
+                revision=dataset_revision,
                 notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
                 cache_per_file=True,
                 root=train_data_root,
@@ -381,6 +413,9 @@ def train(cfg: TrainConfig) -> dict:
             "final_checkpoint_written": False,
             "used_synthetic_data": bool(cfg.smoke or not cfg.train_data_root),
             "dataset_corrupt_count": 0,
+            "eval_snapshot_count": 0,
+            "eval_failed": False,
+            "eval_failure_reason": None,
         },
     }
 
@@ -492,8 +527,18 @@ def train(cfg: TrainConfig) -> dict:
 
     # ---- Final eval (best-effort) + checkpoint + manifest ----
     if is_main(rank):
-        eval_snapshots = _maybe_run_eval(cfg, model, device, step, world)
+        eval_snapshots, eval_failure = _maybe_run_eval(cfg, model, device, step, world)
         summary["acceptance"]["eval_snapshot_count"] = len(eval_snapshots)
+        summary["acceptance"]["eval_failed"] = eval_failure is not None
+        summary["acceptance"]["eval_failure_reason"] = (
+            eval_failure["reason"] if eval_failure else None
+        )
+        if eval_failure:
+            # Best-effort semantics are preserved (the run does not abort), but
+            # an eval that failed must be visible after the fact — record it to
+            # the persisted experiment channel (the acceptance block is in-memory
+            # only).
+            experiment_tracker.log_event("eval_failed", **eval_failure)
         if eval_snapshots:
             summary["final_eval_metrics"] = {
                 m.name: m.value for m in eval_snapshots[0].metrics
@@ -580,10 +625,13 @@ def _eval_dataset_sha(ds_name: str, split: str, files=None) -> str:
     return h.hexdigest()
 
 
-def _maybe_run_eval(cfg, model, device, step, world) -> list:
-    """Run reconstruction eval on a val set; return [] on any failure.
+def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]:
+    """Run reconstruction eval on a val set; return (snapshots, failure).
 
-    Eval must never kill a training run, so every path is guarded. Uses
+    Eval must never kill a training run, so every path is guarded. `failure` is
+    None on success and on the deliberate "no val set declared" skip; it is a
+    `{errorType, reason}` dict only when a real error was caught, so the caller
+    can record it without changing the best-effort contract. Uses
     `val_data_root` when set, else a small synthetic set for smoke. Heavy
     metrics (rFID) are left to the eval harness's own dependency degradation.
     """
@@ -601,7 +649,7 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
             split = "synthetic-val"
             ds_name = "synthetic"
         else:
-            return []  # real training run with no val set declared — skip
+            return [], None  # real training run with no val set declared — skip
 
         loader = DataLoader(
             val_ds,
@@ -641,7 +689,7 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
                 )
             )
         if not metric_objs:
-            return []  # nothing measurable → no snapshot (keeps manifest valid)
+            return [], None  # nothing measurable → no snapshot (keeps manifest valid)
         snapshot = TrainingRunEvalSnapshot(
             modality="image",
             dataset=TrainingRunEvalDataset(
@@ -651,10 +699,11 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
             generatedAt=utc_now_iso(),
             metrics=metric_objs,
         )
-        return [snapshot]
+        return [snapshot], None
     except Exception as exc:  # eval is best-effort; never fail the run
-        print(f"[eval] skipped due to error: {type(exc).__name__}: {exc}")
-        return []
+        reason = f"{type(exc).__name__}: {exc}"
+        print(f"[eval] skipped due to error: {reason}", flush=True)
+        return [], {"errorType": type(exc).__name__, "reason": reason}
 
 
 def _write_checkpoint(

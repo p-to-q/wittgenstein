@@ -21,8 +21,9 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
   `__pycache__` from an older code revision shadows the new field.
 - **Logs are frozen / empty until the job ends.** `torchrun` child stdout is
   block-buffered; nothing flushes until a buffer fills or the process exits.
-- **`git_sha: "unknown"` in the manifest.** The code was copied to the node
-  without its `.git` dir, so `capture_git_sha()` can't read the revision.
+- **`harnessGitSha` / `trainingCodeGitSha` cannot be captured.** The code was
+  copied to the node without its `.git` dir, so `capture_git_sha()` raises
+  instead of inventing a value; inject the revision explicitly (see step 3).
 
 ## Procedure
 
@@ -55,7 +56,8 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
   log step lines increase — GPU-util alone is misleading on a shared node
   (a tenant's job shows util on "your" card).
 - **Checkpoint is sound**: `integrity_check.py` recomputes the checkpoint SHA256,
-  byte-compares it against the manifest's `weights_sha256`, scans for NaN/inf,
+  byte-compares it against the manifest's `checkpoint.sha256` (canonical field;
+  `weights_sha256` is the legacy name), scans for NaN/inf,
   and reports codebook row-norm / dead-code stats.
 - **Reconstruction sanity**: `recon_check.py` loads the checkpoint, encode→decode
   one image, and reports L2/PSNR + before/after PNGs.
@@ -75,7 +77,8 @@ fixed wall-clock budget, and (c) leave a trustworthy receipt. Distilled from a
   co-tenant jobs.
 - A checkpoint trained on research-only data is **validation-only** — do not
   publish it (no HF upload, no "model done" claim). The manifest's dataset
-  license/`revision` field is the gate.
+  license / `dataset.dvcRev` field is the gate (`dvcRev` reads `"unversioned"`
+  when `WITT_DVC_REV` was not injected).
 
 ## References
 
