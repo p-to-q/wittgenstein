@@ -56,6 +56,13 @@ from research.training.tokenizer.resume import (
 )
 
 
+def _touch_manifest(ckpt: Path) -> Path:
+    """Write the sibling manifest marker that makes ``ckpt`` a complete pair."""
+    manifest = ckpt.with_name(ckpt.stem + ".manifest.json")
+    manifest.write_text("{}", encoding="utf-8")
+    return manifest
+
+
 class TokenizerResumeCloseoutToolTests(unittest.TestCase):
     def test_checkpoint_step_parses_only_step_checkpoints(self) -> None:
         self.assertEqual(checkpoint_step(Path("step_00054000.pt")), 54000)
@@ -69,8 +76,10 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
             older_high_step = ckpts / "step_00002000.pt"
             newer_low_step = ckpts / "step_00001000.pt"
             older_high_step.write_text("high", encoding="utf-8")
+            _touch_manifest(older_high_step)
             time.sleep(0.01)
             newer_low_step.write_text("low", encoding="utf-8")
+            _touch_manifest(newer_low_step)
 
             self.assertEqual(latest_step_checkpoint(Path(tmp), None), older_high_step)
 
@@ -108,8 +117,10 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
             step10 = ckpts / "step_00000010.pt"
             step09 = ckpts / "step_00000009.pt"
             step10.write_text("10", encoding="utf-8")
+            _touch_manifest(step10)
             time.sleep(0.01)
             step09.write_text("09", encoding="utf-8")  # WRONG mtime: newest = lower step
+            _touch_manifest(step09)
 
             self.assertEqual(latest_checkpoint(Path(tmp)), step10)
 
@@ -120,8 +131,10 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
             step = ckpts / "step_00002000.pt"
             final = ckpts / "final.pt"
             step.write_text("step", encoding="utf-8")
+            _touch_manifest(step)
             time.sleep(0.01)
             final.write_text("final", encoding="utf-8")  # newer mtime, still not chosen
+            _touch_manifest(final)
 
             # final.pt is a fallback: a periodic checkpoint always wins
             self.assertEqual(latest_checkpoint(Path(tmp)), step)
@@ -605,11 +618,12 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("unreadable", reason)
 
-    def test_e5_supervisor_fails_closed_without_manifest(self) -> None:
+    def test_e5_supervisor_fails_closed_on_explicit_dangling_resume(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ckpts = Path(tmp) / "run" / "ckpts"
             ckpts.mkdir(parents=True)
-            (ckpts / "step_00002000.pt").write_bytes(b"stub")  # no sibling manifest
+            dangling = ckpts / "step_00002000.pt"
+            dangling.write_bytes(b"stub")  # explicit path, no sibling manifest
             argv = [
                 "supervise_tokenizer_run",
                 "--repo-root",
@@ -618,6 +632,8 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
                 "/data/train",
                 "--out-root",
                 tmp,
+                "--resume-from",
+                str(dangling),
                 "--log",
                 str(Path(tmp) / "run.log"),
                 "--deadline-hours",
@@ -626,6 +642,51 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             with mock.patch("sys.argv", argv), mock.patch("sys.stderr", new=io.StringIO()):
                 rc = supervise_tokenizer_run.main()
         self.assertEqual(rc, 3)  # D3 fail-closed, before torchrun is launched
+
+    # ---- P5: checkpoint + manifest are a single selection unit --------------
+    def test_p5_auto_selection_skips_dangling_pt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpts = Path(tmp) / "run" / "ckpts"
+            ckpts.mkdir(parents=True)
+            complete = ckpts / "step_00001000.pt"
+            complete.write_bytes(b"stub")
+            _touch_manifest(complete)
+            dangling = ckpts / "step_00002000.pt"  # newer step, half-pair
+            dangling.write_bytes(b"stub")
+
+            # the dangling newer `.pt` is skipped; the newest complete pair wins
+            self.assertEqual(latest_step_checkpoint(Path(tmp), None), complete)
+            self.assertEqual(latest_checkpoint(Path(tmp)), complete)
+
+    def test_p5_auto_selection_without_complete_pair_returns_none(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpts = Path(tmp) / "run" / "ckpts"
+            ckpts.mkdir(parents=True)
+            (ckpts / "step_00002000.pt").write_bytes(b"stub")  # dangling only
+
+            # supervisor: no complete pair -> no candidate (existing no-checkpoint
+            # semantics); closeout: the no-checkpoint error
+            self.assertIsNone(latest_step_checkpoint(Path(tmp), None))
+            with self.assertRaises(FileNotFoundError):
+                latest_checkpoint(Path(tmp))
+
+    def test_p5_verify_still_fails_closed_on_explicit_dangling_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "step_00002000.pt"
+            ckpt.write_bytes(b"stub")  # explicit path, no sibling manifest
+            reason = verify_resume_checkpoint(ckpt)
+        self.assertIsNotNone(reason)
+        self.assertIn("manifest", reason)
+
+    def test_p5_manifest_write_fsyncs_tmp_before_replace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch("research.training._shared.manifest.os.fsync") as fsync:
+                summary = build_smoke_manifest(Path(tmp), run_id="tokenizer-fsync")
+            manifest_path = Path(summary["manifestPath"])
+            self.assertTrue(manifest_path.exists())
+            fsync.assert_called_once()  # durable bytes before the atomic rename
+            # the sibling tmp used for the rename leaves no litter
+            self.assertEqual(list(manifest_path.parent.glob("*.tmp-*")), [])
 
     # ---- robustness: worker seeding + deterministic algorithms -------------
     @unittest.skipIf(torch is None, "torch not installed")

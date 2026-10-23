@@ -356,6 +356,8 @@ def write_training_run_manifest(manifest: TrainingRunManifest, out_path: Path) -
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path.with_suffix(out_path.suffix + f".tmp-{os.getpid()}-{int(time.time())}")
     tmp.write_text(json.dumps(manifest_to_dict(manifest), indent=2) + "\n", encoding="utf-8")
+    with open(tmp, "rb") as handle:
+        os.fsync(handle.fileno())  # flush bytes before the rename is visible (mirrors _atomic_torch_save)
     tmp.replace(out_path)
 
 
