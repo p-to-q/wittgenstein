@@ -236,6 +236,75 @@ function asScenePlan(ir: codecV2.IR): {
   };
 }
 
+/**
+ * Single source of truth for the image codec's warning codes.
+ *
+ * Every `ctx.logger.warn(...)` the image pipeline raises is classified into one
+ * of these codes and folded into `Art.metadata.warnings` (and therefore into the
+ * manifest's `metadata.warnings` row). The table is deliberately total: an
+ * unrecognised message still lands on `unclassified` rather than vanishing.
+ *
+ * Why this matters: `docs/codecs/image.md` records "fall-through warning
+ * symmetry" (PR #241) as the intent — every tier that falls through must say so
+ * in the receipt. Classification by message text is brittle, so the backstop
+ * makes a missing mapping visible in the manifest instead of silent
+ * (hard-constraints: "No silent fallbacks … Never swallow").
+ */
+export const IMAGE_WARNING_CODES = {
+  palette_overflow: "image/palette-overflow",
+  provider_latents_invalid: "image/provider-latents-invalid",
+  coarse_vq_invalid: "image/coarse-vq-invalid",
+  seed_code_invalid: "image/seed-code-invalid",
+  adapter_stub: "image/adapter-stub",
+  adapter_weights_unreadable: "image/adapter-weights-unreadable",
+  adapter_token_grid_mismatch: "image/adapter-token-grid-mismatch",
+  decoder_reference_bridge: "image/decoder-reference-bridge",
+  decoder_placeholder: "image/decoder-placeholder",
+  decoder_fallback: "image/decoder-fallback",
+  unclassified: "image/unclassified-warning",
+} as const;
+
+export type ImageWarningCode = (typeof IMAGE_WARNING_CODES)[keyof typeof IMAGE_WARNING_CODES];
+
+/**
+ * Map an image-pipeline warning message to a declared warning code.
+ *
+ * Total by construction: callers never need a "no match" branch, which is what
+ * previously let two adapter-resolution messages drop out of the manifest while
+ * still appearing on stderr.
+ */
+export function classifyImageWarning(message: string): ImageWarningCode {
+  if (message.includes("providerLatents failed validation")) {
+    return IMAGE_WARNING_CODES.provider_latents_invalid;
+  }
+  if (message.includes("coarseVq failed validation")) {
+    return IMAGE_WARNING_CODES.coarse_vq_invalid;
+  }
+  if (message.includes("seedCode failed validation")) {
+    return IMAGE_WARNING_CODES.seed_code_invalid;
+  }
+  if (message.includes("Using placeholder seed-expansion adapter")) {
+    return IMAGE_WARNING_CODES.adapter_stub;
+  }
+  if (message.includes("Using narrow-domain reference decoder bridge")) {
+    return IMAGE_WARNING_CODES.decoder_reference_bridge;
+  }
+  if (message.includes("Using dense placeholder frozen-decoder bridge")) {
+    return IMAGE_WARNING_CODES.decoder_placeholder;
+  }
+  if (message.includes("Reference decoder bridge unavailable")) {
+    return IMAGE_WARNING_CODES.decoder_fallback;
+  }
+  if (message.includes("Image adapter: could not load or parse JSON")) {
+    return IMAGE_WARNING_CODES.adapter_weights_unreadable;
+  }
+  if (message.includes("Image adapter: token_grid mismatch")) {
+    return IMAGE_WARNING_CODES.adapter_token_grid_mismatch;
+  }
+  // Backstop: record, never discard.
+  return IMAGE_WARNING_CODES.unclassified;
+}
+
 export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
   readonly name = "image";
   readonly id = "image";
@@ -245,16 +314,13 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     { id: "raster", match: () => true },
   ];
 
-  readonly warnings = {
-    palette_overflow: "image/palette-overflow",
-    provider_latents_invalid: "image/provider-latents-invalid",
-    coarse_vq_invalid: "image/coarse-vq-invalid",
-    seed_code_invalid: "image/seed-code-invalid",
-    adapter_stub: "image/adapter-stub",
-    decoder_reference_bridge: "image/decoder-reference-bridge",
-    decoder_placeholder: "image/decoder-placeholder",
-    decoder_fallback: "image/decoder-fallback",
-  } as const;
+  /**
+   * Declaration table for every warning the image pipeline may put on the
+   * sidecar -> `metadata.warnings` -> manifest `metadata.warnings` row.
+   * Sourced from the module-scope table so the declaration and the classifier
+   * below cannot drift apart.
+   */
+  readonly warnings = IMAGE_WARNING_CODES;
 
   protected override async expand(req: ImageRequest, ctx: codecV2.HarnessCtx): Promise<codecV2.IR> {
     const services = asServices(ctx.services);
@@ -481,40 +547,16 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         info: (message, data) => ctx.logger.info(message, data),
         warn: (message, data) => {
           ctx.logger.warn(message, data);
-          const code = this.warningCodeFor(message);
-          if (!code) {
-            return;
-          }
+          // `classifyImageWarning` is total (never null), so every warn reaches
+          // the sidecar. Dropping unmatched messages here silently deflated the
+          // manifest's `metadata.warnings` row while the operator still saw the
+          // line on stderr — the exact "never swallow" case ADR-0005 forbids.
+          const code = classifyImageWarning(message);
           ctx.sidecar.warnings.push({ code, message, detail: data, phase });
         },
         error: (message, data) => ctx.logger.error(message, data),
       },
     };
-  }
-
-  private warningCodeFor(message: string): string | null {
-    if (message.includes("providerLatents failed validation")) {
-      return this.warnings.provider_latents_invalid;
-    }
-    if (message.includes("coarseVq failed validation")) {
-      return this.warnings.coarse_vq_invalid;
-    }
-    if (message.includes("seedCode failed validation")) {
-      return this.warnings.seed_code_invalid;
-    }
-    if (message.includes("Using placeholder seed-expansion adapter")) {
-      return this.warnings.adapter_stub;
-    }
-    if (message.includes("Using narrow-domain reference decoder bridge")) {
-      return this.warnings.decoder_reference_bridge;
-    }
-    if (message.includes("Using dense placeholder frozen-decoder bridge")) {
-      return this.warnings.decoder_placeholder;
-    }
-    if (message.includes("Reference decoder bridge unavailable")) {
-      return this.warnings.decoder_fallback;
-    }
-    return null;
   }
 }
 
