@@ -159,6 +159,45 @@ jobs:
             echo "Skipping runtime TTS smoke on non-macOS runner"
           fi
 
+  training-tests:
+    name: Training tests (research/training receipt floor)
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        # 3.12 mirrors the rest of the CI matrix. This job is stdlib-only,
+        # so no requirements install is needed (see the test step below).
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Python unit tests (research/training receipt floor)
+        # Enforce the training stack's resume/checkpoint/closeout, manifest,
+        # data-versioning, experiment-tracking, and sweep-manifest guarantees
+        # on PRs. `research/training` was discovered by the change filter but
+        # never executed by CI before this job (report 19 §F2).
+        #
+        # Torch-free by design: the two `tokenizer/test_gan_*_smoke.py`
+        # modules import torch at import time (GPU-only smoke), so a naive
+        # `discover -s research/training` would fail at import on a torch-less
+        # runner. They are intentionally not listed here. Any torch-gated cases
+        # inside the modules below self-skip when torch is absent.
+        #
+        # The step runs from the repo root, so the modules import as
+        # `research.training.*` (matching the existing research/validation job).
+        run: |
+          python -m unittest -v \
+            research.training.test_resume_closeout_tools \
+            research.training._shared.test_manifest \
+            research.training._shared.test_data_versioning \
+            research.training._shared.test_experiment_tracking \
+            research.training._shared.test_sweep_manifest \
+            research.training._shared.test_sweep_cli
+
   verify-docs:
     name: Verify (docs)
     needs: changes
