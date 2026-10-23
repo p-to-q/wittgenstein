@@ -215,6 +215,9 @@ def train(cfg: TrainConfig) -> dict:
     else:
         corrupt_tally = None
         if cfg.num_workers > 0:
+            # Created from the same start method the DataLoader workers use, so a
+            # forked worker inherits this shared Value; under spawn it would not
+            # (and corrupt_count then honestly reports None instead of 0).
             corrupt_tally = multiprocessing.get_context(start_method).Value("q", 0)
         train_ds = ImageFolderDataset(
             Path(cfg.train_data_root),
@@ -472,6 +475,8 @@ def train(cfg: TrainConfig) -> dict:
             fake_logits = discriminator(recon.detach())
             d_loss = discriminator_loss(real_logits, fake_logits)
             d_loss.backward()
+            # D clips nothing (see `_total_grad_norm`), so record its raw total
+            # norm too — otherwise a D-side grad spike stays invisible in the receipt.
             components["grad_norm_d"] = _total_grad_norm(discriminator.parameters())
             d_optim.step()
             components["d_loss"] = float(d_loss.detach().cpu())
