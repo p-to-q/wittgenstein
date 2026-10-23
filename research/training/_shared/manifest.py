@@ -504,6 +504,9 @@ def _parse_timestamp(value: Any, label: str) -> datetime:
 def _validate_dataset(payload: Any) -> None:
     if not isinstance(payload, dict):
         raise ValueError("dataset must be an object")
+    # The four dataset-receipt fields are optional (F-1): receipts written
+    # before they existed must keep validating, and an ungrounded value is
+    # omitted rather than fabricated (see the TrainingRunDataset docstring).
     _assert_keys(
         payload,
         {"dvcRev", "name", "sha256"},
