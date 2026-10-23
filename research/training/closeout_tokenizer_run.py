@@ -19,6 +19,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from research.training.tokenizer.resume import manifest_path_for
+
 _STEP_RE = re.compile(r"step_(\d+)\.pt$")
 
 
@@ -44,21 +46,33 @@ def _step_number(path: Path) -> int:
     return int(match.group(1))
 
 
+def _is_complete_checkpoint(candidate: Path) -> bool:
+    """The `.pt` and its sibling manifest are one unit; the manifest is the
+    pair's commit marker, so a `.pt` without it is not a usable checkpoint."""
+    return manifest_path_for(candidate).exists()
+
+
 def latest_checkpoint(run_root: Path) -> Path:
     """Pick the highest-step periodic checkpoint; `final.pt` only as fallback.
 
     Selection is by parsed step number, never mtime, so a re-run over the same
     tree is deterministic. Periodic `step_*.pt` files take precedence;
-    `final.pt` is used only when no periodic checkpoint exists.
+    `final.pt` is used only when no periodic checkpoint exists. Only complete
+    pairs (checkpoint + sibling manifest) are eligible, so a dangling `.pt`
+    left by a crash mid-write is never selected.
     """
-    steps = [p for p in run_root.glob("**/ckpts/step_*.pt") if _step_number(p) >= 0]
+    steps = [
+        p
+        for p in run_root.glob("**/ckpts/step_*.pt")
+        if _step_number(p) >= 0 and _is_complete_checkpoint(p)
+    ]
     if steps:
         # max parsed step; ties broken by path so the result is order-stable
         return max(steps, key=lambda p: (_step_number(p), p.as_posix()))
-    finals = sorted(run_root.glob("**/ckpts/final.pt"))
+    finals = sorted(p for p in run_root.glob("**/ckpts/final.pt") if _is_complete_checkpoint(p))
     if finals:
         return finals[0]
-    raise FileNotFoundError(f"no step_*.pt or final.pt under {run_root}")
+    raise FileNotFoundError(f"no complete step_*.pt or final.pt pair under {run_root}")
 
 
 def main() -> int:
