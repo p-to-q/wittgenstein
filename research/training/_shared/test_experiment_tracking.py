@@ -53,6 +53,23 @@ class TrainingExperimentReceiptTests(unittest.TestCase):
         if not torch_was_loaded:
             self.assertNotIn("torch", sys.modules)
 
+    def test_log_event_writes_structured_non_metric_line(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tracker = JsonlExperimentTracker(Path(tmp) / "run", "run-1")
+            tracker.log_metrics(0, {"loss": 0.0})
+            tracker.log_event("eval_failed", errorType="RuntimeError", reason="boom")
+            lines = tracker.metrics_path.read_text(encoding="utf-8").splitlines()
+
+        records = [json.loads(line) for line in lines]
+        metrics = [r for r in records if r["type"] == "metrics"]
+        events = [r for r in records if r["type"] == "event"]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event"], "eval_failed")
+        self.assertEqual(events[0]["errorType"], "RuntimeError")
+        self.assertEqual(events[0]["reason"], "boom")
+        self.assertIn("at", events[0])
+
     def test_rejects_freeform_experiment_receipt_fields(self) -> None:
         with self.assertRaisesRegex(ValueError, "unrecognized keys"):
             assert_training_experiment_receipt_shape(

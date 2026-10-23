@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from .manifest import (
+    REQUIREMENTS_FLOOR_LABEL,
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
+    UNVERSIONED_DATASET_REVISION,
     assert_training_run_manifest_shape,
+    build_receipt_provenance,
     capture_dataset_fingerprint,
+    capture_dataset_revision,
     sha256_file,
 )
 from .smoke_manifest import build_smoke_manifest
@@ -77,6 +83,67 @@ class TrainingRunManifestSmokeTests(unittest.TestCase):
 
             with self.assertRaises(FileNotFoundError):
                 capture_dataset_fingerprint("dataset", [missing])
+
+    def test_dataset_revision_is_honest_about_absence(self) -> None:
+        # A real env rev is honored verbatim; absence is a typed marker, never a
+        # fabricated "uncommitted".
+        self.assertEqual(capture_dataset_revision("dvc-rev-abc123"), "dvc-rev-abc123")
+        self.assertEqual(capture_dataset_revision("  dvc-rev-abc123  "), "dvc-rev-abc123")
+        self.assertEqual(capture_dataset_revision(""), UNVERSIONED_DATASET_REVISION)
+        self.assertNotEqual(capture_dataset_revision(""), "uncommitted")
+
+        with mock.patch.dict(os.environ, {"WITT_DVC_REV": "env-rev-42"}):
+            self.assertEqual(capture_dataset_revision(), "env-rev-42")
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(capture_dataset_revision(), UNVERSIONED_DATASET_REVISION)
+
+    def test_default_fingerprint_revision_is_unversioned_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sample = Path(tmp) / "sample.jpg"
+            sample.write_bytes(b"content")
+            fp = capture_dataset_fingerprint("dataset", [sample])
+
+        self.assertEqual(fp.dvcRev, UNVERSIONED_DATASET_REVISION)
+        self.assertNotEqual(fp.dvcRev, "uncommitted")
+
+    def test_unversioned_rev_still_validates_in_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = build_smoke_manifest(Path(tmp), run_id="unversioned-rev-test")
+            payload = json.loads(Path(summary["manifestPath"]).read_text(encoding="utf-8"))
+
+        payload["dataset"]["dvcRev"] = UNVERSIONED_DATASET_REVISION
+        assert_training_run_manifest_shape(payload)  # nonempty sentinel stays valid
+
+    def test_receipt_provenance_labels_unknown_provenance(self) -> None:
+        prov = build_receipt_provenance(
+            UNVERSIONED_DATASET_REVISION,
+            dvc_pinned=False,
+            lockfile_source="research/training/requirements.txt",
+            unused_config_fields=("eval_every", "keep_last_n_checkpoints", "aim_repo"),
+        )
+        self.assertEqual(prov["datasetRevision"]["value"], UNVERSIONED_DATASET_REVISION)
+        self.assertFalse(prov["datasetRevision"]["dvcPinned"])
+        self.assertFalse(prov["lockfileSha256"]["pinned"])
+        self.assertEqual(prov["lockfileSha256"]["label"], REQUIREMENTS_FLOOR_LABEL)
+        self.assertEqual(
+            prov["unusedConfigFields"],
+            ["eval_every", "keep_last_n_checkpoints", "aim_repo"],
+        )
+
+        pinned = build_receipt_provenance(
+            "dvc-rev-abc123", dvc_pinned=True, lockfile_source="x", unused_config_fields=()
+        )
+        self.assertTrue(pinned["datasetRevision"]["dvcPinned"])
+
+    def test_config_marks_dead_fields_as_unused(self) -> None:
+        try:
+            from research.training.tokenizer.config import UNUSED_CONFIG_FIELDS
+        except ImportError:
+            self.skipTest("config.py imports torch via model.py")
+        self.assertEqual(
+            set(UNUSED_CONFIG_FIELDS),
+            {"eval_every", "keep_last_n_checkpoints", "aim_repo"},
+        )
 
 
 if __name__ == "__main__":

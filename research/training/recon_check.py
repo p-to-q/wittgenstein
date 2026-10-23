@@ -10,6 +10,12 @@ Run:
       --ckpt <path/to/step_XXXXXXXX.pt> \
       --data <path/to/image/folder> \
       --out  <output/dir>
+
+The `.pt` payload is written by `_write_checkpoint` (`train.py`) as
+{"model", "step", "optimizer", ...}: the checkpoint-native step key is `step`,
+distinct from the canonical *manifest* field `stepCount`. `checkpoint_step`
+reads that native key (importable without torch) and accepts `stepCount` as a
+forward-compatible alias.
 """
 
 from __future__ import annotations
@@ -18,9 +24,16 @@ import argparse
 import glob
 import os
 
-import numpy as np
-import torch
-from PIL import Image
+
+def checkpoint_step(payload: dict) -> int:
+    """Resolve the step from a checkpoint payload.
+
+    Prefers the checkpoint-native `step` key (see `_write_checkpoint`); falls
+    back to the canonical manifest name `stepCount` if a future payload uses it.
+    Returns -1 when neither is present so callers can report "unknown" honestly.
+    """
+    raw = payload.get("step", payload.get("stepCount", -1))
+    return int(raw)
 
 
 def find_image(root: str) -> str:
@@ -31,8 +44,12 @@ def find_image(root: str) -> str:
     raise FileNotFoundError(f"no images under {root}")
 
 
-def load_image(path: str, size: int) -> torch.Tensor:
+def load_image(path: str, size: int):
     """Center-crop to square, resize to `size`, normalize to [-1, 1] (LlamaGen)."""
+    import numpy as np
+    import torch
+    from PIL import Image
+
     img = Image.open(path).convert("RGB")
     w, h = img.size
     s = min(w, h)
@@ -42,8 +59,10 @@ def load_image(path: str, size: int) -> torch.Tensor:
     return (t * 2.0 - 1.0).unsqueeze(0)  # [1,3,H,W] in [-1,1]
 
 
-def to_png(t: torch.Tensor, path: str) -> None:
+def to_png(t, path: str) -> None:
     """t: [1,3,H,W] or [3,H,W] in [-1,1] -> uint8 PNG."""
+    from PIL import Image
+
     x = t.detach().float().cpu()
     if x.dim() == 4:
         x = x[0]
@@ -52,6 +71,8 @@ def to_png(t: torch.Tensor, path: str) -> None:
 
 
 def main() -> None:
+    import torch
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--data", required=True)
@@ -63,7 +84,7 @@ def main() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=True)
-    step = int(ckpt.get("step", -1))
+    step = checkpoint_step(ckpt)
     sd = ckpt["model"]
     sd = {k[len("module."):] if k.startswith("module.") else k: v for k, v in sd.items()}
 
