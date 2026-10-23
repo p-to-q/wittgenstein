@@ -14,6 +14,18 @@ export const TrainingRunDatasetSchema = z
     dvcRev: z.string().min(1),
     name: z.string().min(1),
     sha256: Sha256Schema,
+    // Deterministic dataset-receipt fields mirrored from
+    // polyglot-mini/train/data_manifest.py (see report 19 F-1). Optional so
+    // receipts written before this addition still validate; a producer that
+    // cannot ground one of them omits it rather than emitting a fake value.
+    // `sourceInputSha256` pins the source input INDEX the selection was made
+    // from, `canonicalSelectionSha256` pins the canonically sorted SELECTION
+    // (a re-selection reproduces the digest), and the count pair makes a
+    // requested-vs-written gap visible.
+    sourceInputSha256: Sha256Schema.optional(),
+    requestedCount: z.number().int().nonnegative().optional(),
+    writtenCount: z.number().int().nonnegative().optional(),
+    canonicalSelectionSha256: Sha256Schema.optional(),
   })
   .strict();
 
