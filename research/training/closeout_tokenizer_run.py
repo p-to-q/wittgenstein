@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+_STEP_RE = re.compile(r"step_(\d+)\.pt$")
 
 
 def run(cmd: list[str], cwd: Path, out_file: Path) -> int:
@@ -34,12 +37,28 @@ def run(cmd: list[str], cwd: Path, out_file: Path) -> int:
     return proc.returncode
 
 
+def _step_number(path: Path) -> int:
+    match = _STEP_RE.match(path.name)
+    if not match:
+        return -1
+    return int(match.group(1))
+
+
 def latest_checkpoint(run_root: Path) -> Path:
-    candidates = sorted(run_root.glob("**/ckpts/step_*.pt"))
-    candidates.extend(sorted(run_root.glob("**/ckpts/final.pt")))
-    if not candidates:
-        raise FileNotFoundError(f"no step_*.pt or final.pt under {run_root}")
-    return max(candidates, key=lambda p: p.stat().st_mtime)
+    """Pick the highest-step periodic checkpoint; `final.pt` only as fallback.
+
+    Selection is by parsed step number, never mtime, so a re-run over the same
+    tree is deterministic. Periodic `step_*.pt` files take precedence;
+    `final.pt` is used only when no periodic checkpoint exists.
+    """
+    steps = [p for p in run_root.glob("**/ckpts/step_*.pt") if _step_number(p) >= 0]
+    if steps:
+        # max parsed step; ties broken by path so the result is order-stable
+        return max(steps, key=lambda p: (_step_number(p), p.as_posix()))
+    finals = sorted(run_root.glob("**/ckpts/final.pt"))
+    if finals:
+        return finals[0]
+    raise FileNotFoundError(f"no step_*.pt or final.pt under {run_root}")
 
 
 def main() -> int:
