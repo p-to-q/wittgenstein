@@ -193,6 +193,7 @@ For agents reading this doc cold, the lineage from scene-spec doctrine to today'
 | SeedExpander seam              | PR #243                                                            | Pure abstraction; placeholder behavior preserved byte-for-byte                                      |
 | Two-pass acceptance test cases | PR #242                                                            | Cases 8 / 9 / 8b / collapsed pinned per `docs/research/2026-05-07-vsc-acceptance-cases.md`          |
 | Fall-through warning symmetry  | PR #241                                                            | `coarseVq` and `seedCode` validation failures emit `ctx.logger.warn` like `providerLatents`         |
+| Total warning receipts         | Issue #659                                                         | Adapter-resolution warnings receive stable manifest codes; unknown warning text remains receipted |
 | Adapter outcome → `renderPath` | PR #250                                                            | Manifest now records _outcome_ (which tier fired) distinct from _intent_ (`imageCode.path`)         |
 | Second SeedExpander            | PR #252                                                            | `tileMosaicSeedExpander` demonstrates the seam swaps                                                |
 | Theoretical anchor             | `docs/research/2026-05-08-vsc-as-compression-prior.md`             | Why VSC is a defensible research bet, family-agnostic                                               |
