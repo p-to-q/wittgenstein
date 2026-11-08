@@ -336,9 +336,25 @@ export class Wittgenstein {
             }
           }
         } else {
-          manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
           const noReportedTokens =
             (artMeta.llmTokens?.input ?? 0) === 0 && (artMeta.llmTokens?.output ?? 0) === 0;
+          if (
+            artMeta.costUsd === undefined &&
+            (artMeta.costUsdReason === "computed" ||
+              (!noReportedTokens && artMeta.costUsdReason === undefined))
+          ) {
+            throw new WittgensteinError(
+              "LLM_RECEIPT_MISMATCH",
+              "Codec metadata reports LLM usage without a complete cost receipt.",
+              {
+                details: {
+                  declaredCostUsdReason: artMeta.costUsdReason,
+                  declaredLlmTokens: artMeta.llmTokens,
+                },
+              },
+            );
+          }
+          manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
           // Older v2 codecs use costUsd: 0 for dry-run/local output. Zero
           // usage is the evidence that lets the harness normalize that into
           // the manifest's explicit no-call receipt.

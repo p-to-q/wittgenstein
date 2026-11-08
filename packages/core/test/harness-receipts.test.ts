@@ -50,6 +50,11 @@ interface TestCodecOptions {
   writeArtifact?: boolean;
   metadataCostUsd?: number;
   metadataCostUsdReason?: CostUsdReason;
+  metadataReceipt?: {
+    llmTokens?: { input: number; output: number };
+    costUsd?: number | null;
+    costUsdReason?: CostUsdReason;
+  };
   metadataArtifactSha256?: string;
   manifestRows?: ReadonlyArray<codecV2.ManifestRow>;
 }
@@ -63,6 +68,7 @@ function testRegistry(options: TestCodecOptions = {}): CodecRegistry {
     writeArtifact = true,
     metadataCostUsd,
     metadataCostUsdReason,
+    metadataReceipt,
     metadataArtifactSha256,
     manifestRows = [],
   } = options;
@@ -93,11 +99,11 @@ function testRegistry(options: TestCodecOptions = {}): CodecRegistry {
           promptExpanded: "codec-authored prompt",
           llmOutputRaw: "codec-authored output",
           ...(includeLlmMetadata
-            ? {
+            ? (metadataReceipt ?? {
                 llmTokens: { input: 10 * metadataCalls, output: 5 * metadataCalls },
                 costUsd: metadataCostUsd ?? 0.01 * metadataCalls,
                 costUsdReason: metadataCostUsdReason ?? ("computed" as const),
-              }
+              })
             : {}),
           artifactSha256:
             metadataArtifactSha256 ?? createHash("sha256").update(bytes).digest("hex"),
@@ -301,6 +307,40 @@ describe("harness LLM receipts and budget enforcement", () => {
     });
     expect(outcome.manifest.costUsd).toBeNull();
     expect(outcome.manifest.costUsdReason).toBe("no-llm-call");
+  });
+
+  it.each([
+    {
+      name: "nonzero tokens without a cost receipt",
+      receipt: { llmTokens: { input: 4, output: 2 } },
+    },
+    {
+      name: "computed cost without an amount",
+      receipt: { llmTokens: { input: 0, output: 0 }, costUsdReason: "computed" as const },
+    },
+  ])("writes a structured failure for $name", async ({ receipt }) => {
+    const harness = new Wittgenstein(
+      DEFAULT_WITTGENSTEIN_CONFIG,
+      testRegistry({ calls: 0, metadataReceipt: receipt }),
+      null,
+    );
+    const outcome = await harness.run(
+      { modality: "image", prompt: "incomplete no-call receipt" },
+      { command: "test", args: [], cwd },
+    );
+    const writtenManifest = JSON.parse(
+      await readFile(join(outcome.runDir, "manifest.json"), "utf8"),
+    );
+
+    expect(outcome.error?.code).toBe("LLM_RECEIPT_MISMATCH");
+    expect(outcome.manifest.error?.details).toMatchObject({ declaredLlmTokens: receipt.llmTokens });
+    if (receipt.costUsdReason) {
+      expect(outcome.manifest.error?.details).toMatchObject({
+        declaredCostUsdReason: receipt.costUsdReason,
+      });
+    }
+    expect(writtenManifest.error.code).toBe("LLM_RECEIPT_MISMATCH");
+    expect(RunManifestSchema.safeParse(writtenManifest).success).toBe(true);
   });
 
   it("fails the run when a codec does not write its declared artifact", async () => {
