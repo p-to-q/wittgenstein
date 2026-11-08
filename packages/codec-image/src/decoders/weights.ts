@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import {
   CLOSED_TRACKERS,
@@ -9,14 +9,25 @@ import {
 } from "@wittgenstein/schemas";
 import type { LoadDecoderBridgeOptions } from "./types.js";
 
+const RelativeAssetPathSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) =>
+      !/[\\:]/.test(value) &&
+      !value.includes("\0") &&
+      value.split("/").every((part) => part !== "" && part !== "." && part !== ".."),
+    "Asset filename must be a relative path without parent traversal or platform-specific separators.",
+  );
+
 export const DecoderWeightsManifestSchema = z
   .object({
-    family: z.string().min(1),
+    family: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
     repoId: z.string().min(1),
     revision: z.string().min(1),
-    weightsFilename: z.string().min(1),
+    weightsFilename: RelativeAssetPathSchema,
     weightsSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    codebookFilename: z.string().min(1).optional(),
+    codebookFilename: RelativeAssetPathSchema.optional(),
     codebookSha256: z
       .string()
       .regex(/^[a-f0-9]{64}$/)
@@ -30,7 +41,18 @@ export const DecoderWeightsManifestSchema = z
   .refine((manifest) => Boolean(manifest.codebookFilename) === Boolean(manifest.codebookSha256), {
     message: "codebookFilename and codebookSha256 must be provided together",
     path: ["codebookFilename"],
-  });
+  })
+  .refine(
+    (manifest) =>
+      manifest.codebookFilename === undefined ||
+      manifest.weightsFilename.normalize("NFC").toLowerCase() !==
+        manifest.codebookFilename.normalize("NFC").toLowerCase() ||
+      manifest.weightsSha256 === manifest.codebookSha256,
+    {
+      message: "Assets sharing a cache path (including case aliases) must have the same sha256.",
+      path: ["codebookFilename"],
+    },
+  );
 
 export type DecoderWeightsManifest = z.infer<typeof DecoderWeightsManifestSchema>;
 
@@ -145,16 +167,18 @@ export async function resolveDecoderWeights(
 ): Promise<ResolvedDecoderWeights> {
   const manifest = DecoderWeightsManifestSchema.parse(options.manifest);
   enforceResearchWeightsOptIn(manifest, options);
-  const cacheDir = resolve(
-    options.cacheDir ?? defaultDecoderCacheDir(),
-    manifest.family,
-    manifest.weightsSha256,
-  );
+  const cacheRoot = resolve(options.cacheDir ?? defaultDecoderCacheDir());
+  const cacheDir = resolve(cacheRoot, manifest.family, manifest.weightsSha256);
   const assets = assetsForManifest(manifest);
   const assetPaths = new Map(
     assets.map((asset) => [asset.kind, resolve(cacheDir, asset.filename)] as const),
   );
   const missingAssets: DecoderWeightsAsset[] = [];
+
+  // Check every asset before verification, which may remove corrupt cache entries.
+  for (const assetPath of assetPaths.values()) {
+    await assertCachePath(cacheRoot, assetPath);
+  }
 
   for (const asset of assets) {
     const assetPath = assetPaths.get(asset.kind)!;
@@ -196,10 +220,12 @@ export async function resolveDecoderWeights(
     }
 
     const assetPath = assetPaths.get(asset.kind)!;
-    const tmpPath = `${assetPath}.tmp-${Date.now()}`;
+    const tmpPath = `${assetPath}.tmp-${randomUUID()}`;
+    await assertCachePath(cacheRoot, assetPath);
     await mkdir(dirname(assetPath), { recursive: true });
+    await assertCachePath(cacheRoot, assetPath);
     try {
-      await writeFile(tmpPath, bytes);
+      await writeFile(tmpPath, bytes, { flag: "wx" });
       await rename(tmpPath, assetPath);
     } catch (error) {
       await rm(tmpPath, { force: true });
@@ -208,6 +234,32 @@ export async function resolveDecoderWeights(
   }
 
   return resolvedWeights(manifest, assetPaths, "fetched");
+}
+
+async function assertCachePath(cacheRoot: string, assetPath: string): Promise<void> {
+  const parts = relative(cacheRoot, assetPath).split(sep);
+  let current = cacheRoot;
+  // An explicitly selected cache root may itself be a symlink. Every
+  // descendant is checked so assets cannot escape through a nested link.
+  for (const part of parts) {
+    const next = resolve(current, part);
+    try {
+      const stat = await lstat(next);
+      if (stat.isSymbolicLink()) {
+        throw Object.assign(new Error("Decoder cache paths must not traverse symbolic links."), {
+          name: "WittgensteinError",
+          code: "DECODER_CACHE_PATH_INVALID",
+          details: { cacheRoot, assetPath, symlinkPath: next },
+        });
+      }
+      current = next;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
+  }
 }
 
 function enforceResearchWeightsOptIn(

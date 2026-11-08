@@ -38,6 +38,7 @@ jobs:
               - "scripts/**"
               - "fixtures/**"
               - "benchmarks/**"
+              - "bench/**"
               - "examples/**"
               - "python/**"
               - "data/image_adapter/**"
@@ -122,6 +123,16 @@ jobs:
 
       - name: Install Python deps
         run: python -m pip install --upgrade pip && python -m pip install -r polyglot-mini/requirements.txt
+
+      - name: Training receipt and recovery unit tests (no training)
+        run: |
+          python -m unittest \
+            research.training._shared.test_manifest \
+            research.training._shared.test_experiment_tracking \
+            research.training._shared.test_data_versioning \
+            research.training._shared.test_sweep_manifest \
+            research.training._shared.test_sweep_cli \
+            research.training.test_resume_closeout_tools -v
 
       - name: Python compile
         run: python -m compileall polyglot-mini/polyglot polyglot-mini/train

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -24,6 +24,98 @@ afterEach(async () => {
 });
 
 describe("decoder weight resolver", () => {
+  it.each(["../outside", ".", "..", "/absolute", "C:\\outside"])(
+    "rejects unsafe family cache components: %s",
+    (family) => {
+      const result = DecoderWeightsManifestSchema.safeParse({
+        ...manifestFor(new Uint8Array([1])),
+        family,
+      });
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it.each([
+    "../outside",
+    "nested/../../outside",
+    "/absolute",
+    "C:\\outside",
+    "nested\\outside",
+    ".",
+  ])("rejects unsafe asset paths before reading or fetching: %s", async (filename) => {
+    for (const field of ["weightsFilename", "codebookFilename"] as const) {
+      const manifest = {
+        ...manifestFor(new Uint8Array([1]), "permissive", new Uint8Array([2])),
+        [field]: filename,
+      };
+      await expect(resolveDecoderWeights({ manifest, cacheDir: tmp })).rejects.toMatchObject({
+        name: "ZodError",
+        issues: expect.arrayContaining([expect.objectContaining({ path: [field] })]),
+      });
+    }
+  });
+
+  it("does not delete a file outside the cache named by a manifest", async () => {
+    const outsidePath = join(tmp, "outside.txt");
+    await writeFile(outsidePath, "preserve me");
+    const manifest = {
+      ...manifestFor(new TextEncoder().encode("expected")),
+      weightsFilename: outsidePath,
+    };
+
+    await expect(
+      resolveDecoderWeights({ manifest, cacheDir: join(tmp, "cache") }),
+    ).rejects.toThrow();
+    expect(await readFile(outsidePath, "utf8")).toBe("preserve me");
+  });
+
+  it.each(["family", "directory", "file"] as const)(
+    "rejects a symlink in the %s cache component without deleting its target",
+    async (component) => {
+      const bytes = new TextEncoder().encode("expected");
+      const manifest = { ...manifestFor(bytes), weightsFilename: "nested/decoder.onnx" };
+      const cacheRoot = join(tmp, "cache");
+      const familyPath = join(cacheRoot, manifest.family);
+      const assetDir = join(familyPath, manifest.weightsSha256, "nested");
+      const outsideDir = join(tmp, "outside");
+      await mkdir(outsideDir, { recursive: true });
+      const outsidePath = join(outsideDir, "decoder.onnx");
+      await writeFile(outsidePath, "preserve me");
+
+      if (component === "family") {
+        await mkdir(cacheRoot, { recursive: true });
+        await symlink(outsideDir, familyPath, "dir");
+      } else if (component === "directory") {
+        await mkdir(join(familyPath, manifest.weightsSha256), { recursive: true });
+        await symlink(outsideDir, assetDir, "dir");
+      } else {
+        await mkdir(assetDir, { recursive: true });
+        await symlink(outsidePath, join(assetDir, "decoder.onnx"));
+      }
+
+      await expect(
+        resolveDecoderWeights({ manifest, cacheDir: cacheRoot, fetcher: async () => bytes }),
+      ).rejects.toMatchObject({ code: "DECODER_CACHE_PATH_INVALID" });
+      expect(await readFile(outsidePath, "utf8")).toBe("preserve me");
+    },
+  );
+
+  it("supports nested asset paths and an explicitly selected symlinked cache root", async () => {
+    const bytes = new TextEncoder().encode("nested-weights");
+    const manifest = { ...manifestFor(bytes), weightsFilename: "onnx/cpu/decoder.onnx" };
+    const cacheRoot = join(tmp, "cache");
+    const cacheAlias = join(tmp, "cache-alias");
+    await mkdir(cacheRoot);
+    await symlink(cacheRoot, cacheAlias, "dir");
+
+    const result = await resolveDecoderWeights({
+      manifest,
+      cacheDir: cacheAlias,
+      fetcher: async () => bytes,
+    });
+    expect(await readFile(result.weightsPath)).toEqual(Buffer.from(bytes));
+  });
+
   it("resolves cached weights after sha256 verification", async () => {
     const bytes = new TextEncoder().encode("cached-weights");
     const manifest = manifestFor(bytes);
@@ -162,6 +254,48 @@ describe("decoder weight resolver", () => {
     };
 
     expect(DecoderWeightsManifestSchema.safeParse(manifest).success).toBe(false);
+  });
+
+  it.each(["decoder.onnx", "DECODER.ONNX"])(
+    "rejects conflicting assets sharing a portable cache path: %s",
+    async (codebookFilename) => {
+      const weights = new TextEncoder().encode("weights");
+      const codebook = new TextEncoder().encode("codebook");
+      const manifest = { ...manifestFor(weights, "permissive", codebook), codebookFilename };
+      let fetchCount = 0;
+
+      await expect(
+        resolveDecoderWeights({
+          manifest,
+          cacheDir: tmp,
+          fetcher: async (asset) => {
+            fetchCount += 1;
+            return asset.kind === "weights" ? weights : codebook;
+          },
+        }),
+      ).rejects.toMatchObject({
+        name: "ZodError",
+        issues: expect.arrayContaining([expect.objectContaining({ path: ["codebookFilename"] })]),
+      });
+      expect(fetchCount).toBe(0);
+    },
+  );
+
+  it("allows one file to supply weights and codebook when their hashes agree", async () => {
+    const bytes = new TextEncoder().encode("shared-asset");
+    const manifest = {
+      ...manifestFor(bytes, "permissive", bytes),
+      codebookFilename: "decoder.onnx",
+    };
+    const resolved = await resolveDecoderWeights({
+      manifest,
+      cacheDir: tmp,
+      fetcher: async () => bytes,
+    });
+
+    expect(resolved.weightsPath).toBe(resolved.codebookPath);
+    expect(await readFile(resolved.weightsPath)).toEqual(Buffer.from(bytes));
+    expect(resolved.weightsSha256).toBe(resolved.codebookSha256);
   });
 });
 

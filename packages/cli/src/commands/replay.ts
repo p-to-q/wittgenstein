@@ -246,7 +246,7 @@ export async function replayManifest(
       issues: requestValidation.error.issues,
     };
   }
-  const request: WittgensteinRequest = requestValidation.data;
+  const request: WittgensteinRequest = { ...requestValidation.data, seed: manifest.seed };
 
   if (request.modality !== manifest.codec) {
     return {
@@ -278,6 +278,22 @@ export async function replayManifest(
   const liveLlmCall =
     manifest.llmTokens.input + manifest.llmTokens.output > 0 ||
     (typeof manifest.costUsd === "number" && manifest.costUsd > 0);
+  const noLlmCallReceipt =
+    manifest.costUsd === null &&
+    manifest.costUsdReason === "no-llm-call" &&
+    manifest.llmTokens.input === 0 &&
+    manifest.llmTokens.output === 0;
+  if (!imageRoute && !liveLlmCall && !noLlmCallReceipt) {
+    return {
+      ok: false,
+      code: "REPLAY_LLM_RECEIPT_INCOMPLETE",
+      message:
+        "This non-image manifest does not prove that no LLM call occurred; replay is refused instead of substituting dry-run output.",
+      llmTokens: manifest.llmTokens,
+      costUsd: manifest.costUsd,
+      costUsdReason: manifest.costUsdReason ?? null,
+    };
+  }
   if (!imageRoute && liveLlmCall) {
     return {
       ok: false,
@@ -579,7 +595,8 @@ export async function replayManifest(
     return {
       ok: false,
       code: "REPLAY_ARTIFACT_READ_FAILED",
-      message: "Structural comparison needs both artifact files on disk; one path is missing from its manifest.",
+      message:
+        "Structural comparison needs both artifact files on disk; one path is missing from its manifest.",
       baselineArtifactPath,
       replayArtifactPath,
       ...evidence,

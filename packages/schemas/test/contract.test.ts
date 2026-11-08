@@ -837,6 +837,28 @@ describe("@wittgenstein/schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it.each(["unknown-model", "missing-usage"] as const)(
+    "requires null cost for %s receipts",
+    (costUsdReason) => {
+      const parsed = RunManifestSchema.safeParse({
+        ...okManifestFields(),
+        costUsd: 0,
+        costUsdReason,
+      });
+      expect(parsed.success).toBe(false);
+    },
+  );
+
+  it("requires zero tokens for a no-LLM-call receipt", () => {
+    const parsed = RunManifestSchema.safeParse({
+      ...okManifestFields(),
+      llmTokens: { input: 1, output: 2 },
+      costUsd: null,
+      costUsdReason: "no-llm-call",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects manifest with negative llmTokens.input", () => {
     const parsed = RunManifestSchema.safeParse({
       ...okManifestFields(),

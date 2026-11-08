@@ -7,11 +7,7 @@ export class WittgensteinError extends Error {
   public readonly code: string;
   public readonly details: Record<string, unknown> | undefined;
 
-  public constructor(
-    code: string,
-    message: string,
-    options: WittgensteinErrorOptions = {},
-  ) {
+  public constructor(code: string, message: string, options: WittgensteinErrorOptions = {}) {
     super(message, { cause: options.cause });
     this.name = "WittgensteinError";
     this.code = code;
@@ -43,14 +39,17 @@ export class BudgetExceededError extends WittgensteinError {
 export interface SerializedError {
   code: string;
   message: string;
+  details?: Record<string, unknown>;
   stack: string | undefined;
 }
 
 export function serializeError(error: unknown): SerializedError {
   if (error instanceof WittgensteinError) {
+    const details = serializeErrorDetails(error.details);
     return {
       code: error.code,
       message: error.message,
+      ...(details ? { details } : {}),
       stack: error.stack,
     };
   }
@@ -63,13 +62,12 @@ export function serializeError(error: unknown): SerializedError {
     "code" in error &&
     typeof error.code === "string"
   ) {
+    const details = "details" in error ? serializeErrorDetails(error.details) : undefined;
     return {
       code: error.code,
       message: error.message,
-      stack:
-        "stack" in error && typeof error.stack === "string"
-          ? error.stack
-          : undefined,
+      ...(details ? { details } : {}),
+      stack: "stack" in error && typeof error.stack === "string" ? error.stack : undefined,
     };
   }
 
@@ -86,4 +84,18 @@ export function serializeError(error: unknown): SerializedError {
     message: String(error),
     stack: undefined,
   };
+}
+
+function serializeErrorDetails(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(JSON.stringify(value));
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }

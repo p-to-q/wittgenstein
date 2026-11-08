@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from research.training import supervise_tokenizer_run as supervisor
 from research.training.closeout_tokenizer_run import latest_checkpoint
 from research.training.supervise_tokenizer_run import (
     build_train_cmd,
@@ -59,6 +63,35 @@ class TokenizerResumeCloseoutToolTests(unittest.TestCase):
         self.assertIn("/runs/ckpts/step_00002000.pt", cmd)
         self.assertIn("--no-lpips", cmd)
         self.assertIn("--no-gan", cmd)
+
+    def test_supervisor_scans_and_writes_the_same_relative_output_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            caller_root = Path(tmp).resolve()
+            repo_root = caller_root / "repo"
+            repo_root.mkdir()
+            original_cwd = Path.cwd()
+            try:
+                os.chdir(caller_root)
+                with (
+                    patch.object(sys, "argv", [
+                        "supervise", "--repo-root", str(repo_root),
+                        "--train-data-root", "/data/train", "--out-root", "runs",
+                        "--log", str(caller_root / "supervise.log"),
+                        "--deadline-hours", "1",
+                    ]),
+                    patch.object(supervisor, "git_sha", return_value=""),
+                    patch.object(supervisor, "latest_step_checkpoint", return_value=None) as latest,
+                    patch.object(supervisor, "run_once", return_value=0) as run_once,
+                ):
+                    self.assertEqual(supervisor.main(), 0)
+            finally:
+                os.chdir(original_cwd)
+
+            expected_root = caller_root / "runs"
+            self.assertEqual(latest.call_args.args[0], expected_root)
+            args, cmd = run_once.call_args.args[:2]
+            self.assertEqual(args.repo_root, repo_root)
+            self.assertEqual(cmd[cmd.index("--out-root") + 1], str(expected_root))
 
     def test_closeout_latest_checkpoint_considers_final_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

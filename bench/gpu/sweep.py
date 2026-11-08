@@ -101,7 +101,6 @@ def main() -> int:
                     dataset_snapshot_path=dataset_snapshot_path,
                     training_manifest_path=_resolve(Path(summary["manifestPath"])),
                     experiment_receipt_path=_resolve(Path(summary["experimentReceiptPath"])),
-                    metrics=[{"name": "loss", "value": 0.0, "unit": "loss", "higherIsBetter": False}],
                 )
             )
             emitted_rows[-1] = _relativize_row_paths(emitted_rows[-1])
