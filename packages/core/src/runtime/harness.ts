@@ -390,13 +390,6 @@ export class Wittgenstein {
         // Codec metadata may include work outside services.llm. Charge only the
         // difference: successful service calls have already consumed this budget.
         const spent = budget.snapshot();
-        budget.consume(
-          Math.max(
-            0,
-            (artMeta.llmTokens?.input ?? 0) + (artMeta.llmTokens?.output ?? 0) - spent.tokens,
-          ),
-          Math.max(0, (artMeta.costUsd ?? 0) - spent.costUsd),
-        );
         const actualArtifactSha256 = await hashFileOrThrow(produced.outPath);
         const hashClaims: Array<{ source: string; value: unknown }> = [
           { source: "metadata", value: artMeta.artifactSha256 },
@@ -429,6 +422,13 @@ export class Wittgenstein {
         foldManifestRows(
           manifest,
           manifestRows.filter((row) => row.key === "artifact.sha256"),
+        );
+        budget.consume(
+          Math.max(
+            0,
+            (artMeta.llmTokens?.input ?? 0) + (artMeta.llmTokens?.output ?? 0) - spent.tokens,
+          ),
+          Math.max(0, (artMeta.costUsd ?? 0) - spent.costUsd),
         );
         result = toRenderResult(produced);
         manifest.ok = true;

@@ -451,6 +451,13 @@ describe("harness LLM receipts and budget enforcement", () => {
     expect(outcome.manifest.llmOutputRaw).toBe("codec-authored output");
     expect(outcome.manifest.costUsd).toBe(0.01);
     expect(await readFile(outcome.manifest.artifactPath!, "utf8")).toBe("test artifact");
+    const expectedArtifactSha256 = createHash("sha256").update("test artifact").digest("hex");
+    expect(outcome.manifest.artifactSha256).toBe(expectedArtifactSha256);
+    const writtenManifest = JSON.parse(
+      await readFile(join(outcome.runDir, "manifest.json"), "utf8"),
+    );
+    expect(writtenManifest.artifactSha256).toBe(expectedArtifactSha256);
+    expect(RunManifestSchema.safeParse(writtenManifest).success).toBe(true);
   });
 
   it("does not invent a price when an unpriced LLM response fails parsing", async () => {
