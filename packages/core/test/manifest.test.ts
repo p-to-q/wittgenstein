@@ -302,6 +302,19 @@ describe("assertRunManifestValid (2026-10-16 Stage B)", () => {
     expect(() => assertRunManifestValid(validFailedManifest())).not.toThrow();
   });
 
+  it("accepts structured error details in a failed-run manifest", () => {
+    expect(() =>
+      assertRunManifestValid({
+        ...validFailedManifest(),
+        error: {
+          code: "ARTIFACT_HASH_MISMATCH",
+          message: "digest mismatch",
+          details: { source: "metadata" },
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it("accepts a valid successful-run manifest", () => {
     expect(() => assertRunManifestValid(validSuccessfulManifest())).not.toThrow();
   });

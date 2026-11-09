@@ -230,6 +230,7 @@ export const RunManifestSchema = z
       .object({
         code: z.string(),
         message: z.string(),
+        details: z.record(z.unknown()).optional(),
         stack: z.string().optional(),
       })
       .nullable()
@@ -381,6 +382,26 @@ export const RunManifestSchema = z
         path: ["costUsd"],
         message:
           'costUsdReason = "no-llm-call" requires costUsd === null (no LLM round-trip occurred).',
+      });
+    }
+    if (
+      (manifest.costUsdReason === "unknown-model" || manifest.costUsdReason === "missing-usage") &&
+      manifest.costUsd !== null
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["costUsd"],
+        message: `costUsdReason = "${manifest.costUsdReason}" requires costUsd === null.`,
+      });
+    }
+    if (
+      manifest.costUsdReason === "no-llm-call" &&
+      (manifest.llmTokens.input !== 0 || manifest.llmTokens.output !== 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["llmTokens"],
+        message: 'costUsdReason = "no-llm-call" requires zero recorded LLM tokens.',
       });
     }
   });

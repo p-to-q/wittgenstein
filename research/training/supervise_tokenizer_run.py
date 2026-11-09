@@ -171,6 +171,8 @@ def main() -> int:
 
     args.repo_root = Path(args.repo_root).resolve()
     out_root = Path(args.out_root).resolve()
+    # The child runs from repo_root; use the same path that checkpoint scans use.
+    args.out_root = str(out_root)
     fallback = Path(args.resume_from).resolve() if args.resume_from else None
     log_path = Path(args.log).resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)

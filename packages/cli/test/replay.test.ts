@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ImageDecoderBridge } from "@wittgenstein/codec-image";
 import { LLAMAGEN_DECODER_ID } from "@wittgenstein/codec-image";
-import type { RunManifest, WittgensteinRequest } from "@wittgenstein/schemas";
+import type { CostUsdReason, RunManifest, WittgensteinRequest } from "@wittgenstein/schemas";
 import { replayManifest } from "../src/commands/replay.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -127,7 +127,7 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
   // 30s allowance: two CLI spawns (baseline + replay, tsx startup each)
   // exceed vitest's 5s default under load — plain `pnpm test` (CI) must
   // pass; found 2026-10-16 during the pre-push CI-mirror sweep.
-  it("sensor dry-run is byte-reproducible via replay", async () => {
+  it("sensor replay uses the recorded integer seed over the request seed", async () => {
     // Keep the default output basename (`output.*`) for both baseline and replay.
     // The optional Loupe dashboard path embeds only the basename, so this remains
     // byte-stable whether the Python dashboard or static fallback renders HTML.
@@ -160,11 +160,79 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
 
     const baselineManifest = join(baselineOutput.runDir, "manifest.json");
     const manifestRaw = JSON.parse(await readFile(baselineManifest, "utf8")) as {
-      request?: unknown;
+      seed: number | null;
+      request?: Record<string, unknown>;
       artifactSha256?: string | null;
     };
+    expect(manifestRaw.seed).toBe(42);
     expect(manifestRaw.request).toBeDefined();
     expect(manifestRaw.artifactSha256).toBeTruthy();
+    await writeFile(
+      baselineManifest,
+      JSON.stringify({
+        ...manifestRaw,
+        request: { ...manifestRaw.request, seed: 7 },
+      }),
+      "utf8",
+    );
+
+    const replay = spawnSync(process.execPath, [cliBin, "replay", baselineManifest], {
+      cwd: packageRoot,
+      encoding: "utf8",
+    });
+    expect(replay.status).toBe(0);
+    const replayOutput = JSON.parse(replay.stdout) as {
+      ok: boolean;
+      code: string;
+      baselineArtifactSha256: string;
+      replayArtifactSha256: string;
+    };
+    expect(replayOutput.ok).toBe(true);
+    expect(replayOutput.code).toBe("REPLAY_OK");
+    expect(replayOutput.replayArtifactSha256).toBe(replayOutput.baselineArtifactSha256);
+  }, 30_000);
+
+  it("sensor replay preserves a recorded null seed over an explicit request seed", async () => {
+    const baseline = spawnSync(
+      process.execPath,
+      [
+        cliBin,
+        "sensor",
+        "deterministic ecg replay with null seed",
+        "--dry-run",
+        "--signal",
+        "ecg",
+        "--sample-rate-hz",
+        "32",
+        "--duration-sec",
+        "2",
+      ],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+    expect(baseline.status).toBe(0);
+    const baselineOutput = JSON.parse(baseline.stdout) as {
+      ok: boolean;
+      runDir: string;
+    };
+    expect(baselineOutput.ok).toBe(true);
+
+    const baselineManifest = join(baselineOutput.runDir, "manifest.json");
+    const manifestRaw = JSON.parse(await readFile(baselineManifest, "utf8")) as {
+      seed: number | null;
+      request?: Record<string, unknown>;
+      artifactSha256?: string | null;
+    };
+    expect(manifestRaw.seed).toBeNull();
+    expect(manifestRaw.request).toBeDefined();
+    expect(manifestRaw.artifactSha256).toBeTruthy();
+    await writeFile(
+      baselineManifest,
+      JSON.stringify({
+        ...manifestRaw,
+        request: { ...manifestRaw.request, seed: 42 },
+      }),
+      "utf8",
+    );
 
     const replay = spawnSync(process.execPath, [cliBin, "replay", baselineManifest], {
       cwd: packageRoot,
@@ -346,7 +414,12 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
       request: { modality: "image", prompt: "malformed row" },
       llmOutputRaw: imageSceneJson(),
       extraRows: {
-        "image.decoder": { lane: "injected-bridge", decoderId: 42, decoderHash: "x", determinismClass: "byte-parity" },
+        "image.decoder": {
+          lane: "injected-bridge",
+          decoderId: 42,
+          decoderHash: "x",
+          determinismClass: "byte-parity",
+        },
       },
     });
 
@@ -411,6 +484,25 @@ describe("@wittgenstein/cli replay (Issue #384) — end to end", () => {
     const errOutput = JSON.parse(replay.stderr) as { code: string };
     expect(errOutput.code).toBe("REPLAY_LIVE_LLM_UNSUPPORTED");
   }, 30_000);
+
+  it("refuses a non-image manifest with incomplete zero-usage receipts", async () => {
+    const manifestPath = await writeManifest("sensor-missing-usage", {
+      codec: "sensor",
+      command: "wittgenstein sensor",
+      route: "ecg",
+      artifactPath: "/tmp/out.json",
+      request: { modality: "sensor", prompt: "prompt", signal: "ecg" },
+      llmTokens: { input: 0, output: 0 },
+      costUsd: null,
+      costUsdReason: "missing-usage",
+    });
+
+    const report = await replayManifest({ manifestPath });
+
+    expect(report.ok).toBe(false);
+    expect(report.code).toBe("REPLAY_LLM_RECEIPT_INCOMPLETE");
+    expect(report.costUsdReason).toBe("missing-usage");
+  });
 
   it("refuses replay on a manifest missing the request field", async () => {
     const fakeManifestPath = await writeManifest("fake-no-request", {
@@ -743,7 +835,8 @@ describe("replay bridge-lane verification chain (S7d/S7e, unit)", () => {
       { manifestPath },
       {
         loadImageDecoderBridgeForRun: async () => ({
-          bridge: stubImageDecoderBridge({ pngBytes: stubPng, decoderHash: "drifted-weights-sha" }).bridge,
+          bridge: stubImageDecoderBridge({ pngBytes: stubPng, decoderHash: "drifted-weights-sha" })
+            .bridge,
         }),
       },
     );
@@ -1053,7 +1146,8 @@ type ManifestFixtureOptions = {
   artifactSha256?: string;
   llmOutputRaw?: string | null;
   llmTokens?: { input: number; output: number };
-  costUsd?: number;
+  costUsd?: number | null;
+  costUsdReason?: CostUsdReason;
   extraRows?: Record<string, unknown>;
 };
 
@@ -1079,7 +1173,10 @@ async function writeManifest(
     llmProvider: "anthropic",
     llmModel: "claude-opus-4-7",
     llmTokens: options.llmTokens ?? { input: 0, output: 0 },
-    costUsd: options.costUsd ?? 0,
+    costUsd: options.costUsd !== undefined ? options.costUsd : null,
+    costUsdReason:
+      options.costUsdReason ??
+      (options.costUsd === undefined || options.costUsd === null ? "no-llm-call" : "computed"),
     promptRaw: "prompt",
     promptExpanded: "prompt",
     llmOutputRaw: options.llmOutputRaw === undefined ? "{}" : options.llmOutputRaw,

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ImageDecoderBridge } from "@wittgenstein/codec-image";
@@ -68,9 +68,7 @@ describe("run() entry-layer services passthrough (S7b/S7c)", () => {
     });
     // Bridge advisory folded through the sidecar into metadata.warnings.
     expect(manifest["metadata.warnings"]).toBe(1);
-    expect(manifest["artifact.sha256"]).toBe(
-      createHash("sha256").update(pngBytes).digest("hex"),
-    );
+    expect(manifest["artifact.sha256"]).toBe(createHash("sha256").update(pngBytes).digest("hex"));
   });
 });
 
@@ -172,14 +170,17 @@ function fakeCodec(
       },
     },
     async produce(_req: unknown, ctx: codecV2.HarnessCtx) {
+      const artifactBytes = new Uint8Array([1, 2, 3]);
+      await writeFile(ctx.outPath, artifactBytes);
       return {
         outPath: ctx.outPath,
         mime: "text/plain",
+        bytes: artifactBytes,
         metadata: {
           codec: "fake-image",
           route: "raster",
           warnings: [],
-          artifactSha256: "a".repeat(64),
+          artifactSha256: createHash("sha256").update(artifactBytes).digest("hex"),
           llmTokens: { input: 0, output: 0 },
           costUsd: null,
           costUsdReason: "no-llm-call" as const,

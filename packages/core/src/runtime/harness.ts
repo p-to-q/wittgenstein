@@ -20,7 +20,7 @@ import { RunTelemetry } from "./telemetry.js";
 import type { RetryPolicy } from "./retry.js";
 import { serializeError, ValidationError, WittgensteinError } from "./errors.js";
 import { injectSchemaPreamble } from "../schema/preamble.js";
-import type { LlmAdapter, LlmGenerationResult } from "../llm/adapter.js";
+import type { LlmAdapter, LlmGenerationRequest, LlmGenerationResult } from "../llm/adapter.js";
 import { OpenAICompatibleLlmAdapter } from "../llm/openai-compatible.js";
 import { AnthropicLlmAdapter } from "../llm/anthropic.js";
 import { registerAudioCodec } from "../codecs/audio.js";
@@ -143,6 +143,30 @@ export class Wittgenstein {
 
     let result: RenderResult | null = null;
     let error: ReturnType<typeof serializeError> | null = null;
+    let codecReceiptRecorded = false;
+    const llmCalls: LlmCallReceipt[] = [];
+    const llmAdapter = this.llmAdapter;
+    const meteredLlmAdapter: LlmAdapter | null = llmAdapter
+      ? {
+          provider: llmAdapter.provider,
+          generate: async (generationRequest) => {
+            budget.consume(0, 0);
+            const receipt: LlmCallReceipt = { request: generationRequest };
+            const callNumber = llmCalls.push(receipt);
+            await telemetry.writeJson(`llm-calls/${callNumber}-request.json`, generationRequest);
+            const generation = await llmAdapter.generate(generationRequest);
+            receipt.response = generation;
+            await telemetry.writeJson(`llm-calls/${callNumber}-response.json`, generation);
+            // Stop before the codec can parse, adapt, or decode over-budget output.
+            // The receipt already exists even when consume() rejects this call.
+            budget.consume(
+              generation.tokens.input + generation.tokens.output,
+              generation.costUsd ?? 0,
+            );
+            return generation;
+          },
+        }
+      : null;
 
     try {
       if (isV2Codec(codec)) {
@@ -162,7 +186,7 @@ export class Wittgenstein {
           seed,
           outPath: resolve(options.outPath ?? defaultOutputPathFor(codec.modality, cwd, runId)),
           logger: createRunLogger(runId),
-          llmAdapter: this.llmAdapter,
+          llmAdapter: meteredLlmAdapter,
           llmModel: this.config.llm.model,
           llmTemperature: this.config.llm.temperature,
           llmMaxOutputTokens: this.config.llm.maxOutputTokens,
@@ -193,33 +217,219 @@ export class Wittgenstein {
           };
         };
         const artMeta = produced.metadata;
+        const hasNumericUnpricedCost =
+          artMeta.costUsd !== undefined &&
+          artMeta.costUsd !== null &&
+          (artMeta.costUsdReason === "unknown-model" || artMeta.costUsdReason === "missing-usage");
+        const computedCostMissing =
+          artMeta.costUsd === null && artMeta.costUsdReason === "computed";
+        const noCallHasUsage =
+          artMeta.costUsdReason === "no-llm-call" &&
+          ((artMeta.llmTokens?.input ?? 0) > 0 || (artMeta.llmTokens?.output ?? 0) > 0);
+        const noCallHasCost =
+          artMeta.costUsdReason === "no-llm-call" &&
+          artMeta.costUsd !== undefined &&
+          artMeta.costUsd !== null &&
+          artMeta.costUsd !== 0;
+        if (hasNumericUnpricedCost || computedCostMissing || noCallHasUsage || noCallHasCost) {
+          throw new WittgensteinError(
+            "LLM_RECEIPT_MISMATCH",
+            "Codec metadata contains an inconsistent LLM cost or usage receipt.",
+            {
+              details: {
+                declaredCostUsd: artMeta.costUsd,
+                declaredCostUsdReason: artMeta.costUsdReason,
+                declaredLlmTokens: artMeta.llmTokens,
+              },
+            },
+          );
+        }
 
-        budget.consume(
-          (artMeta.llmTokens?.input ?? 0) + (artMeta.llmTokens?.output ?? 0),
-          artMeta.costUsd ?? 0,
-        );
-
-        manifest.promptExpanded = artMeta.promptExpanded ?? manifest.promptExpanded;
-        manifest.llmOutputRaw = artMeta.llmOutputRaw ?? null;
+        const observedLlm = summarizeLlmCalls(llmCalls);
+        manifest.promptExpanded =
+          artMeta.promptExpanded ??
+          (llmCalls.length > 0 ? observedLlm.promptExpanded : manifest.promptExpanded);
+        manifest.llmOutputRaw =
+          artMeta.llmOutputRaw ?? (llmCalls.length > 0 ? observedLlm.llmOutputRaw : null);
         manifest.llmOutputParsed = artMeta.llmOutputParsed ?? null;
-        manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
-        // Cost truth: if the codec asserted any cost value, take it over the
-        // manifest's honest init (null + "no-llm-call"). When the codec didn't
-        // also set a reason, infer one from the value so we never leave the
-        // contradictory pair `costUsd != null + costUsdReason = "no-llm-call"`
-        // (Issue #363). Codecs SHOULD set both explicitly — inference is a
-        // backstop while v2 codecs catch up.
-        if (artMeta.costUsd !== undefined) {
-          manifest.costUsd = artMeta.costUsd;
-          manifest.costUsdReason =
-            artMeta.costUsdReason ?? (artMeta.costUsd === null ? "missing-usage" : "computed");
-        } else if (artMeta.costUsdReason !== undefined) {
-          manifest.costUsdReason = artMeta.costUsdReason;
+        if (llmCalls.length > 0) {
+          manifest.llmProvider = llmAdapter?.provider ?? manifest.llmProvider;
+          manifest.llmModel = observedLlm.model ?? manifest.llmModel;
+          manifest.llmTokens = observedLlm.tokens;
+          manifest.costUsd = observedLlm.costUsd;
+          manifest.costUsdReason = observedLlm.costUsdReason;
+
+          if (
+            artMeta.llmTokens &&
+            (artMeta.llmTokens.input < observedLlm.tokens.input ||
+              artMeta.llmTokens.output < observedLlm.tokens.output)
+          ) {
+            throw new WittgensteinError(
+              "LLM_RECEIPT_MISMATCH",
+              "Codec metadata reports fewer LLM tokens than the harness observed.",
+              {
+                details: {
+                  observed: observedLlm.tokens,
+                  declared: artMeta.llmTokens,
+                },
+              },
+            );
+          }
+          if (artMeta.llmTokens) {
+            manifest.llmTokens = artMeta.llmTokens;
+          }
+
+          if (artMeta.costUsdReason === "no-llm-call") {
+            throw new WittgensteinError(
+              "LLM_RECEIPT_MISMATCH",
+              "Codec metadata claims no LLM call despite a recorded service call.",
+              { details: { observedCalls: llmCalls.length } },
+            );
+          }
+          if (artMeta.costUsd !== undefined) {
+            if (
+              (observedLlm.costUsd === null && artMeta.costUsd !== null) ||
+              (observedLlm.costUsd !== null &&
+                artMeta.costUsd !== null &&
+                artMeta.costUsd + 1e-12 < observedLlm.costUsd)
+            ) {
+              throw new WittgensteinError(
+                "LLM_RECEIPT_MISMATCH",
+                "Codec metadata reports less LLM cost than the harness observed.",
+                {
+                  details: {
+                    observedCostUsd: observedLlm.costUsd,
+                    declaredCostUsd: artMeta.costUsd,
+                  },
+                },
+              );
+            }
+            manifest.costUsd = artMeta.costUsd;
+            manifest.costUsdReason =
+              artMeta.costUsdReason ??
+              (artMeta.costUsd === null
+                ? observedLlm.costUsd === null
+                  ? observedLlm.costUsdReason
+                  : "missing-usage"
+                : "computed");
+          } else if (
+            artMeta.costUsdReason !== undefined &&
+            artMeta.costUsdReason !== observedLlm.costUsdReason
+          ) {
+            if (
+              artMeta.costUsdReason === "unknown-model" ||
+              artMeta.costUsdReason === "missing-usage"
+            ) {
+              manifest.costUsd = null;
+              manifest.costUsdReason = artMeta.costUsdReason;
+            } else {
+              throw new WittgensteinError(
+                "LLM_RECEIPT_MISMATCH",
+                "Codec metadata gives a cost reason that conflicts with the observed LLM receipt.",
+                {
+                  details: {
+                    observedCostUsdReason: observedLlm.costUsdReason,
+                    declaredCostUsdReason: artMeta.costUsdReason,
+                  },
+                },
+              );
+            }
+          }
+        } else {
+          const noReportedTokens =
+            (artMeta.llmTokens?.input ?? 0) === 0 && (artMeta.llmTokens?.output ?? 0) === 0;
+          if (
+            artMeta.costUsd === undefined &&
+            (artMeta.costUsdReason === "computed" ||
+              (!noReportedTokens && artMeta.costUsdReason === undefined))
+          ) {
+            throw new WittgensteinError(
+              "LLM_RECEIPT_MISMATCH",
+              "Codec metadata reports LLM usage without a complete cost receipt.",
+              {
+                details: {
+                  declaredCostUsdReason: artMeta.costUsdReason,
+                  declaredLlmTokens: artMeta.llmTokens,
+                },
+              },
+            );
+          }
+          manifest.llmTokens = artMeta.llmTokens ?? manifest.llmTokens;
+          // Older v2 codecs use costUsd: 0 for dry-run/local output. Zero
+          // usage is the evidence that lets the harness normalize that into
+          // the manifest's explicit no-call receipt.
+          if (
+            noReportedTokens &&
+            artMeta.costUsd === 0 &&
+            artMeta.costUsdReason !== "unknown-model" &&
+            artMeta.costUsdReason !== "missing-usage"
+          ) {
+            manifest.costUsd = null;
+            manifest.costUsdReason = "no-llm-call";
+          } else if (artMeta.costUsd !== undefined) {
+            manifest.costUsd = artMeta.costUsd;
+            manifest.costUsdReason =
+              artMeta.costUsdReason ?? (artMeta.costUsd === null ? "missing-usage" : "computed");
+          } else if (artMeta.costUsdReason !== undefined) {
+            manifest.costUsdReason = artMeta.costUsdReason;
+          }
         }
         manifest.artifactPath = produced.outPath;
         manifest.artifactSha256 = artMeta.artifactSha256 ?? null;
         applyLicenseReceipt(manifest, request, artMeta.license);
-        foldManifestRows(manifest, codec.manifestRows(art));
+        const manifestRows = codec.manifestRows(art);
+        // Keep the digest row out of failed manifests until the file has been
+        // hashed and every codec claim has passed verification.
+        foldManifestRows(
+          manifest,
+          manifestRows.filter((row) => row.key !== "artifact.sha256"),
+        );
+        codecReceiptRecorded = true;
+        // The top-level field is a verified digest, not a codec assertion.
+        manifest.artifactSha256 = null;
+        // Codec metadata may include work outside services.llm. Charge only the
+        // difference: successful service calls have already consumed this budget.
+        const spent = budget.snapshot();
+        const actualArtifactSha256 = await hashFileOrThrow(produced.outPath);
+        const hashClaims: Array<{ source: string; value: unknown }> = [
+          { source: "metadata", value: artMeta.artifactSha256 },
+          ...manifestRows
+            .filter((row) => row.key === "artifact.sha256")
+            .map((row) => ({ source: "artifact.sha256 row", value: row.value })),
+        ];
+        for (const claim of hashClaims) {
+          if (claim.value === undefined || claim.value === null) {
+            continue;
+          }
+          if (claim.value !== actualArtifactSha256) {
+            throw new WittgensteinError(
+              "ARTIFACT_HASH_MISMATCH",
+              "The codec-declared artifact SHA-256 from " +
+                claim.source +
+                " does not match the file written to outPath.",
+              {
+                details: {
+                  artifactPath: produced.outPath,
+                  source: claim.source,
+                  expectedSha256: claim.value,
+                  actualSha256: actualArtifactSha256,
+                },
+              },
+            );
+          }
+        }
+        manifest.artifactSha256 = actualArtifactSha256;
+        foldManifestRows(
+          manifest,
+          manifestRows.filter((row) => row.key === "artifact.sha256"),
+        );
+        budget.consume(
+          Math.max(
+            0,
+            (artMeta.llmTokens?.input ?? 0) + (artMeta.llmTokens?.output ?? 0) - spent.tokens,
+          ),
+          Math.max(0, (artMeta.costUsd ?? 0) - spent.costUsd),
+        );
         result = toRenderResult(produced);
         manifest.ok = true;
         manifest.durationMs = Date.now() - startedAt.getTime();
@@ -240,6 +450,9 @@ export class Wittgenstein {
         });
       }
     } catch (caughtError) {
+      if (!codecReceiptRecorded && llmCalls.length > 0) {
+        applyFailedLlmReceipts(manifest, llmCalls, llmAdapter!.provider);
+      }
       error = serializeError(caughtError);
       manifest.error = error;
       manifest.durationMs = Date.now() - startedAt.getTime();
@@ -323,13 +536,12 @@ export class Wittgenstein {
     );
     applyLegacyProviderReceipt(manifest, request, generation, this.config.svg.inferenceUrl);
 
-    budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd ?? 0);
-
     manifest.llmOutputRaw = generation.text;
     manifest.llmTokens = generation.tokens;
     manifest.costUsd = generation.costUsd;
     manifest.costUsdReason = generation.costUsdReason;
     await telemetry.writeText("llm-output.txt", generation.text);
+    budget.consume(generation.tokens.input + generation.tokens.output, generation.costUsd ?? 0);
 
     const parsed = codec.parse(generation.text);
     if (!parsed.ok) {
@@ -396,6 +608,65 @@ interface LegacyCodec {
     | { readonly ok: true; readonly value: unknown }
     | { readonly ok: false; readonly error: unknown };
   render(value: unknown, ctx: RenderCtx): Promise<RenderResult>;
+}
+
+interface LlmCallReceipt {
+  request: LlmGenerationRequest;
+  response?: LlmGenerationResult;
+}
+
+function applyFailedLlmReceipts(
+  manifest: RunManifest,
+  calls: LlmCallReceipt[],
+  provider: string,
+): void {
+  const observed = summarizeLlmCalls(calls);
+  manifest.llmProvider = provider;
+  manifest.llmModel = observed.model ?? manifest.llmModel;
+  manifest.promptExpanded = observed.promptExpanded ?? manifest.promptExpanded;
+  manifest.llmOutputRaw = observed.llmOutputRaw;
+  manifest.llmTokens = observed.tokens;
+  manifest.costUsd = observed.costUsd;
+  manifest.costUsdReason = observed.costUsdReason;
+}
+
+function summarizeLlmCalls(calls: LlmCallReceipt[]): {
+  tokens: { input: number; output: number };
+  costUsd: number | null;
+  costUsdReason: CostUsdReason;
+  model: string | null;
+  promptExpanded: string | null;
+  llmOutputRaw: string | null;
+} {
+  const latest = calls[calls.length - 1];
+  const tokens = { input: 0, output: 0 };
+  let knownCostUsd = 0;
+  let unknownCostReason: CostUsdReason | undefined;
+  for (const call of calls) {
+    if (!call.response) {
+      unknownCostReason = "missing-usage";
+      continue;
+    }
+    tokens.input += call.response.tokens.input;
+    tokens.output += call.response.tokens.output;
+    if (call.response.costUsd === null) {
+      unknownCostReason ??= call.response.costUsdReason;
+    } else {
+      knownCostUsd += call.response.costUsd;
+    }
+  }
+  return {
+    tokens,
+    costUsd: unknownCostReason ? null : knownCostUsd,
+    costUsdReason: unknownCostReason ?? "computed",
+    model: latest?.request.model ?? null,
+    promptExpanded:
+      latest?.request.messages
+        .filter((message) => message.role === "user")
+        .map((message) => message.content)
+        .join("\n\n") ?? null,
+    llmOutputRaw: latest?.response?.text ?? null,
+  };
 }
 
 function applyLicenseReceipt(
@@ -486,8 +757,9 @@ function createHarnessCtx(options: {
         // pinned by `packages/schemas/test/codec-v2.test.ts`).
         parentRunId: options.runId,
         runDir: overrides?.runDir ?? options.runDir,
-        seed: overrides?.seed ?? options.seed,
+        seed: overrides?.seed !== undefined ? overrides.seed : options.seed,
         outPath: overrides?.outPath ?? options.outPath,
+        services: { ...(options.services ?? {}), ...(overrides?.services ?? {}) },
         llmAdapter: options.llmAdapter,
         telemetry: options.telemetry,
         dryRun: options.dryRun,

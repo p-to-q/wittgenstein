@@ -296,6 +296,52 @@ describe("decoder family manifest contract", () => {
 
     expect(validation).toEqual({ ok: true, issues: [] });
   });
+
+  it.each([-1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY])(
+    "rejects invalid Gate D elapsed time: %s",
+    (seconds) => {
+      const validation = validateDecoderManifestAuditReceipts(
+        blessedManifest(),
+        new Map([
+          [
+            "artifacts/m1b-audit/vqgan-gates.json",
+            auditReceipt({ gateDCpuDecodeSeconds: seconds }),
+          ],
+        ]),
+      );
+      expect(validation.ok).toBe(false);
+    },
+  );
+
+  it.each([-0.1, 1.1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY])(
+    "rejects invalid Gate C Hamming rates even without a re-encode threshold: %s",
+    (rate) => {
+      const validation = validateDecoderManifestAuditReceipts(
+        blessedManifest(),
+        new Map([
+          [
+            "artifacts/m1b-audit/vqgan-gates.json",
+            auditReceipt({ reencodeTokenHammingRate: rate }),
+          ],
+        ]),
+      );
+      expect(validation.ok).toBe(false);
+    },
+  );
+
+  it.each(["encode_consistent", "decode_consistent"] as const)(
+    "does not let aggregate roundtrip success override an explicit %s failure",
+    (field) => {
+      const receipt = auditReceipt();
+      const gateC = receipt.gates[0]!;
+      gateC.metrics = { ...gateC.metrics, [field]: false };
+      const validation = validateDecoderManifestAuditReceipts(
+        blessedManifest(),
+        new Map([["artifacts/m1b-audit/vqgan-gates.json", receipt]]),
+      );
+      expect(validation.ok).toBe(false);
+    },
+  );
 });
 
 function candidateManifest(overrides: Partial<DecoderFamilyManifest> = {}): DecoderFamilyManifest {

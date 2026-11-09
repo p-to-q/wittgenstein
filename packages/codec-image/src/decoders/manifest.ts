@@ -256,13 +256,13 @@ export const DecoderGateAuditReceiptSchema = z.object({
             encode_consistent: z.boolean().optional(),
             decode_consistent: z.boolean().optional(),
             reencode_consistent: z.boolean().optional(),
-            sample_count: z.number().int().optional(),
-            token_hamming_rate: z.number().optional(),
-            reencode_token_hamming_rate: z.number().optional(),
+            sample_count: z.number().int().nonnegative().optional(),
+            token_hamming_rate: z.number().finite().min(0).max(1).optional(),
+            reencode_token_hamming_rate: z.number().finite().min(0).max(1).optional(),
             cross_device_parity: DecoderGateCParitySchema.optional(),
             onnx_cpu_passed: z.boolean().optional(),
-            cpu_decode_seconds: z.number().optional(),
-            output_shape: z.array(z.number()).optional(),
+            cpu_decode_seconds: z.number().finite().nonnegative().optional(),
+            output_shape: z.array(PositiveIntSchema).optional(),
             pass_check: z
               .object({
                 passed: z.boolean(),
@@ -409,10 +409,8 @@ function gateCReceiptPasses(
   return (
     gateReceipt.metrics.pass_check?.passed === true &&
     gateReceipt.metrics.cross_device_parity === acceptance.crossDeviceParity &&
-    (gateReceipt.metrics.encode_consistent === true ||
-      gateReceipt.metrics.roundtrip_passed === true) &&
-    (gateReceipt.metrics.decode_consistent === true ||
-      gateReceipt.metrics.roundtrip_passed === true) &&
+    (gateReceipt.metrics.encode_consistent ?? gateReceipt.metrics.roundtrip_passed) === true &&
+    (gateReceipt.metrics.decode_consistent ?? gateReceipt.metrics.roundtrip_passed) === true &&
     typeof sampleCount === "number" &&
     sampleCount >= acceptance.minSampleCount &&
     reencodePasses

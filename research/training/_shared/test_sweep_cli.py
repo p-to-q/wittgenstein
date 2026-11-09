@@ -79,6 +79,7 @@ class TrainingSweepCliTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["passed"], 1)
         self.assertEqual(payload["summary"]["failed"], 0)
         self.assertEqual(payload["rows"][0]["status"], "passed")
+        self.assertNotIn("metrics", payload["rows"][0])
         repo_prefix = str(REPO_ROOT)
         self.assertFalse(payload["source"]["specPath"].startswith(repo_prefix))
         self.assertFalse(payload["rows"][0]["trainingRun"]["manifestPath"].startswith(repo_prefix))
