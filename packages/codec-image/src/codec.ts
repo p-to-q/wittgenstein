@@ -251,6 +251,9 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     coarse_vq_invalid: "image/coarse-vq-invalid",
     seed_code_invalid: "image/seed-code-invalid",
     adapter_stub: "image/adapter-stub",
+    adapter_config_invalid: "image/adapter-config-invalid",
+    adapter_grid_mismatch: "image/adapter-grid-mismatch",
+    unclassified_warning: "image/unclassified-warning",
     decoder_reference_bridge: "image/decoder-reference-bridge",
     decoder_placeholder: "image/decoder-placeholder",
     decoder_fallback: "image/decoder-fallback",
@@ -482,9 +485,6 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
         warn: (message, data) => {
           ctx.logger.warn(message, data);
           const code = this.warningCodeFor(message);
-          if (!code) {
-            return;
-          }
           ctx.sidecar.warnings.push({ code, message, detail: data, phase });
         },
         error: (message, data) => ctx.logger.error(message, data),
@@ -492,7 +492,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     };
   }
 
-  private warningCodeFor(message: string): string | null {
+  private warningCodeFor(message: string): string {
     if (message.includes("providerLatents failed validation")) {
       return this.warnings.provider_latents_invalid;
     }
@@ -505,6 +505,12 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     if (message.includes("Using placeholder seed-expansion adapter")) {
       return this.warnings.adapter_stub;
     }
+    if (message.includes("Image adapter: could not load or parse JSON")) {
+      return this.warnings.adapter_config_invalid;
+    }
+    if (message.includes("Image adapter: token_grid mismatch")) {
+      return this.warnings.adapter_grid_mismatch;
+    }
     if (message.includes("Using narrow-domain reference decoder bridge")) {
       return this.warnings.decoder_reference_bridge;
     }
@@ -514,7 +520,7 @@ export class ImageCodec extends codecV2.BaseCodec<ImageRequest, ImageArtifact> {
     if (message.includes("Reference decoder bridge unavailable")) {
       return this.warnings.decoder_fallback;
     }
-    return null;
+    return this.warnings.unclassified_warning;
   }
 }
 
