@@ -69,7 +69,7 @@ Sources:
 
 - PyTorch FSDP2 `fully_shard`: <https://docs.pytorch.org/docs/main/distributed.fsdp.fully_shard.html>
 - DeepSpeed ZeRO: <https://deepspeed.readthedocs.io/en/stable/zero3.html>
-- Lightning Fabric launch docs: <https://lightning.ai/docs/pytorch/LTS/fabric/fundamentals/launch.html>
+- Lightning Fabric launch docs: <https://lightning.ai/docs/fabric/stable/fundamentals/launch.html>
 - Hugging Face Accelerate big-model docs: <https://huggingface.co/docs/accelerate/usage_guides/big_modeling>
 - DVC remote storage: <https://dvc.org/doc/user-guide/data-management/remote-storage>
 - Hugging Face model cards: <https://huggingface.co/docs/hub/en/model-cards>
