@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Markdownlint via reviewdog
-        uses: reviewdog/action-markdownlint@55f2ecf4c813c1cfac36953c1c40a46ec5c28f70 # v0.33.0
+        uses: reviewdog/action-markdownlint@584c3e89347d0b16ede47c73ae199550a02b1b37 # v0.33.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
@@ -155,7 +155,7 @@ jobs:
 
       - name: Suggest formatting fixes
         if: steps.changed.outputs.has_files == 'true'
-        uses: reviewdog/action-suggester@295fd4e5482381f33925c46ca5c2f66c69370267 # v1.27.0
+        uses: reviewdog/action-suggester@fd22a83b1ebc13fd8aee5d57b06793fce6f20fb9 # v1.27.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tool_name: prettier
