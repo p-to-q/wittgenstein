@@ -251,7 +251,6 @@ function asScenePlan(ir: codecV2.IR): {
  * (hard-constraints: "No silent fallbacks … Never swallow").
  */
 export const IMAGE_WARNING_CODES = {
-  palette_overflow: "image/palette-overflow",
   provider_latents_invalid: "image/provider-latents-invalid",
   coarse_vq_invalid: "image/coarse-vq-invalid",
   seed_code_invalid: "image/seed-code-invalid",
