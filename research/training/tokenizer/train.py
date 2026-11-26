@@ -7,7 +7,7 @@ Design choices per #441 (training-stack re-audit):
     as the source of truth — these are launcher conveniences only).
   - Manifest writes are explicit — every checkpoint emits a Wittgenstein
     training manifest via _shared/manifest.py.
-  - FSDP2 deferred — a 72M-param VQGAN fits comfortably on a single A800.
+  - FSDP2 deferred; batch capacity must be measured on the selected host.
 
 Launch (single-node multi-GPU):
     cd "$WITT_REPO"
@@ -623,7 +623,10 @@ def train(cfg: TrainConfig) -> dict:
         # they are None. `commit_loss` here is already β-weighted internally
         # by the quantizer (see VectorQuantizer.forward), so we pass the sum
         # of (vq + commit + entropy) as the quantizer-side loss term.
-        quant, vq_components, _info = (model.module if world > 1 else model).encode(img)
+        # Call the wrapper's forward: DDP prepares its reducer here. Calling
+        # model.module.encode/decode bypasses it and lets rank-local updates
+        # diverge even though every process completes without an error.
+        recon, vq_components = model(img)
         vq_loss, commit_loss, entropy_loss, codebook_usage = vq_components
         zero = torch.zeros((), device=device, dtype=img.dtype)
         vq_total = (
@@ -631,7 +634,6 @@ def train(cfg: TrainConfig) -> dict:
             + (commit_loss if commit_loss is not None else zero)
             + (entropy_loss if entropy_loss is not None else zero)
         )
-        recon = (model.module if world > 1 else model).decode(quant)
         total_loss, components = loss_fn(img, recon, vq_total, global_step=step)
         components["codebook_usage"] = float(codebook_usage if codebook_usage is not None else 0.0)
 

@@ -29,6 +29,7 @@ See the operating doctrine:
 - [docs/research/2026-05-31-training-stack-re-audit-closeout.md](../../docs/research/2026-05-31-training-stack-re-audit-closeout.md) — #441 closeout: schema-aligned receipt floor + GPU wait lines
 - [docs/research/2026-05-27-pre-training-readiness.md](../../docs/research/2026-05-27-pre-training-readiness.md) — engineering-readiness audit run right before specialist kickoff (Tier-0 self-check, latent bugs found + fixed, open handoff issues)
 - [docs/contributing/training-setup.md](../../docs/contributing/training-setup.md) — environment setup for contributors
+- [Compute-readiness roadmap, 2026-11-27](../../docs/research/2026-11-27-compute-readiness-roadmap.md) — current gates, unimplemented work, and staged validation before allocating compute
 
 ## Relationship to `python/image_adapter/`
 

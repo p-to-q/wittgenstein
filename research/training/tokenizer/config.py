@@ -4,8 +4,8 @@ Pulls hyperparameters into a single dataclass that's snapshotted into the
 training manifest (so every checkpoint records exactly what config produced
 it). Override via CLI flags in train.py.
 
-Defaults follow research-program note §1.1 with adjustments for an
-8× A800-80GB node — see `batch_size` doc below.
+Defaults retain the historical research-program §1.1 hypothesis. They are
+not a capacity measurement; qualify a small batch on the actual host first.
 """
 
 from __future__ import annotations
@@ -62,13 +62,13 @@ class TrainConfig:
     dataset_license: str = "research-only"  # {"research-only", "permissive"}
 
     # Batch size:
-    #   - LlamaGen recipe: 128 per-GPU at 256² on A100-80G is comfortable.
-    #   - 8× A800-80GB single node → effective 1024 with DDP, no grad
-    #     accumulation. Matches the research-program §1.1 target.
+    # Historical per-device hypothesis, not a measured safe allocation.
+    # Effective batch = per-device batch × world size (no accumulation).
+    # Start small and measure peak memory / step time on the target host.
     batch_size_per_gpu: int = 128
 
     # Schedule
-    max_steps: int = 200_000     # ~ a few epochs over ImageNet at bs=1024
+    max_steps: int = 200_000     # historical full-run hypothesis; not a pilot default
     log_every: int = 50
     # RESERVED / UNUSED (F-3): declared for config compatibility and CLI
     # overrides, but read by NO code path. Eval runs only once at the final
@@ -109,7 +109,7 @@ class TrainConfig:
     cudnn_deterministic: bool = True
     cudnn_benchmark: bool = False
 
-    # Smoke-test mode: small synthetic dataset, few steps, no eval/no checkpoints to disk
+    # Smoke mode: synthetic data, few steps; final checkpoint/manifest still written
     smoke: bool = False
 
 
@@ -119,7 +119,7 @@ def to_dict(cfg: TrainConfig) -> dict[str, Any]:
 
 
 def smoke_config() -> TrainConfig:
-    """Tiny config that runs end-to-end in <60s on a single A800.
+    """Tiny synthetic config; runtime and memory depend on the host.
 
     Used by smoke_test.py to validate the loop, manifest emit, and DDP
     plumbing before launching a real training run.

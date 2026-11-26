@@ -27,7 +27,7 @@ tokenizer/
 ├── model.py          # build_tokenizer() factory; uses _shared/_third_party/llamagen_vq_model
 ├── losses.py         # TokenizerLoss: L2 + LPIPS + GAN-when-on + commit pass-through
 ├── train.py          # DDP-native training loop (torchrun)
-├── smoke_test.py     # validates loop end-to-end in <60s on a single GPU
+├── smoke_test.py     # synthetic loop / receipt check; host-dependent duration
 └── __init__.py
 ```
 
@@ -81,51 +81,41 @@ must be true:
 
 ## Current fallback / robustness story
 
-- **No real dataset available** → falls back only when explicitly in smoke mode
-  or when `train_data_root` is empty, and records synthetic dataset usage in
-  the acceptance summary + manifest dataset notes.
+- **No real dataset available** → fail before distributed/model initialization.
+  Synthetic data is used only with explicit `--smoke` and is labeled in the
+  acceptance summary + manifest dataset notes.
 - **Corrupt image file during real-data training** → loader falls back
   deterministically to the previous sample (or zeros at index 0) and increments
   `corrupt_count`; this is a run-survival measure, not a quality claim.
-- **LPIPS missing at train time** → training continues with L2-only and logs
-  the downgrade.
+- **LPIPS missing at train time** → fail if enabled. `--no-lpips` is an explicit
+  L2-only plumbing objective, not a comparable full-recipe result.
 - **Eval dependencies missing (`torchmetrics`, `lpips`, `clean-fid`)** → eval
   may run in degraded mode, but the missing metrics must be surfaced in the
   receipt rather than silently dropped.
 
-## Phase 1.1 launch (real)
+## Real-data qualification before a full launch
 
-Once dataset prep lands, launch on an 8×-GPU node as:
+Use the [staged launch guide](../../../docs/contributing/training-setup.md)
+and [compute-readiness roadmap](../../../docs/research/2026-11-27-compute-readiness-roadmap.md).
+The earlier eight-card / batch-128 / 200k-step recipe is a historical hypothesis,
+not a capacity measurement or an authorized launch. No current GPU reservation,
+resolved CUDA environment, or real-corpus qualification is established here.
 
-```bash
-cd "$WITT_REPO"
-
-# 8× A800-80GB single-node DDP — effective batch 1024 at bs=128/GPU
-torchrun --nproc-per-node 8 --master-port 29500 \
-    -m research.training.tokenizer.train \
-    --train-data-root "$DATA_ROOT/imagenet/train" \
-    --out-root "$OUT_ROOT/runs" \
-    --max-steps 200000 \
-    --batch-size-per-gpu 128 \
-    --codebook-embed-dim 32 \
-    --lr 1e-4 \
-    --seed 0 \
-    --num-workers 8
-```
-
-Target: rFID ≤ 2.0 on ImageNet val 50k (matches LlamaGen baseline corridor;
-own-trained advantage is from D=32 vs D=8 + our license posture).
+The historical rFID ≤ 2.0 ambition is not an observed result or a portable pass
+threshold. Compare matched data, preprocessing, metric implementation, sample
+count, and checkpoint rights before interpreting a score. D=32 is an ablation
+hypothesis; it is not evidence of an advantage over D=8.
 
 ## Architecture choices vs LlamaGen baseline
 
-| Knob              | LlamaGen `vq_ds16_c2i.pt` (audited) | Wittgenstein-native (this scaffold) | Why                                                                                                                                                                        |
-| ----------------- | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Codebook K        | 16384                               | 16384                               | Match audited baseline shape                                                                                                                                               |
-| Embed dim D       | 8                                   | **32**                              | Richer per-site latents for our learned MaskGIT adapter (LlamaGen's D=8 was intentionally low because their AR head carried semantic load — we don't have that constraint) |
-| Downsample p      | 16                                  | 16                                  | Match audited baseline; 256² → 16×16 = 256 tokens                                                                                                                          |
-| Encoder ch_mult   | [1,1,2,2,4]                         | [1,1,2,2,4]                         | Match                                                                                                                                                                      |
-| Losses            | L2 + LPIPS + PatchGAN + commit      | Same                                | Match recipe                                                                                                                                                               |
-| Determinism class | structural-parity (Gate C)          | structural-parity (planned)         | Matches ADR-0015 precedent                                                                                                                                                 |
+| Knob              | LlamaGen `vq_ds16_c2i.pt` (audited) | Wittgenstein-native (this scaffold) | Why                                                                                                     |
+| ----------------- | ----------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Codebook K        | 16384                               | 16384                               | Match audited baseline shape                                                                            |
+| Embed dim D       | 8                                   | **32**                              | Hypothesis to compare at matched budget; no measured adapter or reconstruction advantage is established |
+| Downsample p      | 16                                  | 16                                  | Match audited baseline; 256² → 16×16 = 256 tokens                                                       |
+| Encoder ch_mult   | [1,1,2,2,4]                         | [1,1,2,2,4]                         | Match                                                                                                   |
+| Losses            | L2 + LPIPS + PatchGAN + commit      | L2 + LPIPS + commit; GAN opt-in     | `--gan` and an active GAN start step are required                                                       |
+| Determinism class | structural-parity (Gate C)          | structural-parity (planned)         | Matches ADR-0015 precedent                                                                              |
 
 ## Receipt-first design (per #441)
 

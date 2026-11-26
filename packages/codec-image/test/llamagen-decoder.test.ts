@@ -224,39 +224,46 @@ describe("buildHuggingFaceAssetFetcher", () => {
     );
   });
 
-  // Real `node:http` servers (not fetch stubs): undici `fetch()` resolves when
-  // headers arrive, so these pin that the ~162MB weights-body read
-  // (`arrayBuffer()`) happens inside the armed-timeout window — a server
-  // that writes headers and then stalls the body aborts within the
-  // configured ms instead of hanging the download forever.
-  it("aborts a stalled weights body within the configured timeout", async () => {
-    let headersSent = false;
+  // Exercise real undici body reads over loopback HTTP. Only the deadline clock
+  // is controlled: host scheduling must not decide whether headers beat 100ms.
+  it("aborts a stalled weights body at the configured timeout", async () => {
     const server = http.createServer((_req, res) => {
       res.writeHead(200, { "content-type": "application/octet-stream" });
-      // flushHeaders() sends the headers immediately, so `fetch()` resolves
-      // and only the BODY read stalls — the exact defect shape.
       res.flushHeaders();
-      headersSent = true;
-      // no write, no end — the body never arrives
+      // No write or end: the real response body stalls until aborted.
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let signalBodyRead!: () => void;
+    const bodyReadStarted = new Promise<void>((resolve) => {
+      signalBodyRead = resolve;
+    });
+    const arrayBuffer = Response.prototype.arrayBuffer;
+    const bodyRead = vi.spyOn(Response.prototype, "arrayBuffer").mockImplementation(function (this: Response) {
+      const result = arrayBuffer.call(this);
+      signalBodyRead();
+      return result;
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
       const fetcher = buildHuggingFaceAssetFetcher(baseUrl, 100);
-      const startedAt = Date.now();
+      let rejected = false;
+      const request = fetcher!({ kind: "weights", filename: "m.onnx" }, manifestFixture());
+      void request.catch(() => {
+        rejected = true;
+      });
+      const assertion = expect(request).rejects.toMatchObject({ name: "AbortError" });
 
-      await expect(
-        fetcher!({ kind: "weights", filename: "m.onnx" }, manifestFixture()),
-      ).rejects.toMatchObject({ name: "AbortError" });
-
-      // The headers DID arrive (fetch resolved); the stall was in the body.
-      expect(headersSent).toBe(true);
-      const elapsed = Date.now() - startedAt;
-      expect(elapsed).toBeGreaterThanOrEqual(90);
-      expect(elapsed).toBeLessThan(5_000);
+      await bodyReadStarted;
+      await vi.advanceTimersByTimeAsync(99);
+      expect(rejected).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await assertion;
     } finally {
+      vi.useRealTimers();
+      bodyRead.mockRestore();
       server.closeAllConnections?.();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }
   });
 

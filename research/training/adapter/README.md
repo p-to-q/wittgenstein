@@ -19,14 +19,14 @@ this training subprogram; the learned adapter still owns the quality claim.
 
 Architecture target (per research-program note):
 
-| Field              | Choice                                                                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Architecture       | Bidirectional transformer (BERT-shaped), 12 layers, hidden 512, 8 heads (~50M params).                                       |
-| Training pairs     | (Visual Seed Code, full token grid). Bootstrap: VSC = full grid block-averaged to k×k coarse tokens (k ∈ {2, 4, 8} ablated). |
-| Loss               | Token-level cross-entropy over the 16384-codebook.                                                                           |
-| Inference schedule | 8-step parallel decoding (MaskGIT schedule), temperature 0 (deterministic) at ship time.                                     |
-| Data               | Token pairs extracted from ImageNet train + CC12M via the Phase-1.1 tokenizer.                                               |
-| Compute budget     | ~1–3 GPU-weeks on 4× A800.                                                                                                   |
+| Field              | Choice                                                                                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Architecture       | Bidirectional transformer (BERT-shaped), 12 layers, hidden 512, 8 heads (~50M params).                                                                                        |
+| Training pairs     | (Visual Seed Code, full token grid). Bootstrap: categorical grid tokens sampled at fixed positions as a baseline (k ∈ {2, 4, 8}); learned compression is a separate ablation. |
+| Loss               | Token-level cross-entropy over the 16384-codebook.                                                                                                                            |
+| Inference schedule | 8-step parallel decoding (MaskGIT schedule), temperature 0 (deterministic) at ship time.                                                                                      |
+| Data               | Token pairs extracted from ImageNet train + CC12M via the Phase-1.1 tokenizer.                                                                                                |
+| Compute budget     | Historical estimate only; no current allocation or measured throughput.                                                                                                       |
 
 ## Inputs from Phase 1.1
 
@@ -38,9 +38,16 @@ The adapter training script will need:
    tokenized once into `[H, W]` integer grids, persisted to disk for
    quick reload. Cache is content-addressable by image SHA-256 and
    tokenizer checkpoint SHA-256.
-3. **Visual Seed Code generator** — initial bootstrap: block-average
-   pooling of the full grid to coarse k×k. Phase 2 may replace this
-   with a learned compress step.
+3. **Visual Seed Code generator** — define and version a baseline that selects
+   existing categorical tokens at fixed positions. Do not average integer token
+   IDs: their numeric order does not encode visual distance. Pooling embeddings
+   followed by explicit re-quantization would be a different hypothesis requiring
+   its own cache identity and evaluation. No learned compressor is implemented.
+
+Before spending on this target architecture, follow the
+[compute-readiness roadmap](../../../docs/research/2026-11-27-compute-readiness-roadmap.md).
+Oracle image-derived seeds test recoverable information; they do not establish
+that a text-only planner can predict those seeds.
 
 ## When this lights up
 

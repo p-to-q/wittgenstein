@@ -11,9 +11,8 @@ real-data checkpoints default to research-only until independently cleared.
 Config defaults follow `docs/research/2026-05-13-wittgenstein-research-program.md` §1.1:
 
   - codebook K = 16384
-  - codebook embed dim D = 32 (richer per-site latents for a learned adapter
-    — LlamaGen's D=8 was intentionally low because their AR head carried the
-    semantic load; our adapter is BERT-shaped and benefits from richer dims)
+  - codebook embed dim D = 32 (an unvalidated ablation hypothesis, not a
+    measured advantage over D=8 for reconstruction or seed expansion)
   - downsample factor p = 16 (256² input → 16×16 = 256 tokens)
   - z_channels = 256, encoder/decoder ch_mult = [1, 1, 2, 2, 4]
 
