@@ -15,6 +15,7 @@
  *     run-output reading, shape/codebook refusals before inference, session
  *     failure wrapping, `decoderHash` stamping, idempotent unload.
  */
+import http from "node:http";
 import { inflateSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -221,6 +222,62 @@ describe("buildHuggingFaceAssetFetcher", () => {
     await expect(fetcher!({ kind: "weights", filename: "m.onnx" }, manifestFixture())).rejects.toThrow(
       /HTTP 404 Not Found/,
     );
+  });
+
+  // Real `node:http` servers (not fetch stubs): undici `fetch()` resolves when
+  // headers arrive, so these pin that the ~162MB weights-body read
+  // (`arrayBuffer()`) happens inside the armed-timeout window — a server
+  // that writes headers and then stalls the body aborts within the
+  // configured ms instead of hanging the download forever.
+  it("aborts a stalled weights body within the configured timeout", async () => {
+    let headersSent = false;
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/octet-stream" });
+      // flushHeaders() sends the headers immediately, so `fetch()` resolves
+      // and only the BODY read stalls — the exact defect shape.
+      res.flushHeaders();
+      headersSent = true;
+      // no write, no end — the body never arrives
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      const fetcher = buildHuggingFaceAssetFetcher(baseUrl, 100);
+      const startedAt = Date.now();
+
+      await expect(
+        fetcher!({ kind: "weights", filename: "m.onnx" }, manifestFixture()),
+      ).rejects.toMatchObject({ name: "AbortError" });
+
+      // The headers DID arrive (fetch resolved); the stall was in the body.
+      expect(headersSent).toBe(true);
+      const elapsed = Date.now() - startedAt;
+      expect(elapsed).toBeGreaterThanOrEqual(90);
+      expect(elapsed).toBeLessThan(5_000);
+    } finally {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("returns the full body bytes when the weights body arrives", async () => {
+    const payload = new Uint8Array([1, 2, 3, 4, 5]);
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/octet-stream" });
+      res.end(payload);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      const fetcher = buildHuggingFaceAssetFetcher(baseUrl, 5_000);
+
+      const bytes = await fetcher!({ kind: "weights", filename: "m.onnx" }, manifestFixture());
+
+      expect([...bytes]).toEqual([...payload]);
+    } finally {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 
