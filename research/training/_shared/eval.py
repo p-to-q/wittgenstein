@@ -27,14 +27,13 @@ Design:
 
 from __future__ import annotations
 
-import json
 import math
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 
@@ -89,7 +88,11 @@ def evaluate_tokenizer_reconstruction(
     Caller is responsible for setting `model.eval()` (we don't toggle here
     so the caller's state stays explicit).
     """
-    cfg = cfg or TokenizerEvalConfig()
+    with ExitStack() as cleanup:
+        return _evaluate_reconstruction(model, eval_loader, device, cfg or TokenizerEvalConfig(), cleanup)
+
+
+def _evaluate_reconstruction(model, eval_loader, device, cfg, cleanup) -> dict[str, Any]:
 
     # Lazy imports — these libs aren't on the floor requirements; allow
     # eval to run with partial metric coverage if some are missing.
@@ -120,31 +123,35 @@ def evaluate_tokenizer_reconstruction(
 
     # rFID: defer the heavy clean-fid dependency to runtime. We accumulate
     # real/fake stats then call clean_fid.fid.compute_fid at the end.
-    rfid_real_paths = []
-    rfid_fake_paths = []
     rfid_tmpdir = None
     if cfg.compute_rfid:
         try:
             import tempfile
-            rfid_tmpdir = Path(tempfile.mkdtemp(prefix="witt_rfid_"))
+            rfid_tmpdir = Path(cleanup.enter_context(tempfile.TemporaryDirectory(prefix="witt_rfid_")))
             (rfid_tmpdir / "real").mkdir()
             (rfid_tmpdir / "fake").mkdir()
         except Exception as e:
             print(f"[eval] rFID tmpdir setup failed; skipping rFID: {e}")
             degradation_reasons.append(f"rfid-tmpdir-unavailable:{type(e).__name__}")
-            cfg = TokenizerEvalConfig(**{**cfg.__dict__, "compute_rfid": False})
+            rfid_tmpdir = None
 
     # Codebook usage histogram
     codebook_hist = None
     if cfg.compute_codebook_hist and hasattr(model, "quantize"):
         n_codes = model.quantize.n_e
         codebook_hist = torch.zeros(n_codes, dtype=torch.int64, device=device)
+    elif cfg.compute_codebook_hist:
+        degradation_reasons.append("codebook-hist-unavailable")
 
     n_images = 0
     for batch_idx, (img, _label) in enumerate(eval_loader):
         img = img.to(device, non_blocking=True)
         quant, _vq_components, info = model.encode(img)
         recon = model.decode(quant)
+        if recon.shape != img.shape:
+            raise ValueError("Reconstruction shape does not match the validation batch")
+        if not torch.isfinite(recon).all():
+            raise ValueError("Nonfinite reconstruction; refusing to score converted pixels")
 
         if psnr_metric is not None:
             img_u8 = _to_uint8_chw(img)
@@ -178,6 +185,9 @@ def evaluate_tokenizer_reconstruction(
 
         n_images += img.shape[0]
 
+    if n_images == 0:
+        degradation_reasons.append("no-images-evaluated")
+
     metrics: dict[str, Any] = {
         "n_images_evaluated": n_images,
         "degraded": len(degradation_reasons) > 0,
@@ -189,17 +199,17 @@ def evaluate_tokenizer_reconstruction(
             "codebook_hist": cfg.compute_codebook_hist,
         },
         "computed_metrics": {
-            "psnr": psnr_metric is not None,
-            "ssim": ssim_metric is not None,
-            "lpips": lpips_metric is not None,
-            "rfid": rfid_tmpdir is not None,
-            "codebook_hist": codebook_hist is not None,
+            "psnr": psnr_metric is not None and n_images > 0,
+            "ssim": ssim_metric is not None and n_images > 0,
+            "lpips": lpips_metric is not None and lpips_count > 0,
+            "rfid": False,
+            "codebook_hist": codebook_hist is not None and n_images > 0,
         },
     }
 
-    if psnr_metric is not None:
+    if psnr_metric is not None and n_images > 0:
         metrics["psnr"] = float(psnr_metric.compute().cpu())
-    if ssim_metric is not None:
+    if ssim_metric is not None and n_images > 0:
         metrics["ssim"] = float(ssim_metric.compute().cpu())
     if lpips_metric is not None and lpips_count > 0:
         # Exact dataset-mean LPIPS = sum(per-image LPIPS) / n_images.
@@ -208,7 +218,7 @@ def evaluate_tokenizer_reconstruction(
         metrics["lpips_error"] = "no images evaluated"
         degradation_reasons.append("lpips-no-images")
 
-    if rfid_tmpdir is not None:
+    if rfid_tmpdir is not None and n_images > 0:
         try:
             from cleanfid import fid as cleanfid
             metrics["rfid"] = float(cleanfid.compute_fid(
@@ -218,15 +228,16 @@ def evaluate_tokenizer_reconstruction(
                 device=device.type,
                 verbose=False,
             ))
+            if not math.isfinite(metrics["rfid"]):
+                del metrics["rfid"]
+                raise ValueError("rFID returned a nonfinite result")
+            metrics["computed_metrics"]["rfid"] = True
         except ImportError:
             metrics["rfid_error"] = "clean-fid not installed"
             degradation_reasons.append("clean-fid-missing")
         except Exception as e:
             metrics["rfid_error"] = f"{type(e).__name__}: {e}"
             degradation_reasons.append(f"rfid-failed:{type(e).__name__}")
-        finally:
-            import shutil
-            shutil.rmtree(rfid_tmpdir, ignore_errors=True)
 
     if codebook_hist is not None:
         used = (codebook_hist > 0).sum().item()

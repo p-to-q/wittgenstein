@@ -22,6 +22,7 @@ Smoke (1 GPU, synthetic data, no actual deps installed beyond torch):
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import multiprocessing
 import os
@@ -818,23 +819,27 @@ _EVAL_METRIC_META = {
 }
 
 
-def _eval_dataset_sha(ds_name: str, split: str, files=None) -> str:
-    """Deterministic 64-hex identity for the eval set.
+def _eval_dataset_sha(
+    ds_name: str, split: str, files=None, *, image_size=None,
+    synthetic_seed=None, synthetic_count=None,
+) -> str:
+    """Content identity including preprocessing and synthetic sample selection.
 
-    The manifest schema requires `evalSnapshots[].dataset.sha256` to be a real
-    sha256. This identifies WHICH eval set produced the metrics (label + sorted
-    file names when a real folder is used); it is NOT a content lock of the
-    training data (that is the separate dataset fingerprint). Stable across runs
-    for the same eval set, and never empty.
+    File bytes (including multiplicity), not absolute mount paths, identify a
+    real evaluation population. The caller checks again after evaluation to
+    refuse snapshots if ordinary dataset mutation occurred during the pass.
     """
     import hashlib
 
-    h = hashlib.sha256()
-    h.update(f"{ds_name}:{split}".encode("utf-8"))
+    h = hashlib.sha256(json.dumps({
+        "name": ds_name, "split": split, "preprocessing": "llamagen-center-crop/v1",
+        "imageSize": image_size, "syntheticSeed": synthetic_seed,
+        "syntheticCount": synthetic_count,
+    }, sort_keys=True).encode("utf-8"))
     if files:
-        for p in sorted(str(x) for x in files):
+        for digest in sorted(sha256_file(Path(path)) for path in files):
             h.update(b"\0")
-            h.update(p.encode("utf-8"))
+            h.update(digest.encode("ascii"))
     return h.hexdigest()
 
 
@@ -842,8 +847,9 @@ def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]
     """Run reconstruction eval on a val set; return (snapshots, failure).
 
     Eval must never kill a training run, so every path is guarded. `failure` is
-    None on success and on the deliberate "no val set declared" skip; it is a
-    `{errorType, reason}` dict only when a real error was caught, so the caller
+    None on complete evaluation and on the deliberate "no val set declared"
+    skip; an exception or degraded metric coverage returns an explicit
+    `{errorType, reason}` dict, so the caller
     can record it without changing the best-effort contract. Uses
     `val_data_root` when set, else a small synthetic set for smoke. Heavy
     metrics (rFID) are left to the eval harness's own dependency degradation.
@@ -852,13 +858,14 @@ def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]
         eval_files = None
         if cfg.val_data_root:
             val_ds = ImageFolderDataset(
-                Path(cfg.val_data_root), image_size=cfg.image_size, with_labels=False
+                Path(cfg.val_data_root), image_size=cfg.image_size, with_labels=False,
+                corrupt_policy="raise",
             )
             split = "val"
             ds_name = Path(cfg.val_data_root).name
             eval_files = val_ds.file_list_for_manifest()
         elif cfg.smoke:
-            val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
+            val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 64)
             split = "synthetic-val"
             ds_name = "synthetic"
         else:
@@ -876,12 +883,24 @@ def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]
             batch_size=cfg.batch_size_per_gpu,
             compute_rfid=not cfg.smoke,  # rFID is slow + needs clean-fid; skip in smoke
         )
+        identity_args = {
+            "image_size": cfg.image_size,
+            "synthetic_seed": val_ds.seed if split == "synthetic-val" else None,
+            "synthetic_count": len(val_ds) if split == "synthetic-val" else None,
+        }
+        eval_sha = _eval_dataset_sha(ds_name, split, eval_files, **identity_args)
         core = model.module if world > 1 else model
         was_training = core.training
         core.eval()
-        metrics = evaluate_tokenizer_reconstruction(core, loader, device, eval_cfg)
-        if was_training:
-            core.train()
+        try:
+            metrics = evaluate_tokenizer_reconstruction(core, loader, device, eval_cfg)
+        finally:
+            core.train(was_training)
+        if eval_sha != _eval_dataset_sha(ds_name, split, eval_files, **identity_args):
+            raise ValueError("Validation data changed during evaluation; refusing its snapshot")
+        degradation = metrics.get("degradation_reasons", [])
+        failure = ({"errorType": "EvaluationDegraded", "reason": "; ".join(degradation)}
+                   if degradation else None)
 
         metric_objs = []
         for k, v in metrics.items():
@@ -902,17 +921,17 @@ def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]
                 )
             )
         if not metric_objs:
-            return [], None  # nothing measurable → no snapshot (keeps manifest valid)
+            return [], failure  # no fabricated quality snapshot
         snapshot = TrainingRunEvalSnapshot(
             modality="image",
             dataset=TrainingRunEvalDataset(
-                name=ds_name, split=split, sha256=_eval_dataset_sha(ds_name, split, eval_files)
+                name=ds_name, split=split, sha256=eval_sha
             ),
             step=step,
             generatedAt=utc_now_iso(),
             metrics=metric_objs,
         )
-        return [snapshot], None
+        return [snapshot], failure
     except Exception as exc:  # eval is best-effort; never fail the run
         reason = f"{type(exc).__name__}: {exc}"
         print(f"[eval] skipped due to error: {reason}", flush=True)
