@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -273,18 +273,25 @@ describe("collectRuntimeFingerprint", () => {
     expect(fp.gitSha).toBeNull();
     // lockfile is missing in tmpdir, so its hash is null too.
     expect(fp.lockfileHash).toBeNull();
-    // wittgensteinVersion falls back to 0.0.0 when package.json is absent.
-    expect(fp.wittgensteinVersion).toBe("0.0.0");
+    const own = JSON.parse(
+      await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
+    );
+    expect(fp.wittgensteinVersion).toBe(own.version);
     // Node version is a real value, like "v20.x.y".
     expect(fp.nodeVersion).toBe(process.version);
     expect(fp.nodeVersion).toMatch(/^v\d+\.\d+\.\d+/);
   });
 
-  it("reads version from package.json when present", async () => {
-    await writeFile(join(tmp, "package.json"), JSON.stringify({ version: "1.2.3" }));
-    const fp = await collectRuntimeFingerprint(tmp);
-    expect(fp.wittgensteinVersion).toBe("1.2.3");
-  });
+  it.each(["{malformed", JSON.stringify({ name: "unrelated-app", version: "99.8.7" }), "null"])(
+    "ignores caller package.json: %s",
+    async (callerPackage) => {
+      await writeFile(join(tmp, "package.json"), callerPackage);
+      const own = JSON.parse(
+        await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
+      );
+      expect((await collectRuntimeFingerprint(tmp)).wittgensteinVersion).toBe(own.version);
+    },
+  );
 
   it("reads lockfile hash when pnpm-lock.yaml is present", async () => {
     const lockfilePath = join(tmp, "pnpm-lock.yaml");
