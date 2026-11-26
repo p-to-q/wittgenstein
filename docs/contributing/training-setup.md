@@ -15,6 +15,10 @@ TypeScript harness; see [quickstart](../quickstart.md) for that path.
 | Shared experiment tracking                 | Local JSONL receipts implemented                      | Shared service deployment (#399)                                       |
 | Learned adapter / LLM head                 | Planned directories                                   | Implementation and acceptance evidence (#397, #398)                    |
 
+For the complete sequence, stopping conditions, and the implementation queue,
+see the [compute-readiness roadmap](../research/2026-11-27-compute-readiness-roadmap.md).
+No current GPU reservation is implied by the historical research plan.
+
 ## CPU checks (no training)
 
 From the repository root:
@@ -25,7 +29,18 @@ python3 -m unittest research.training.test_resume_closeout_tools -v
 python3 bench/gpu/sweep.py --spec bench/gpu/smoke-sweep.yaml
 ```
 
-The last command validates synthetic sweep receipts. It is not a GPU benchmark
+With a CPU PyTorch environment, also run the two-rank wiring regression:
+
+```bash
+python -m unittest research.training.tokenizer.test_distributed_forward -v
+```
+
+This uses a one-parameter test model and asserts actual parameter agreement
+with and without GAN; it does not train a research model. The CI CPU lane
+installs an explicit CPU torch version so this test cannot disappear behind
+an absent optional dependency. It still needs its first Linux Actions result.
+
+The sweep command validates synthetic sweep receipts. It is not a GPU benchmark
 or evidence of learned image quality.
 
 ## Environment qualification
@@ -102,7 +117,7 @@ next to the checkpoint in the run artifact directory, for example
 `<out-root>/<run-id>/ckpts/final.manifest.json`, or in the run's lab
 artifact bundle. It records:
 
-- Dataset hash (DVC-pinned)
+- Dataset digest and declared revision (DVC-pinned only for an actual DVC snapshot)
 - Git SHA of the harness at training time
 - Git SHA of the training code at training time
 - Docker image SHA and lockfile SHA (when applicable)
@@ -188,7 +203,7 @@ checkpoint binaries. The training stack is **Tier 3**; the published
 npm surface is **Tier 0/1/2**. Keeping the directories separate +
 guarding the boundary in CI keeps that promise honest.
 
-The reverse direction is allowed and expected: training scripts import
-from `packages/<pkg>` (the harness inside training jobs), so the
-manifest emitted by a training run goes through the same code path the
-CLI uses at generation time.
+The Python trainer emits JSON matching the shared TypeScript schema. Cross-language
+schema tests validate the training receipt; Python training does not import the
+TypeScript harness or use the inference manifest writer. Training and inference
+keep their distinct receipt types.

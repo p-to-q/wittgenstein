@@ -8,22 +8,23 @@
  *
  * Real `node:http` servers are used (not fetch stubs) so the abort semantics
  * exercised are undici's own: an abort during body consumption rejects the
- * read with a DOMException named "AbortError" (~101ms for a 100ms timeout on
- * Node 22), which `isTransientLlmFailure` classifies as retryable.
+ * read with a DOMException named "AbortError", which `isTransientLlmFailure`
+ * classifies as retryable. Body-entry assertions control only the timeout
+ * clock after real headers arrive; adapter/retry coverage uses real timers.
  */
 import http from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithTimeout, isTransientLlmFailure } from "../src/llm/http.js";
 import { OpenAICompatibleLlmAdapter } from "../src/llm/openai-compatible.js";
 import { AnthropicLlmAdapter } from "../src/llm/anthropic.js";
 
-const originalFetch = globalThis.fetch;
-
 type TestServer = { url: string; requests: () => number; close: () => Promise<void> };
 
 /** Start a local HTTP server recording request count. */
-async function startServer(handler: (req: IncomingMessage, res: ServerResponse) => void): Promise<TestServer> {
+async function startServer(
+  handler: (req: IncomingMessage, res: ServerResponse) => void,
+): Promise<TestServer> {
   const server = http.createServer(handler);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   let requestCount = 0;
@@ -74,32 +75,42 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  globalThis.fetch = originalFetch;
+  vi.useRealTimers();
   delete process.env.TEST_LLM_KEY;
-  await Promise.all(servers.splice(0).map((server) => server.close().catch(() => undefined)));
+  await Promise.all(servers.splice(0).map((server) => server.close()));
 });
 
 describe("fetchWithTimeout body-read coverage", () => {
-  it("aborts a stalled body read (json) within the configured timeout", async () => {
+  it("keeps the configured timeout armed during a stalled JSON body read", async () => {
     const server = await startStalledServer();
-    const startedAt = Date.now();
-    let consumeEntered = false;
+    // Freeze only timeout scheduling. Real HTTP headers may arrive whenever
+    // the loaded host can deliver them; they are not the property under test.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let signalBodyRead!: () => void;
+    const bodyReadStarted = new Promise<void>((resolve) => {
+      signalBodyRead = resolve;
+    });
+    let rejected = false;
+    const request = fetchWithTimeout(
+      `${server.url}/completions`,
+      { method: "POST" },
+      100,
+      (response) => {
+        const body = response.json();
+        signalBodyRead();
+        return body;
+      },
+    );
+    void request.catch(() => {
+      rejected = true;
+    });
+    const assertion = expect(request).rejects.toMatchObject({ name: "AbortError" });
 
-    await expect(
-      fetchWithTimeout(`${server.url}/completions`, { method: "POST" }, 100, (response) => {
-        // Proves `fetch()` resolved (headers arrived) and the stall is in the
-        // body read, not in the headers phase.
-        consumeEntered = true;
-        return response.json();
-      }),
-    ).rejects.toMatchObject({ name: "AbortError" });
-
-    expect(consumeEntered).toBe(true);
-    const elapsed = Date.now() - startedAt;
-    // The abort fired at the configured timeout (allow scheduling slack),
-    // and — the actual regression — the read did not hang forever.
-    expect(elapsed).toBeGreaterThanOrEqual(90);
-    expect(elapsed).toBeLessThan(5_000);
+    await bodyReadStarted;
+    await vi.advanceTimersByTimeAsync(99);
+    expect(rejected).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await assertion;
   });
 
   it("classifies the body-read abort as a transient (retryable) failure", async () => {
@@ -107,7 +118,9 @@ describe("fetchWithTimeout body-read coverage", () => {
 
     let caught: unknown;
     try {
-      await fetchWithTimeout(`${server.url}/completions`, { method: "POST" }, 100, (response) => response.json());
+      await fetchWithTimeout(`${server.url}/completions`, { method: "POST" }, 100, (response) =>
+        response.json(),
+      );
     } catch (error) {
       caught = error;
     }
@@ -115,18 +128,28 @@ describe("fetchWithTimeout body-read coverage", () => {
     expect(isTransientLlmFailure(caught)).toBe(true);
   });
 
-  it("aborts a stalled error-path body read (text on a non-ok response)", async () => {
+  it("keeps the timeout armed during an error response text read", async () => {
     const server = await startStalledServer(500);
-    let consumeEntered = false;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let signalBodyRead!: () => void;
+    const bodyReadStarted = new Promise<void>((resolve) => {
+      signalBodyRead = resolve;
+    });
+    const request = fetchWithTimeout(
+      `${server.url}/completions`,
+      { method: "POST" },
+      100,
+      (response) => {
+        const body = response.text();
+        signalBodyRead();
+        return body;
+      },
+    );
+    const assertion = expect(request).rejects.toMatchObject({ name: "AbortError" });
 
-    await expect(
-      fetchWithTimeout(`${server.url}/completions`, { method: "POST" }, 100, (response) => {
-        consumeEntered = true;
-        return response.text();
-      }),
-    ).rejects.toMatchObject({ name: "AbortError" });
-
-    expect(consumeEntered).toBe(true);
+    await bodyReadStarted;
+    await vi.advanceTimersByTimeAsync(100);
+    await assertion;
   });
 
   it("passes the consumed value through on the happy path", async () => {
@@ -207,17 +230,12 @@ describe("OpenAICompatibleLlmAdapter body-read coverage", () => {
 describe("AnthropicLlmAdapter body-read coverage", () => {
   it("times out a stalled body through the shared fetch window", async () => {
     const server = await startStalledServer();
-    // The Anthropic adapter's endpoint is hardcoded, so requests are
-    // redirected to the local stalled server while keeping undici's real
-    // abort semantics (the AbortSignal is passed through untouched).
-    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
-      originalFetch(server.url, init)) as typeof fetch;
-
     const adapter = new AnthropicLlmAdapter(
       {
         provider: "anthropic",
         apiKeyEnv: "TEST_LLM_KEY",
         model: "test-model",
+        baseUrl: server.url,
         timeoutMs: 100,
       },
       { maxAttempts: 1, backoffMs: 0 },

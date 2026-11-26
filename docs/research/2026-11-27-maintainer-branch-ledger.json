@@ -1,0 +1,1744 @@
+{
+  "asOf": "2026-11-27",
+  "scope": "160 remote heads observed before maintenance; names counted per remote, not unique changesets",
+  "archiveRefPrefix": "refs/archive/20261127/<remote>/<branch>",
+  "archiveBundles": [
+    {
+      "path": "artifacts/runs/20261127-repository-readiness/branches-before-cleanup.bundle",
+      "bytes": 31243789,
+      "sha256": "dbfc04ca88b040d85bbb51e8434a668b59f8d6a8fa9c0c934ade343293489247"
+    },
+    {
+      "path": "artifacts/runs/20261127-repository-readiness/branches-closeout-snapshot.bundle",
+      "bytes": 31240034,
+      "sha256": "51c4f5e1a31eca1e99e1974942e114a82bf4737e4f5b1162d4649d3d71b40954"
+    }
+  ],
+  "archiveAvailability": "Bundles and archive refs are local evidence, not uploaded release artifacts; exact original commit IDs remain recorded below. No claim of an independent off-machine backup.",
+  "counts": {
+    "retain-historical-research-variant": 15,
+    "retain-reviewed-unmerged-delta": 12,
+    "deleted-after-archive": 123,
+    "superseded-by-maintainer-closeout": 2,
+    "retain-historical-implementation": 1,
+    "retain-unmerged-feature": 1,
+    "reject-as-written-retain-evidence": 1,
+    "retain-main": 2,
+    "retain-do-not-merge-wholesale": 1,
+    "retain-active-worktree": 1,
+    "retain-unmerged-site-variant": 1
+  },
+  "branches": [
+    {
+      "remote": "upstream",
+      "branch": "Jah-yee/m1b-doctor",
+      "snapshotSha": "e89b8cc7b524ba7ec22f681b5f1777da3c6857c6",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "537f46e1e36905dd8f6b5de9eafd49a1da972e74",
+        "dbfbaf2e5cc849a3ff19803c75411843d7547e2b",
+        "1c2e9126fd0c6604e75f003376e4e00a0b64cefe",
+        "e89b8cc7b524ba7ec22f681b5f1777da3c6857c6"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "chore/annotations-and-microfixes-2026-10-21",
+      "snapshotSha": "a67f63caced5f78f552a9ff60f04ac33ee068906",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": [
+        "6a5052c8748818f78b50ed4544f90897ef6d775e",
+        "1f1a4a655711b166673e42e6ea905cc928c40e07",
+        "58617da6598481c794bf2779a752e85634107a7f",
+        "4f93c7a731a8abe69d04d35b428bbab1744dc51c",
+        "0b9fdaad0e081f02fb6c629f456cc242411e1e6e",
+        "a67f63caced5f78f552a9ff60f04ac33ee068906"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "chore/pre-training-sweep",
+      "snapshotSha": "2ca1db2dace599074acc1b087ccb63def2d2c602",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "2ca1db2dace599074acc1b087ccb63def2d2c602"
+    },
+    {
+      "remote": "upstream",
+      "branch": "chore/test-serial-script",
+      "snapshotSha": "d0d25cc8383b078fabfe26eab135ff5e8a6b2366",
+      "disposition": "superseded-by-maintainer-closeout",
+      "reason": "Useful script/label changes salvaged without copying operating-doc doctrine; retire after successor merges",
+      "relatedPrs": [
+        {
+          "number": 667,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["d0d25cc8383b078fabfe26eab135ff5e8a6b2366"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "ci/dependabot-ecosystem-labels",
+      "snapshotSha": "1ca036aa51eae7827b5d56c73ce645f07e4cb1c0",
+      "disposition": "superseded-by-maintainer-closeout",
+      "reason": "Useful script/label changes salvaged without copying operating-doc doctrine; retire after successor merges",
+      "relatedPrs": [
+        {
+          "number": 666,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["1ca036aa51eae7827b5d56c73ce645f07e4cb1c0"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "ci/training-tests",
+      "snapshotSha": "8fd4b6be29ece15aaa70dd5a4ac63522fd527264",
+      "disposition": "deleted-after-archive",
+      "reason": "stdlib training suite superseded by expanded suite in merged successor",
+      "deletedHead": "8fd4b6be29ece15aaa70dd5a4ac63522fd527264",
+      "successor": "#704",
+      "unmatchedSourceCommits": ["8fd4b6be29ece15aaa70dd5a4ac63522fd527264"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/ai-shape-audit-288",
+      "snapshotSha": "ea98f01ffc1182fb2cbc06f658113d2f6b0652d0",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "ea98f01ffc1182fb2cbc06f658113d2f6b0652d0"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/audio-route-refactor-355",
+      "snapshotSha": "d597da860d2601f905fba3488f46f70b29d3478a",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "d597da860d2601f905fba3488f46f70b29d3478a"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/cli-public-entry-364",
+      "snapshotSha": "a255ae011bcb0cdafd961f7fdc809cc60655d889",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "a255ae011bcb0cdafd961f7fdc809cc60655d889"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/codec-image-test-refactor-354",
+      "snapshotSha": "f1c9494f82cc99c465d48513f24501fe2960f809",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "f1c9494f82cc99c465d48513f24501fe2960f809"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/extract-sensor-operators-326",
+      "snapshotSha": "64736e079b6eecee9709bc190e3ec628f87f3e11",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "64736e079b6eecee9709bc190e3ec628f87f3e11"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/fork-parent-runid-346",
+      "snapshotSha": "6349de9605bd1c046525be9fad8105985c84570c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6349de9605bd1c046525be9fad8105985c84570c"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/golden-scripts-347",
+      "snapshotSha": "1c6015d5bea7630ac55fbd995b68df7c7421b277",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1c6015d5bea7630ac55fbd995b68df7c7421b277"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/harness-modality-classify-300",
+      "snapshotSha": "e70afa1fff2e9433330f8533a4ac9c8702dcec57",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "e70afa1fff2e9433330f8533a4ac9c8702dcec57"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/hashfile-throw-345",
+      "snapshotSha": "8dd7a829311cf5fa5e950a714d19e999fb0a748b",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8dd7a829311cf5fa5e950a714d19e999fb0a748b"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/license-divergence-353",
+      "snapshotSha": "0f0fb356d0da28d2faf11ac15f55025c56764d5f",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "0f0fb356d0da28d2faf11ac15f55025c56764d5f"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/lift-process-runner-356",
+      "snapshotSha": "cb50b692e9ea76fee315ff5bab1a544f35e21870",
+      "disposition": "retain-historical-implementation",
+      "reason": "Leaf package feature already landed via #401; unmatched historical implementation is not automatically a safe diff",
+      "relatedPrs": [
+        {
+          "number": 379,
+          "state": "MERGED",
+          "exactHead": false
+        }
+      ],
+      "unmatchedSourceCommits": ["cb50b692e9ea76fee315ff5bab1a544f35e21870"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/m1b-prep-bridge-interface",
+      "snapshotSha": "9483da7640f371390521678759f0066c1c14d925",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9483da7640f371390521678759f0066c1c14d925"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/m1b-training-prep",
+      "snapshotSha": "8a9655b22d3c0729a5526432cd24dc1f4bfaf798",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8a9655b22d3c0729a5526432cd24dc1f4bfaf798"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/post-cut-doc-sweep",
+      "snapshotSha": "9f84ceb6972b4b8e45a0f81857bb0336eb6a7953",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9f84ceb6972b4b8e45a0f81857bb0336eb6a7953"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/readme-audit-366",
+      "snapshotSha": "1faae5a8b8e1342e784c056edb9a343d67048dc8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1faae5a8b8e1342e784c056edb9a343d67048dc8"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/readme-first-screen-256",
+      "snapshotSha": "0d636f60d13830957b81fed324c9031aff6b0081",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "0d636f60d13830957b81fed324c9031aff6b0081"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/registry-validation-344",
+      "snapshotSha": "1f8d3d5bcb592a9ca6bde3df74a4d8f5ce0300db",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1f8d3d5bcb592a9ca6bde3df74a4d8f5ce0300db"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/replay-command-384",
+      "snapshotSha": "21d789437946906aa350c11019578ca7ef82ccbf",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "21d789437946906aa350c11019578ca7ef82ccbf"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/rfc-seedcode-shape-352",
+      "snapshotSha": "caa6ccfa60b249386877c9a213b89b632dbc9d8d",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "caa6ccfa60b249386877c9a213b89b632dbc9d8d"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/schema-negative-tests-383",
+      "snapshotSha": "617f067cc73f493ee9a7235d6ee54b9ef77574c2",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "617f067cc73f493ee9a7235d6ee54b9ef77574c2"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/sensor-html-path-387",
+      "snapshotSha": "75532963fbe8440e5473801862c903c7838a8409",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "75532963fbe8440e5473801862c903c7838a8409"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/tighten-public-api-365",
+      "snapshotSha": "99a7f67f5e69b699e72addd049711db721220f5b",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "99a7f67f5e69b699e72addd049711db721220f5b"
+    },
+    {
+      "remote": "upstream",
+      "branch": "claude/verification-ladder-310",
+      "snapshotSha": "bcc1549f13b0e0bbae929d186fcdd1c3e0dbed20",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "bcc1549f13b0e0bbae929d186fcdd1c3e0dbed20"
+    },
+    {
+      "remote": "upstream",
+      "branch": "coderabbit-second-pass",
+      "snapshotSha": "77ba5c32a3cfd484f1c9425986d3772745a1efd8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "77ba5c32a3cfd484f1c9425986d3772745a1efd8"
+    },
+    {
+      "remote": "upstream",
+      "branch": "codex/m1b-audit-delivery",
+      "snapshotSha": "ff058864d2601c6fc94d868c52cc3a696b6c9987",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "537f46e1e36905dd8f6b5de9eafd49a1da972e74",
+        "dbfbaf2e5cc849a3ff19803c75411843d7547e2b",
+        "1c2e9126fd0c6604e75f003376e4e00a0b64cefe",
+        "e89b8cc7b524ba7ec22f681b5f1777da3c6857c6",
+        "d683f8236558161b115860c14b46072edfa96eb0",
+        "ff058864d2601c6fc94d868c52cc3a696b6c9987"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "codex/m1b-audit-delivery-surface",
+      "snapshotSha": "80a7fda4ad83b8b51c37305222c7219f6a5e3830",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "80a7fda4ad83b8b51c37305222c7219f6a5e3830"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/github_actions/actions/setup-node-7",
+      "snapshotSha": "b1c53ae5499b0a127abac6dd6ee7672bc1eaa74d",
+      "disposition": "deleted-after-archive",
+      "reason": "merged PR exact head",
+      "deletedHead": "8fb6e6d6547ab06f263b6a947368fa9217c1b54a",
+      "successor": "#674"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/github_actions/github-actions-7bd20204d2",
+      "snapshotSha": "9c1d6751b11cb56e357da4a5d16413b1014aee27",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9c1d6751b11cb56e357da4a5d16413b1014aee27"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/github_actions/github-actions-60d3b315d6",
+      "snapshotSha": "4afcea9a70dab677f64eb78b219f20d718db9d03",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "4afcea9a70dab677f64eb78b219f20d718db9d03"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/github_actions/github-actions-e8ff755b84",
+      "snapshotSha": "4d5d24207f3e1328c6ee1f36048573d5a8aa58e8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "4d5d24207f3e1328c6ee1f36048573d5a8aa58e8"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/npm_and_yarn/eslint-stack-0f10712834",
+      "snapshotSha": "94e0af4b2b8780d0fe5294234e7412c1c75cae48",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "94e0af4b2b8780d0fe5294234e7412c1c75cae48"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/npm_and_yarn/eslint-stack-e4c80ac242",
+      "snapshotSha": "d963423126a98341319f78e64ba013fc285f7ffb",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "d963423126a98341319f78e64ba013fc285f7ffb"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/npm_and_yarn/globals-17.6.0",
+      "snapshotSha": "aa6592696532b66c6ee345ae69b577b387f381ec",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "aa6592696532b66c6ee345ae69b577b387f381ec"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/npm_and_yarn/hookform/resolvers-7.0.8",
+      "snapshotSha": "2ee55702289da4b5d65c41184cb1d1f54b5a3e33",
+      "disposition": "deleted-after-archive",
+      "reason": "unused UI consumers and dependencies removed; archived superseded implementation",
+      "deletedHead": "2ee55702289da4b5d65c41184cb1d1f54b5a3e33",
+      "successor": "#705"
+    },
+    {
+      "remote": "upstream",
+      "branch": "dependabot/npm_and_yarn/recharts-3.11.0",
+      "snapshotSha": "698a3b82df719c3732e880392ffb57929af1e544",
+      "disposition": "deleted-after-archive",
+      "reason": "unused UI consumers and dependencies removed; archived superseded implementation",
+      "deletedHead": "698a3b82df719c3732e880392ffb57929af1e544",
+      "successor": "#705"
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/engagement-handoff-2026-10-21",
+      "snapshotSha": "f7106dd06e9a2451bb250e6564eb4acf8c47823e",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": [
+        "d2108f6cbe5a520cd02eac902b55bb7f4f8a11db",
+        "f7106dd06e9a2451bb250e6564eb4acf8c47823e"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/m1b-research-notes-may22",
+      "snapshotSha": "475add0425a03ea7fb61ddab6eb7aff6784243af",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "475add0425a03ea7fb61ddab6eb7aff6784243af"
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/radar-local-audits-283",
+      "snapshotSha": "adf8e2e05b6708af282b0245e36bb3a684027460",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "relatedPrs": [
+        {
+          "number": 294,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["adf8e2e05b6708af282b0245e36bb3a684027460"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/redact-internal-cluster-identifiers",
+      "snapshotSha": "8a70175b2cfd2658f524111e4be3ded93c2ecd11",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8a70175b2cfd2658f524111e4be3ded93c2ecd11"
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/regression-audit-2026-10-19",
+      "snapshotSha": "33fa618ef954c93fdf1f8f412a5211a4a2b22622",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "relatedPrs": [
+        {
+          "number": 664,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["33fa618ef954c93fdf1f8f412a5211a4a2b22622"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "docs/sensor-measurement-plan-284",
+      "snapshotSha": "292e39c4f4873177eec7b8933da4c1dee54985ff",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "relatedPrs": [
+        {
+          "number": 295,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["292e39c4f4873177eec7b8933da4c1dee54985ff"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/cli-image-dry-expand",
+      "snapshotSha": "58c47214e9ed0d8a4e1d4ab38fe49dca4597343c",
+      "disposition": "retain-unmerged-feature",
+      "reason": "Unique CLI/command implementation is absent from main; needs focused public-API and behavior review under #70",
+      "relatedPrs": [
+        {
+          "number": 253,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["58c47214e9ed0d8a4e1d4ab38fe49dca4597343c"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/codec-image-clean-repaint-and-reasoning",
+      "snapshotSha": "3d6b06d87bced6a509ef8eecc225a2f5c8ec4b9f",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "3d6b06d87bced6a509ef8eecc225a2f5c8ec4b9f"
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/training-dataset-receipt-fields",
+      "snapshotSha": "800aa0434d81dfe6a82bf44da72303010570c460",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "800aa0434d81dfe6a82bf44da72303010570c460",
+      "successor": "#704",
+      "unmatchedSourceCommits": [
+        "a152f0d8497a6d355b42a02a5331abbbf2c780cc",
+        "800aa0434d81dfe6a82bf44da72303010570c460"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/training-receipt-honesty",
+      "snapshotSha": "4968c79006d9096ed4e3449930164d01d2881eb8",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "4968c79006d9096ed4e3449930164d01d2881eb8",
+      "successor": "#704",
+      "unmatchedSourceCommits": ["4968c79006d9096ed4e3449930164d01d2881eb8"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/training-receipt-observability",
+      "snapshotSha": "57c5b6b4adb43ea7be8c55dd79b19527997fe2ae",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "57c5b6b4adb43ea7be8c55dd79b19527997fe2ae",
+      "successor": "#704",
+      "unmatchedSourceCommits": [
+        "a57b5c7051efbe7479d165528e913846898f80c8",
+        "57c5b6b4adb43ea7be8c55dd79b19527997fe2ae"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/training-resume-closeout",
+      "snapshotSha": "5fb19360c3756ecd39c0028d549b30b1744cd4e3",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": ["5fb19360c3756ecd39c0028d549b30b1744cd4e3"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "feat/training-resume-hardening",
+      "snapshotSha": "886a9c4a8c037c9d20e6c7d43bc1a98b33e72e74",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "886a9c4a8c037c9d20e6c7d43bc1a98b33e72e74",
+      "successor": "#704",
+      "unmatchedSourceCommits": [
+        "a0e6659945490908bd4859f578c617ce3dfb3031",
+        "70ebb3fe71e87d84955c6db4903f985a365156f7",
+        "892084f4463c5f6d90b2a651294ccd4e56c4ef38",
+        "f6c61f721e9abbbbe0de79395331149da323d0d4",
+        "db803e317cd6e59c7a22c50be78c21a57233f2c1",
+        "bf178443afa74a54ff19e849d7bfb8a3ca22a7f7",
+        "886a9c4a8c037c9d20e6c7d43bc1a98b33e72e74"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "fix/anthropic-base-url-parity",
+      "snapshotSha": "8189b0645defc56d33e1b510ddf7933b3fd96ee4",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "8189b0645defc56d33e1b510ddf7933b3fd96ee4",
+      "successor": "#706",
+      "unmatchedSourceCommits": ["8189b0645defc56d33e1b510ddf7933b3fd96ee4"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "fix/image-warning-classifier-total",
+      "snapshotSha": "c95563cd414126884d78d7f08b40f65287190e8e",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "c95563cd414126884d78d7f08b40f65287190e8e",
+      "successor": "#708",
+      "relatedPrs": [
+        {
+          "number": 663,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": [
+        "3b5ca6fa06eb07eaeb33f9883ab4ce81c9a8244f",
+        "c95563cd414126884d78d7f08b40f65287190e8e"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "fix/llm-body-read-timeout",
+      "snapshotSha": "b65310fa55da8d20a67366da93a738b0df8cdbbd",
+      "disposition": "deleted-after-archive",
+      "reason": "all source commits credited by cherry-pick provenance in merged successor",
+      "deletedHead": "b65310fa55da8d20a67366da93a738b0df8cdbbd",
+      "successor": "#706",
+      "relatedPrs": [
+        {
+          "number": 670,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": [
+        "e6804267530e5c2d92e20b213116cec5b816c8a9",
+        "b65310fa55da8d20a67366da93a738b0df8cdbbd"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "fix/manifest-version-typed-error",
+      "snapshotSha": "6f5e307235f0074ee1b50a7fc215a460d32884be",
+      "disposition": "reject-as-written-retain-evidence",
+      "reason": "Requires caller package.json and breaks 23 existing receipt tests; tracked in #707",
+      "relatedPrs": [
+        {
+          "number": 669,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": [
+        "e3b5a5ec9bc7cf398efd6d04c94881eedfd32a53",
+        "6f5e307235f0074ee1b50a7fc215a460d32884be"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "fix/site-recharts-3-migration",
+      "snapshotSha": "1af91012693e10a215fa11fdcd1227f6b0a4b75e",
+      "disposition": "deleted-after-archive",
+      "reason": "unused UI consumers and dependencies removed; archived superseded implementation",
+      "deletedHead": "1af91012693e10a215fa11fdcd1227f6b0a4b75e",
+      "successor": "#705",
+      "relatedPrs": [
+        {
+          "number": 665,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": ["1af91012693e10a215fa11fdcd1227f6b0a4b75e"]
+    },
+    {
+      "remote": "upstream",
+      "branch": "jah-yee-m1b-delivery-rebase",
+      "snapshotSha": "93582ecc57a4550565135b34539f792c29326d23",
+      "disposition": "deleted-after-archive",
+      "reason": "duplicate SHA; retained remote representative",
+      "deletedHead": "93582ecc57a4550565135b34539f792c29326d23",
+      "successor": "upstream/pr527@93582ecc57a4550565135b34539f792c29326d23",
+      "relatedPrs": [
+        {
+          "number": 527,
+          "state": "CLOSED",
+          "exactHead": true
+        }
+      ],
+      "unmatchedSourceCommits": [
+        "85de48e2ceb223e10fe494ad6cbafd155b0ca50b",
+        "a1e7a9ef118c11309dcc7c003122b9b284dc2698",
+        "8a21cbb99fa5c8e9abed7f23d332075733712ab7",
+        "adee3def669bce01775e6076a8fb6a278d356596",
+        "999db8a1913f663babaee2e5dbfd5e42a2d49cc9",
+        "ff823c95e491792bd84c7568d501fb25339cffb7",
+        "ee442e7f9cdb4a2573bfd85478f39a47ef2b7591",
+        "23788aae1bc5c6b959661aae960047dc783b9622",
+        "92b59a97626c8262bf02ee3568fb7185b9a2ea73",
+        "ecf6b30376148f2a3147398b1e29f12f955b254f",
+        "3eb0181eeb33947a34f685743ee60b5f64cb42d5",
+        "b6e4cd5c2da1da7ea61387a6d63f3d3c1c65e14e",
+        "93582ecc57a4550565135b34539f792c29326d23"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "main",
+      "snapshotSha": "98db4e28cd810812935175dbeb5aa101188f5acc",
+      "disposition": "retain-main",
+      "reason": "Mainline; fork fast-forward separately after verifying ancestry"
+    },
+    {
+      "remote": "upstream",
+      "branch": "p-to-q-pr457",
+      "snapshotSha": "09b64f96010e8fc76aa2ef4eb5ee90d0d9d04530",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "537f46e1e36905dd8f6b5de9eafd49a1da972e74",
+        "dbfbaf2e5cc849a3ff19803c75411843d7547e2b",
+        "1c2e9126fd0c6604e75f003376e4e00a0b64cefe",
+        "2103e2fd4f709718befb0ed0359b957d468aacdf",
+        "6511d03bbeceb2dfc3f2c4c55487744a317af391",
+        "9065bdda98b2dcdecb80c7e8aad85707f7902bd9",
+        "09b64f96010e8fc76aa2ef4eb5ee90d0d9d04530"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "pr527",
+      "snapshotSha": "93582ecc57a4550565135b34539f792c29326d23",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "85de48e2ceb223e10fe494ad6cbafd155b0ca50b",
+        "a1e7a9ef118c11309dcc7c003122b9b284dc2698",
+        "8a21cbb99fa5c8e9abed7f23d332075733712ab7",
+        "adee3def669bce01775e6076a8fb6a278d356596",
+        "999db8a1913f663babaee2e5dbfd5e42a2d49cc9",
+        "ff823c95e491792bd84c7568d501fb25339cffb7",
+        "ee442e7f9cdb4a2573bfd85478f39a47ef2b7591",
+        "23788aae1bc5c6b959661aae960047dc783b9622",
+        "92b59a97626c8262bf02ee3568fb7185b9a2ea73",
+        "ecf6b30376148f2a3147398b1e29f12f955b254f",
+        "3eb0181eeb33947a34f685743ee60b5f64cb42d5",
+        "b6e4cd5c2da1da7ea61387a6d63f3d3c1c65e14e",
+        "93582ecc57a4550565135b34539f792c29326d23"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "pr-457",
+      "snapshotSha": "a65d9ac6e1ab30f9181981655197f299a06d2f23",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "86473bf7d2dacb9af957a4e92f8cf1067ef0e27b",
+        "476b50aa3b601955825f7bc66bdbfef19a29bcce",
+        "1ce901d85b18ae15f3ca40efe36191cf6172ad9b",
+        "2594e5cf2d4c2dd4af5fc11371ad1a5df18e1346",
+        "3ce5295c367d3f5083282b38892c025f7ba4bc6a",
+        "073e1e48e6bb6b6669358f22f1cdb3732f2f279f",
+        "9d5bb1ac3d8e325d88099d1f0b01b9e2171851f0",
+        "610bc18fa9f455cdb5f6d780c7c724e3c6d5fb8d",
+        "0bfef9b77da95461ad3df3b9b0a03ff96da586b3",
+        "80c574b577e916b4eb7618caaf8ed5bae628016e",
+        "a65d9ac6e1ab30f9181981655197f299a06d2f23"
+      ]
+    },
+    {
+      "remote": "upstream",
+      "branch": "pr-527",
+      "snapshotSha": "77ba5c32a3cfd484f1c9425986d3772745a1efd8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "77ba5c32a3cfd484f1c9425986d3772745a1efd8",
+      "mergedPrEvidence": [528]
+    },
+    {
+      "remote": "upstream",
+      "branch": "revert-144-dependabot/npm_and_yarn/globals-17.6.0",
+      "snapshotSha": "48a2dfdb87c3b69ce330521421c9ecf986b10f01",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": ["48a2dfdb87c3b69ce330521421c9ecf986b10f01"]
+    },
+    {
+      "remote": "origin",
+      "branch": "chore/p0-p1-p2-small-batch",
+      "snapshotSha": "9fe521fa71827b48ee76d52c447cd235ca4e0d1b",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9fe521fa71827b48ee76d52c447cd235ca4e0d1b",
+      "mergedPrEvidence": [123]
+    },
+    {
+      "remote": "origin",
+      "branch": "claude/optional-peerdeps-404",
+      "snapshotSha": "852212ffde0aaf4548beecc6599d07380dde1594",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "852212ffde0aaf4548beecc6599d07380dde1594",
+      "mergedPrEvidence": [409]
+    },
+    {
+      "remote": "origin",
+      "branch": "claude/release-prep-alpha.3",
+      "snapshotSha": "b44a9abbb2a453db0be346731820dcb17c9b42a1",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "b44a9abbb2a453db0be346731820dcb17c9b42a1",
+      "mergedPrEvidence": [411]
+    },
+    {
+      "remote": "origin",
+      "branch": "claude/research-training-skeleton-406",
+      "snapshotSha": "80e9f58fa68c25ac6afd8d59fd07542d9571b01c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "80e9f58fa68c25ac6afd8d59fd07542d9571b01c",
+      "mergedPrEvidence": [408]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/add-ml-reviewer-routing",
+      "snapshotSha": "8a086bda57b3ceec2eb10102deab352e86456259",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8a086bda57b3ceec2eb10102deab352e86456259",
+      "mergedPrEvidence": [495]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/archive-m1b-audit-local-20260528",
+      "snapshotSha": "130d8b8cf51fa4bce02c325d8ad04538ce77b65e",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "537f46e1e36905dd8f6b5de9eafd49a1da972e74",
+        "dbfbaf2e5cc849a3ff19803c75411843d7547e2b",
+        "1c2e9126fd0c6604e75f003376e4e00a0b64cefe",
+        "2103e2fd4f709718befb0ed0359b957d468aacdf",
+        "6511d03bbeceb2dfc3f2c4c55487744a317af391",
+        "9065bdda98b2dcdecb80c7e8aad85707f7902bd9",
+        "63d4fd3ce235c28706aec95a7940587554b70598",
+        "216be354ae69cd44931555e24ad2d3145ebbb298",
+        "130d8b8cf51fa4bce02c325d8ad04538ce77b65e"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/audio-kokoro-sweep-receipt",
+      "snapshotSha": "9140380f45b3c7d05d8cb1ca0598fdf523bd46a1",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9140380f45b3c7d05d8cb1ca0598fdf523bd46a1",
+      "mergedPrEvidence": [165]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/audio-kokoro-test-timeout",
+      "snapshotSha": "18e3eddc17aebb6d4ed05f92b8d01770d47d6aba",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "18e3eddc17aebb6d4ed05f92b8d01770d47d6aba",
+      "mergedPrEvidence": [163]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/bot-automation-setup",
+      "snapshotSha": "6d704df4113dfdd466fd5339cb3bbf6021a11b3c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6d704df4113dfdd466fd5339cb3bbf6021a11b3c",
+      "mergedPrEvidence": [314]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/close-review-debt",
+      "snapshotSha": "84df6b855c2d184c06d4dab6e84507c3a06588c9",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "84df6b855c2d184c06d4dab6e84507c3a06588c9",
+      "mergedPrEvidence": [573]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/closeout-docs-pack",
+      "snapshotSha": "4d29a2a6f6b69cc3b7cfb892a0ad473888ff2f46",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": ["4d29a2a6f6b69cc3b7cfb892a0ad473888ff2f46"]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/closeout-docs-pr1",
+      "snapshotSha": "153073ac15c9bb73a267ea96fa7d2d35b0fca968",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "153073ac15c9bb73a267ea96fa7d2d35b0fca968",
+      "mergedPrEvidence": [529]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/closeout-docs-pr2",
+      "snapshotSha": "768a7ddf71f0b25abd4697ba4f84e9e326d53392",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "768a7ddf71f0b25abd4697ba4f84e9e326d53392",
+      "mergedPrEvidence": [530]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/closeout-docs-pr3",
+      "snapshotSha": "b1e4a67a95d0e7d127c11d6404d6ade27d506362",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "b1e4a67a95d0e7d127c11d6404d6ade27d506362",
+      "mergedPrEvidence": [531]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/closeout-docs-pr4",
+      "snapshotSha": "b3d323d63b20ee8a479050ebb7b63d3219cdc6d8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "b3d323d63b20ee8a479050ebb7b63d3219cdc6d8",
+      "mergedPrEvidence": [532]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/fix-contact-links",
+      "snapshotSha": "6fb5159950073775f01199b3cd9440653109c193",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6fb5159950073775f01199b3cd9440653109c193",
+      "mergedPrEvidence": [502]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/fix-video-truth-surface",
+      "snapshotSha": "7b598912679cc8556265f8359a815e7166f12de4",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "7b598912679cc8556265f8359a815e7166f12de4",
+      "mergedPrEvidence": [509]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/global-hygiene-fix",
+      "snapshotSha": "d347ddd4ed078b37f2b133143a80225b6581f5c1",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "d347ddd4ed078b37f2b133143a80225b6581f5c1",
+      "mergedPrEvidence": [506]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/governance-attribution-hygiene",
+      "snapshotSha": "425bf18e32a6699d8db699c464a1db6135b49ef5",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "425bf18e32a6699d8db699c464a1db6135b49ef5",
+      "mergedPrEvidence": [459]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/governance-hygiene-pass",
+      "snapshotSha": "8903ff9da787176a29741d8ffc67e72645912e55",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8903ff9da787176a29741d8ffc67e72645912e55",
+      "mergedPrEvidence": [503]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/hybrid-image-code-docs",
+      "snapshotSha": "8fe91756752d95c8f6c7228569b5f609436f65c9",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "8fe91756752d95c8f6c7228569b5f609436f65c9",
+      "mergedPrEvidence": [206]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/image-adapter-eval-all",
+      "snapshotSha": "6d2e54c36af4819c38bfe54899fd9f8de86839c2",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6d2e54c36af4819c38bfe54899fd9f8de86839c2",
+      "mergedPrEvidence": [515]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/implementation-status-cli-drift",
+      "snapshotSha": "6479cf6c9a11f7db86c9b482a552b9d759e7fbb8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6479cf6c9a11f7db86c9b482a552b9d759e7fbb8",
+      "mergedPrEvidence": [576]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/issue-203-hybrid-image-code-impl",
+      "snapshotSha": "368b0e1ba9d4b963896b58d1d3faf23f9b1f7425",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "368b0e1ba9d4b963896b58d1d3faf23f9b1f7425",
+      "mergedPrEvidence": [210]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/issue-204-cli-eval-surface",
+      "snapshotSha": "e8d6b7a91699b752f116f05209731132e8710d99",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "e8d6b7a91699b752f116f05209731132e8710d99",
+      "mergedPrEvidence": [234]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/issue-212-skill-playbook",
+      "snapshotSha": "134cc92a4208647d5f32fcf95a01e9d543e34425",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "134cc92a4208647d5f32fcf95a01e9d543e34425",
+      "mergedPrEvidence": [213]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/issue-214-image-receipts",
+      "snapshotSha": "81c9f002b655a418a861232f0749d392cee8fd41",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "81c9f002b655a418a861232f0749d392cee8fd41",
+      "mergedPrEvidence": [218]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/kokoro-workflow-summary",
+      "snapshotSha": "911594a9fe7e0cc977dc07c9df92aabcfea5f405",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "911594a9fe7e0cc977dc07c9df92aabcfea5f405",
+      "mergedPrEvidence": [197]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/koriyoshi-image-training-routing",
+      "snapshotSha": "1cf2d70dcf9e3caac6e4af8c59a1c013bce904af",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1cf2d70dcf9e3caac6e4af8c59a1c013bce904af",
+      "mergedPrEvidence": [496]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/labels-needs-ml-specialist-sync",
+      "snapshotSha": "f306707f3408aa4b29ad8092206cbdc05773104f",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "f306707f3408aa4b29ad8092206cbdc05773104f",
+      "mergedPrEvidence": [498]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m1b-audit-delivery",
+      "snapshotSha": "b323bdf7c41ffd78f10c733d0789543873db5c85",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "b323bdf7c41ffd78f10c733d0789543873db5c85"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m1b-audit-delivery-surface",
+      "snapshotSha": "3207271af7ec174153b823c7d189da72183aacb3",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "3207271af7ec174153b823c7d189da72183aacb3"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m1b-staging-ok-push",
+      "snapshotSha": "3207271af7ec174153b823c7d189da72183aacb3",
+      "disposition": "deleted-after-archive",
+      "reason": "duplicate SHA; retained remote representative",
+      "deletedHead": "3207271af7ec174153b823c7d189da72183aacb3",
+      "successor": "origin/codex/m1b-audit-delivery-surface@3207271af7ec174153b823c7d189da72183aacb3",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "3207271af7ec174153b823c7d189da72183aacb3"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-a-audio-routing",
+      "snapshotSha": "81ad79cb3c8d15ed1ea7a516e5db01a81cb0db9c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "81ad79cb3c8d15ed1ea7a516e5db01a81cb0db9c",
+      "mergedPrEvidence": [93]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-b-audio-route-helpers",
+      "snapshotSha": "c3edce4a0dcfb0095609c483faf750b1ef63e869",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "c3edce4a0dcfb0095609c483faf750b1ef63e869",
+      "mergedPrEvidence": [94]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-c1-audio-render-manifest",
+      "snapshotSha": "19a2e8a849ade3e5474b28d0dfedf330e2cbdd56",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-ancestor",
+      "deletedHead": "19a2e8a849ade3e5474b28d0dfedf330e2cbdd56"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-c2-route-softwarn-v2",
+      "snapshotSha": "9c9c7ab11df988bcbd197b6d7325364ab53ca06a",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9c9c7ab11df988bcbd197b6d7325364ab53ca06a",
+      "mergedPrEvidence": [96]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-c3-audio-parity-goldens",
+      "snapshotSha": "56ea1adbdbc03a420d3fb7b327473d4c5026ea8e",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "56ea1adbdbc03a420d3fb7b327473d4c5026ea8e",
+      "mergedPrEvidence": [121]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/m2-slice-e-verdict",
+      "snapshotSha": "aecfab46c413850a35ecf2833e53982089d7d1f0",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "aecfab46c413850a35ecf2833e53982089d7d1f0",
+      "mergedPrEvidence": [198]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/manifest-tightening-189-190",
+      "snapshotSha": "11a5bca4500d9ba35826f34f4a319567a8934258",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "11a5bca4500d9ba35826f34f4a319567a8934258",
+      "mergedPrEvidence": [201]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/ml-specialist-governance-clarify",
+      "snapshotSha": "965f76b73390da3be6612b3f05c985f4961ba308",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "965f76b73390da3be6612b3f05c985f4961ba308",
+      "mergedPrEvidence": [499]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/ml-specialist-review-loop",
+      "snapshotSha": "5b719c6a1a052980f6e70f2ba2722b3617116705",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "5b719c6a1a052980f6e70f2ba2722b3617116705",
+      "mergedPrEvidence": [497]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/pin-gh-actions-shas",
+      "snapshotSha": "2c97fbc794a5d5f84e253e8ace142fadd1f2c342",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "2c97fbc794a5d5f84e253e8ace142fadd1f2c342",
+      "mergedPrEvidence": [501]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/post-queue-doc-drift",
+      "snapshotSha": "1c0e5744ab0de73ac1983a72746b352a0258014c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1c0e5744ab0de73ac1983a72746b352a0258014c",
+      "mergedPrEvidence": [240]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/post-vsc-merge-alignment",
+      "snapshotSha": "59d16f74f7b046d72efc10542de72406d67f5aee",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "59d16f74f7b046d72efc10542de72406d67f5aee",
+      "mergedPrEvidence": [233]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/pr493-duplicate-typos-fix",
+      "snapshotSha": "c9752af561b0bbba75c643737623bde3e21f456a",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "7e91fd4e5e732db87d6393533972c66cf82d6cfe",
+        "6068ac50404e55aad3b2d9df263a5614b819c31d",
+        "c9752af561b0bbba75c643737623bde3e21f456a"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/pr493-typos-vendor-allowlist",
+      "snapshotSha": "a7801e7cd6861528ee9d1d66db458e0d86cca0dd",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "7e91fd4e5e732db87d6393533972c66cf82d6cfe",
+        "387f9793e6d183fccb8c879ea252fe9dc4eb100d",
+        "9f5fadc46e71c5a98c1163242ca195659d91b96e",
+        "c2eb423dab62b0089cabee61c0642f3e8fd72387",
+        "76db3cd9e791b364900e7e4f50bdd758485cd0cc",
+        "a7801e7cd6861528ee9d1d66db458e0d86cca0dd"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/queue-label-taxonomy",
+      "snapshotSha": "0d6f721b2b1aea99c90bd2f9fcb6c0651f9c470d",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "0d6f721b2b1aea99c90bd2f9fcb6c0651f9c470d",
+      "mergedPrEvidence": [235]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/readme-architecture-clarity",
+      "snapshotSha": "ca9cf7d248343ec44754472930a3137c31a818e7",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "ca9cf7d248343ec44754472930a3137c31a818e7",
+      "mergedPrEvidence": [312]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/readme-first-screen-thesis",
+      "snapshotSha": "f237800a21b6cbba69b4172c555b519d9ec8ab21",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "f237800a21b6cbba69b4172c555b519d9ec8ab21",
+      "mergedPrEvidence": [157]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/refresh-maintainer-truth-surface",
+      "snapshotSha": "9f5160c799095c8752f2d78639d5973b8da51702",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-ancestor",
+      "deletedHead": "9f5160c799095c8752f2d78639d5973b8da51702"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/repo-cleanup-stage-alignment",
+      "snapshotSha": "40b2fa16fc59d6a65f38dd05be904d8f56dbbfc8",
+      "disposition": "retain-do-not-merge-wholesale",
+      "reason": "Contains ADR numbering/doctrine conflicts and obsolete stage assumptions; current roadmap is a separate assessment",
+      "unmatchedSourceCommits": [
+        "16cccd4c47021d15fba079b80f3efa56ffde9dab",
+        "4602fa5fd018a57337b20ed0d69897e6c4abd379",
+        "474a2c11bca1d23ceff9b3d7f88b093e9cd848a5",
+        "31909940a5df6a47a84404c309683864a52f41ff",
+        "07484a2ff50ce6e4864c44d774dbd413454f5c26",
+        "c7881bc78745712c583d0053a7ab703173e06ad5",
+        "41bc41bd87629c29d80fb3b4888e3962abaefd6a",
+        "40b2fa16fc59d6a65f38dd05be904d8f56dbbfc8"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/repo-hygiene-sweep",
+      "snapshotSha": "9e4178d5fd4a82bf4db576f4a0977f6cbf16117c",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9e4178d5fd4a82bf4db576f4a0977f6cbf16117c",
+      "mergedPrEvidence": [504]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/repo-hygiene-sweep-2",
+      "snapshotSha": "1e104327f1286d102283e0575799fef6cf8e54eb",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "1e104327f1286d102283e0575799fef6cf8e54eb",
+      "mergedPrEvidence": [505]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/review-request-ml-expert",
+      "snapshotSha": "62b7461cb5940ea217a507381808829ac52ff013",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "62b7461cb5940ea217a507381808829ac52ff013",
+      "mergedPrEvidence": [494]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/rgignore-huge-data",
+      "snapshotSha": "46f664be839b128a96570b4487de13e27c4a4eee",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "46f664be839b128a96570b4487de13e27c4a4eee",
+      "mergedPrEvidence": [508]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/robustness-audit",
+      "snapshotSha": "0397d5516bca79eb03c251321909b83e769a494e",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "0397d5516bca79eb03c251321909b83e769a494e",
+      "mergedPrEvidence": [687]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/sensor-doc-honesty",
+      "snapshotSha": "4da95319ad00a014540cf94bebdf335aae1dfab3",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": ["4da95319ad00a014540cf94bebdf335aae1dfab3"]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/sensor-replay-coverage",
+      "snapshotSha": "6272bbf1e86aec236038110ef6a3d1f695e577b8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "6272bbf1e86aec236038110ef6a3d1f695e577b8",
+      "mergedPrEvidence": [574]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/site-icon-badge-polish",
+      "snapshotSha": "257f6a1ed5d50222bc09c5caa7465c9426b54e67",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "257f6a1ed5d50222bc09c5caa7465c9426b54e67",
+      "mergedPrEvidence": [525]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/site-truth-surface-sweep",
+      "snapshotSha": "a0710f4c4063f76ead95725407c3ef3b3930f725",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "a0710f4c4063f76ead95725407c3ef3b3930f725",
+      "mergedPrEvidence": [524]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/site-w-badge-size",
+      "snapshotSha": "563b5999d1d206ba7c9a1e1d1a3231fed8ac7d9d",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "563b5999d1d206ba7c9a1e1d1a3231fed8ac7d9d",
+      "mergedPrEvidence": [526]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/status-labeler-needs-ml-specialist",
+      "snapshotSha": "dfe175065b1c24938eb39eaa47abb452a3a90685",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "dfe175065b1c24938eb39eaa47abb452a3a90685",
+      "mergedPrEvidence": [500]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/strict-cli-numeric-options",
+      "snapshotSha": "2c160a7e1c3c456630c286fd489042742553f762",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "2c160a7e1c3c456630c286fd489042742553f762",
+      "mergedPrEvidence": [578]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/strict-cli-seed",
+      "snapshotSha": "5855ef4ff3d17e9391d3c8c2d9ac525625a1aa12",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "5855ef4ff3d17e9391d3c8c2d9ac525625a1aa12",
+      "mergedPrEvidence": [577]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/strict-kokoro-sweep-runs",
+      "snapshotSha": "b1acb214dc46ef06dcafe297f4fdf74a27b4ce04",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "b1acb214dc46ef06dcafe297f4fdf74a27b4ce04",
+      "mergedPrEvidence": [579]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/strict-node-engine-check",
+      "snapshotSha": "2410b82cc478074a08c2409e253f28c9ec31d705",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "2410b82cc478074a08c2409e253f28c9ec31d705",
+      "mergedPrEvidence": [580]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/training-data-sweep-receipts",
+      "snapshotSha": "3d21488a86c24f20a3726f0ebb5aad7ceb92cfb1",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "3d21488a86c24f20a3726f0ebb5aad7ceb92cfb1",
+      "mergedPrEvidence": [581]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/training-manifest-smoke",
+      "snapshotSha": "2e6db47046c5d5d1c7550ba557bf5c3dd170ebcd",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "8b9661df80c570b2af31e9bc94e0647c800a5690",
+        "a6b2abbe64b71f4ad07525d641c515842128f819",
+        "62afd08e8c4d64698f199589254002f307b137bb",
+        "2e6db47046c5d5d1c7550ba557bf5c3dd170ebcd"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/training-resume-closeout",
+      "snapshotSha": "6eb874a2a95e81e6f9fa687651696571b7d228e0",
+      "disposition": "retain-active-worktree",
+      "reason": "Merged source, but a second local worktree still uses this branch; not deleted"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/training-stack-research-note",
+      "snapshotSha": "1c34516813118085d8c14bddc55fa43445c1b151",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-ancestor",
+      "deletedHead": "1c34516813118085d8c14bddc55fa43445c1b151"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/training-surface-cleanup",
+      "snapshotSha": "dc759caaabf6e137da731589d107320c767e2dad",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-ancestor",
+      "deletedHead": "dc759caaabf6e137da731589d107320c767e2dad"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/truth-surface-cleanup",
+      "snapshotSha": "83a8834b9cb1d759f0ccce47050c5b3ae46e207b",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "83a8834b9cb1d759f0ccce47050c5b3ae46e207b",
+      "mergedPrEvidence": [512]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/truth-surface-small-sweep",
+      "snapshotSha": "0e507e3170a30a02422f644d929ef3e1056bfc71",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-ancestor",
+      "deletedHead": "0e507e3170a30a02422f644d929ef3e1056bfc71"
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/v0.3-cold-checkout-rerun",
+      "snapshotSha": "02da6000dc75a6e97ade83ef47c3162e323ef961",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "02da6000dc75a6e97ade83ef47c3162e323ef961",
+      "mergedPrEvidence": [166]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/v0.3-stage-closeout-sync",
+      "snapshotSha": "266170645bbe1c8c2dd2aabe1bbc70491dc87c26",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "266170645bbe1c8c2dd2aabe1bbc70491dc87c26",
+      "mergedPrEvidence": [156]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/v03-alpha1-release",
+      "snapshotSha": "9f55c614b5e24e497e634dd2bc8a32877dd5a4e3",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9f55c614b5e24e497e634dd2bc8a32877dd5a4e3",
+      "mergedPrEvidence": [200]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/v03-final-cold-checkout",
+      "snapshotSha": "fbd088f278ee0c9a96950f245515f631efec40f8",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "fbd088f278ee0c9a96950f245515f631efec40f8",
+      "mergedPrEvidence": [199]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/v03-release-notes-skeleton",
+      "snapshotSha": "4ac5e19ed1b50f1600133603f600f925326918a4",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "4ac5e19ed1b50f1600133603f600f925326918a4",
+      "mergedPrEvidence": [167]
+    },
+    {
+      "remote": "origin",
+      "branch": "codex/video-mp4-renderer",
+      "snapshotSha": "ef6ba34e37ca2634ee9f6446bfc503f215768a61",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "ef6ba34e37ca2634ee9f6446bfc503f215768a61",
+      "mergedPrEvidence": [456]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/brief-k-orchestration-prior-art",
+      "snapshotSha": "cbb84513958ed925a2d7194bc54ab15bb0f31786",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "cbb84513958ed925a2d7194bc54ab15bb0f31786",
+      "mergedPrEvidence": [145]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/brief-l-sensor-codec-landscape",
+      "snapshotSha": "4b21daaaf3edfc23f7e63b80b6583920b261feab",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": [
+        "692e4d92723d7fae7ed599ac82835232ca119ade",
+        "835f11148552e639aefddc496c5389b1d6858269",
+        "4db00ab1c139f940087b2d5dced42f76187dadf6",
+        "4b21daaaf3edfc23f7e63b80b6583920b261feab"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/handoff-m2-slice-c2-kokoro",
+      "snapshotSha": "d882b940a26a739f397a8585d0be39b24a398649",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "d882b940a26a739f397a8585d0be39b24a398649",
+      "mergedPrEvidence": [148]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/handoff-m2-slice-c2",
+      "snapshotSha": "7c9340cd2e4a61e5743e07fa41d3b3dafc4bb12d",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": ["7c9340cd2e4a61e5743e07fa41d3b3dafc4bb12d"]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/internal-perspective-fixes",
+      "snapshotSha": "9be551374ee5352011176192c55c2cfc6ef47175",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "9be551374ee5352011176192c55c2cfc6ef47175",
+      "mergedPrEvidence": [122]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/v0.3-roadmap-and-staff-audit",
+      "snapshotSha": "9687c210255918f653aa4c1afaf27db07f390d49",
+      "disposition": "retain-reviewed-unmerged-delta",
+      "reason": "Unique documentation/implementation delta preserved; no evidence justifies wholesale merge into current main",
+      "unmatchedSourceCommits": [
+        "0d29074ad24cabc8b691bb013acc1662b9794296",
+        "e98d241ef87908b8a8d7897d81864abf866b39db",
+        "9687c210255918f653aa4c1afaf27db07f390d49"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "docs/workflow-md-spec-and-adr-0017",
+      "snapshotSha": "56172c540fc4f8aed390be4cab83129fe42b79ee",
+      "disposition": "deleted-after-archive",
+      "reason": "merged-pr-exact-head",
+      "deletedHead": "56172c540fc4f8aed390be4cab83129fe42b79ee",
+      "mergedPrEvidence": [147]
+    },
+    {
+      "remote": "origin",
+      "branch": "fix/m1b-staging-ok-final",
+      "snapshotSha": "3207271af7ec174153b823c7d189da72183aacb3",
+      "disposition": "deleted-after-archive",
+      "reason": "duplicate SHA; retained remote representative",
+      "deletedHead": "3207271af7ec174153b823c7d189da72183aacb3",
+      "successor": "origin/codex/m1b-audit-delivery-surface@3207271af7ec174153b823c7d189da72183aacb3",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "3207271af7ec174153b823c7d189da72183aacb3"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "fix/m1b-staging-plan-ok-check",
+      "snapshotSha": "a1bbce7349051f7696836e8bee23dc135fd53edd",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "a1bbce7349051f7696836e8bee23dc135fd53edd"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "fix/m1b-staging-plan-ok-check-v2",
+      "snapshotSha": "a1bbce7349051f7696836e8bee23dc135fd53edd",
+      "disposition": "deleted-after-archive",
+      "reason": "duplicate SHA; retained remote representative",
+      "deletedHead": "a1bbce7349051f7696836e8bee23dc135fd53edd",
+      "successor": "origin/fix/m1b-staging-plan-ok-check@a1bbce7349051f7696836e8bee23dc135fd53edd",
+      "unmatchedSourceCommits": [
+        "72eaedb480d4c05a232effacb373d0690e28668d",
+        "1ed4d77038779fa7f08aff388282b839773b5035",
+        "ebc5ef2a97ae9ee536befffa46585ebb5b637ba5",
+        "d0b8203ccf315d88d414e01c70aa0dd39ba720c2",
+        "66b6dc369bcb28fd3bc7644705cc22ab1d2bb4b9",
+        "27ba3be552fe7634f0ffa170d7bb0edd47007405",
+        "4d0495974647889734f620deedba2b655204ac39",
+        "b8e041459b4f973adc0c67b82ee149cf1fb04537",
+        "579ef2dfe9935a0df6a4f56f250c87834b9250e2",
+        "dbcb9c820a56078ffd43c1318276a53b754863cd",
+        "045a6c44e580db3be5c56795ea1c97e396ecccea",
+        "a1bbce7349051f7696836e8bee23dc135fd53edd"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "jah-yee-m1b-delivery-rebase",
+      "snapshotSha": "93582ecc57a4550565135b34539f792c29326d23",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "85de48e2ceb223e10fe494ad6cbafd155b0ca50b",
+        "a1e7a9ef118c11309dcc7c003122b9b284dc2698",
+        "8a21cbb99fa5c8e9abed7f23d332075733712ab7",
+        "adee3def669bce01775e6076a8fb6a278d356596",
+        "999db8a1913f663babaee2e5dbfd5e42a2d49cc9",
+        "ff823c95e491792bd84c7568d501fb25339cffb7",
+        "ee442e7f9cdb4a2573bfd85478f39a47ef2b7591",
+        "23788aae1bc5c6b959661aae960047dc783b9622",
+        "92b59a97626c8262bf02ee3568fb7185b9a2ea73",
+        "ecf6b30376148f2a3147398b1e29f12f955b254f",
+        "3eb0181eeb33947a34f685743ee60b5f64cb42d5",
+        "b6e4cd5c2da1da7ea61387a6d63f3d3c1c65e14e",
+        "93582ecc57a4550565135b34539f792c29326d23"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "main",
+      "snapshotSha": "a32793d474bb339dfd41e7c5bc428246f02ebfdd",
+      "disposition": "retain-main",
+      "reason": "Mainline; fork fast-forward separately after verifying ancestry"
+    },
+    {
+      "remote": "origin",
+      "branch": "pr-457",
+      "snapshotSha": "fa3bb03339a59738529cb75cd1f17823d2e4c2b8",
+      "disposition": "retain-historical-research-variant",
+      "reason": "Source/diff audit found unmatched historical delivery or validation deltas; do not replay over current #70/#402/#403 contracts",
+      "unmatchedSourceCommits": [
+        "537f46e1e36905dd8f6b5de9eafd49a1da972e74",
+        "dbfbaf2e5cc849a3ff19803c75411843d7547e2b",
+        "1c2e9126fd0c6604e75f003376e4e00a0b64cefe",
+        "2103e2fd4f709718befb0ed0359b957d468aacdf",
+        "8dbc2fdc425ac5d3be9cddf3f443859f662210ed",
+        "fa3bb03339a59738529cb75cd1f17823d2e4c2b8"
+      ]
+    },
+    {
+      "remote": "origin",
+      "branch": "site/migrate-canonical-website",
+      "snapshotSha": "a7e4af418a79f56aadb7f676c3882bea8d8b72ed",
+      "disposition": "retain-unmerged-site-variant",
+      "reason": "Unique site migration/branding work; not required for compute readiness, not reviewed as a current website replacement",
+      "unmatchedSourceCommits": [
+        "73f02cb14c7fd77d7c5c64b94a9c9adc27133d8c",
+        "a7e4af418a79f56aadb7f676c3882bea8d8b72ed"
+      ]
+    }
+  ]
+}
