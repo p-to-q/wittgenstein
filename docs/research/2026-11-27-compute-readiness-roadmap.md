@@ -27,7 +27,7 @@ three different questions. None substitutes for the next.
 | `research/training/tokenizer/`                                     | Native PyTorch loop, optional GAN, input checks, checkpoints, integrity/resume tools, final evaluation | Current target-host qualification, real-data pilot, held-out quality, release eligibility                                   |
 | `research/training/adapter/`                                       | Documentation only                                                                                     | Dataset/cache builder, seed definition, trainer, export, inference parity, quality gates (#397)                             |
 | `research/training/llm-head/`                                      | Documentation only                                                                                     | Teacher/data rights, representation, trainer, validation (#398)                                                             |
-| Data / experiment tracking                                         | Snapshot and local JSONL receipt tooling                                                               | Licensed usable corpus, accessible DVC remote (#400); shared service (#399)                                                 |
+| Data / experiment tracking                                         | Snapshot/local JSONL receipts plus CPU image integrity and exact-duplicate audit                       | Licensed usable corpus, near-duplicate review, accessible DVC remote (#400); shared service (#399)                          |
 
 The runtime seed expanders labeled placeholder-class are engineering baselines,
 not learned models. Passing their routing tests is not completion of M1B.
@@ -73,10 +73,13 @@ notebook result as qualification.
 - Separate train, validation, and final evaluation before model selection.
   Record content hashes; exclude cross-split duplicates and disclose residual
   near-duplicate risk. Keep the held-out split unchanged across comparisons.
-- Decode and inspect the actual files; count failures, dimensions and selected
-  samples. The current loader can replace corrupt samples to survive a run.
-  A nonzero or unknown corruption count therefore requires investigation, not
-  silent inclusion in a quality claim.
+- Run the [local integrity audit](2026-11-27-dataset-audit.md) on a curated
+  pilot first; it records file/RGB hashes, dimensions, errors and exact duplicate
+  groups. Its in-memory index is not a distributed large-corpus service.
+  Training can still replace corrupt samples with a corruption tally; validation
+  now fails rather than replacing them. A nonzero or unknown training corruption
+  count requires investigation. Missing or failed evaluation metrics propagate
+  explicit degradation; see the [evaluation correction](2026-11-27-evaluation-integrity.md).
 - Pin the actual DVC revision and snapshot receipt per
   [data setup](../training/data.md). A populated environment variable is not
   proof that the directory matches that snapshot. Verify fetched content,
@@ -192,9 +195,10 @@ this document, a smoke, or a synthetic receipt sweep does not meet those gates.
 ## Work queue and dependency order
 
 1. **Now / no allocation:** maintain installation and regression checks; resolve
-   author/main Actions execution and gate activation (#661); resolve version
-   identity (#707); prepare data/remote evidence
-   (#400) and select candidate weights (#402). Shared tracking (#399) helps
+   author/main Actions execution and gate activation (#661); prepare real
+   data/remote evidence (#400) and select candidate weights (#402). Runtime
+   version identity (#707) is resolved in PR #716. The technical data audit
+   (PR #719) does not close the rights/restore gate. Shared tracking (#399) helps
    collaboration, but local JSONL is already usable for a bounded pilot.
 2. **First qualified allocation:** G2–G3 tokenizer plumbing / capacity / restart;
    operator signs off the exact config and cost estimate in #396. Capture the
@@ -205,6 +209,12 @@ this document, a smoke, or a synthetic receipt sweep does not meet those gates.
 4. **Later:** larger ablations and quality evaluation (#394/#452), then the
    deferred latency/seed/sensor measurements (#392/#393/#263). These are not
    preconditions for finishing today's software maintenance.
+
+The [small-pilot rigor proposal](https://github.com/p-to-q/wittgenstein/pull/720)
+is awaiting independent review. It identifies unresolved categorical-target,
+compact/full-grid alignment and gradient-path definitions in #397/#398; it is
+not an approved new representation, trainer, experiment or allocation. Current
+software evidence is in the [robustness closeout](2026-11-27-robustness-closeout.md).
 
 For each gate, append evidence and a **pass / stop / not-run** result to the
 owning issue. Keep failures and the exact changed config; do not erase a failed
