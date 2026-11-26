@@ -21,13 +21,18 @@ Node/Python checks, the site build, a CPU-torch distributed regression, and
 static/dependency checks. An always-evaluated aggregate job is named `CI gate`.
 This is implemented workflow logic, not an already required branch status.
 
-An actual manual Actions dispatch returns HTTP 422, "Actions has been disabled
-for this user." The repository API's enabled flag is insufficient evidence of
-execution. The precise service/account cause is unknown. Local macOS checks
-passed, but no new Linux Actions qualification exists for these maintenance
-changes. Vercel authorization failures and skipped bot reviews are unrelated to
-software qualification. An older PR's green check does not qualify a rebased or
-new commit.
+The author's manual Actions dispatch failed with HTTP 422, "Actions has been
+disabled for this user." The repository API's enabled flag is insufficient
+evidence that this path works, and the precise service/account cause is unknown.
+Later on November 27 (Asia/Shanghai), fresh Dependabot-triggered Linux PR runs
+[45889848405](https://github.com/p-to-q/wittgenstein/actions/runs/45889848405) and
+[45892137943](https://github.com/p-to-q/wittgenstein/actions/runs/45892137943)
+passed full verification, CPU-torch/gloo regressions and the aggregate gate;
+the latter qualified #712 after rebasing onto merged #713. Run/head/base
+identities, every job and full logs were inspected. This establishes working
+Dependabot PR execution, not restored author dispatch or a current-main push
+run. Vercel and skipped bot reviews are not substitutes. An older PR's green
+check does not qualify a rebased or new commit.
 
 ## Proposed decision
 
@@ -66,8 +71,9 @@ limitation; it cannot manufacture a successful check.
 
 ## Activation sequence after independent ratification
 
-1. Restore actual Actions execution through the account/service owner. Record
-   the observed error and resolution without guessing its cause.
+1. Restore the missing author/main Actions execution through the account/service
+   owner. Preserve the observed dispatch error and successful Dependabot PR
+   evidence separately; record the resolution without guessing its cause.
 2. Dispatch the current workflow on the selected main revision. Require a fresh
    successful Linux run, including install lifecycle, full build/site, JS and
    Python suites, CPU-torch two-rank regression, goldens/reviewer bench, and
