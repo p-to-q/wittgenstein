@@ -81,10 +81,14 @@ If you want the production codec surface with typed contracts, manifest spine, a
 hooks:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm benchmark     # runs all four codecs in dry-run mode
 ```
+
+The repository `.npmrc` defaults ONNX Runtime installation to CPU-only and skips
+the optional CUDA binary download. The packaged CPU backend remains available;
+GPU hosts can explicitly override `ONNXRUNTIME_NODE_INSTALL_CUDA` at install time.
 
 Results land in `artifacts/benchmarks/latest.json`. Each run writes a full manifest under
 `artifacts/runs/<id>/manifest.json` with git SHA, lockfile hash, seed, prompt, IR, LLM
