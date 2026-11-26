@@ -49,6 +49,14 @@ def validate_training_inputs(cfg: TrainingInputs) -> None:
             raise ValueError(f"Training data directory does not exist: {cfg.train_data_root}")
     if cfg.val_data_root and not Path(cfg.val_data_root).is_dir():
         raise ValueError(f"Validation data directory does not exist: {cfg.val_data_root}")
+    if cfg.val_data_root and not cfg.smoke:
+        train_root = Path(cfg.train_data_root).resolve()
+        val_root = Path(cfg.val_data_root).resolve()
+        if train_root.is_relative_to(val_root) or val_root.is_relative_to(train_root):
+            raise ValueError(
+                "Training and validation roots must be disjoint directories; "
+                "identical or nested roots leak validation images into training"
+            )
     if cfg.resume_from and not Path(cfg.resume_from).is_file():
         raise ValueError(f"Resume checkpoint does not exist: {cfg.resume_from}")
     if cfg.resume_from:

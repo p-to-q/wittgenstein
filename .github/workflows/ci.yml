@@ -165,7 +165,8 @@ jobs:
             research.training.tokenizer.test_receipt_helpers \
             research.training.tokenizer.test_preflight \
             research.training.tokenizer.test_distributed_forward \
-            research.training._shared.test_eval_integrity -v
+            research.training._shared.test_eval_integrity \
+            research.training.test_audit_dataset -v
 
   static-checks:
     name: Static checks (spelling + workflow + deps)
