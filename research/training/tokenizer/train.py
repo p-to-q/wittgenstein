@@ -441,7 +441,8 @@ def train(cfg: TrainConfig) -> dict:
             d_optim.load_state_dict(loaded.disc_optimizer)
             _optimizer_to_device(d_optim, device)
         # E3: restore RNG state before the loop's first step so the resumed run
-        # continues the checkpoint's exact stream. A legacy checkpoint has no
+        # restores the saved rank's generators. This does not restore the data-loader
+        # cursor or promise bit-identical continuation. A legacy checkpoint has no
         # rng entry (warning below); a state saved by another rank is refused so
         # the per-rank seed lineages stay distinct.
         if not loaded.rng.is_empty():

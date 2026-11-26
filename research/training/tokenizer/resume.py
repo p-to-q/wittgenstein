@@ -72,10 +72,13 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from research.training._shared.manifest import assert_training_run_manifest_shape, sha256_file
 
 # ---- Upstream-aligned payload keys ----------------------------------------
 
@@ -103,6 +106,11 @@ MANIFEST_SUFFIX = ".manifest.json"
 #: compared — retargeting an output dir is not training drift.
 MATH_RELEVANT_ARGS: tuple[str, ...] = (
     "seed",
+    "smoke",
+    "train_data_root",
+    "dataset_license",
+    "lpips_enabled",
+    "lpips_net",
     "max_steps",
     "batch_size_per_gpu",
     "image_size",
@@ -479,13 +487,17 @@ def _coerce_step(raw: Any, source: str) -> int:
         raise ResumeStepsMissing(f"checkpoint {source} has a boolean step value", path=source)
     if isinstance(raw, int):
         step = raw
-    else:
+    elif isinstance(raw, str):
         try:
             step = int(raw)
         except (TypeError, ValueError) as exc:
             raise ResumeStepsMissing(
                 f"checkpoint {source} has a non-integer step value {raw!r}", path=source
             ) from exc
+    else:
+        raise ResumeStepsMissing(
+            f"checkpoint {source} has a non-integer step value {raw!r}", path=source
+        )
     if step < 0:
         raise ResumeStepsMissing(f"checkpoint {source} has a negative step {step}", path=source)
     return step
@@ -764,3 +776,55 @@ def resume_start_step(checkpoint_step: int, checkpoint_path: Path) -> int:
     if checkpoint_path.name.startswith("step_"):
         return checkpoint_step + 1
     return checkpoint_step
+
+def verify_resume_checkpoint(checkpoint: Path) -> str | None:
+    """D3: verify the chosen checkpoint against its sibling manifest receipt.
+
+    Returns ``None`` when verified, otherwise a human-readable failure reason.
+    The supervisor is stdlib-only and never imports torch, so the checkpoint
+    payload itself is not read here — the receipt spine (the sibling
+    ``*.manifest.json`` the trainer writes next to every checkpoint) is the
+    verifiable artifact. Fails closed: an absent, malformed, shape-invalid, or
+    disagreeing manifest is a reason, not a warning.
+    """
+    manifest_path = manifest_path_for(checkpoint)
+    if not manifest_path.exists():
+        return f"missing sibling manifest {manifest_path.name}"
+    try:
+        document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"unreadable sibling manifest {manifest_path.name}: {exc}"
+    try:
+        assert_training_run_manifest_shape(document)
+    except (TypeError, ValueError) as exc:
+        return f"sibling manifest {manifest_path.name} failed shape validation: {exc}"
+
+    match = re.fullmatch(r"step_(\d+)\.pt", checkpoint.name)
+    step = int(match.group(1)) if match else -1
+    if step >= 0 and int(document.get("stepCount", -1)) != step:
+        return (
+            f"manifest stepCount={document.get('stepCount')} disagrees with "
+            f"checkpoint step {step} ({checkpoint.name})"
+        )
+    recorded = str((document.get("checkpoint") or {}).get("path", ""))
+    if recorded and Path(recorded).name != checkpoint.name:
+        return f"manifest checkpoint.path={recorded!r} disagrees with {checkpoint.name}"
+    # Run-id continuity: the trainer writes ckpts under <out_root>/<runId>/ckpts/,
+    # so the manifest runId must match the run directory. Only checked in that
+    # expected layout, so an explicitly rescued out-of-layout checkpoint is not
+    # falsely refused.
+    if checkpoint.parent.name == "ckpts":
+        run_id = run_id_from_sibling_manifest(checkpoint)
+        run_dir_name = checkpoint.parent.parent.name
+        if run_id is None:
+            return f"sibling manifest {manifest_path.name} carries no runId"
+        if run_dir_name and run_id != run_dir_name:
+            return f"manifest runId={run_id!r} disagrees with run dir {run_dir_name!r}"
+    try:
+        if checkpoint.stat().st_size != document["checkpoint"]["bytes"]:
+            return "checkpoint byte size disagrees with sibling manifest"
+        if sha256_file(checkpoint) != document["checkpoint"]["sha256"]:
+            return "checkpoint SHA-256 disagrees with sibling manifest"
+    except OSError as exc:
+        return f"cannot read checkpoint for integrity verification: {exc}"
+    return None

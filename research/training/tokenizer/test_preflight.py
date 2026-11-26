@@ -48,7 +48,10 @@ class TrainingPreflightTests(unittest.TestCase):
                     validate_training_inputs(inputs(train_data_root=tmp, **{field: str(Path(tmp) / "missing")}))
             checkpoint = Path(tmp) / "checkpoint.pt"
             checkpoint.write_bytes(b"fixture")
-            validate_training_inputs(inputs(train_data_root=tmp, val_data_root=tmp, resume_from=str(checkpoint)))
+            with self.assertRaisesRegex(ValueError, "Resume checkpoint integrity"):
+                validate_training_inputs(inputs(train_data_root=tmp, resume_from=str(checkpoint)))
+            with patch("research.training.tokenizer.preflight.verify_resume_checkpoint", return_value=None):
+                validate_training_inputs(inputs(train_data_root=tmp, val_data_root=tmp, resume_from=str(checkpoint)))
 
     def test_lpips_never_silently_changes_the_training_objective(self):
         with tempfile.TemporaryDirectory() as tmp:

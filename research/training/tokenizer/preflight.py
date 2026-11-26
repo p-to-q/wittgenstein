@@ -10,6 +10,8 @@ import importlib.util
 from pathlib import Path
 from typing import Protocol
 
+from .resume import verify_resume_checkpoint
+
 
 class TrainingInputs(Protocol):
     smoke: bool
@@ -49,6 +51,10 @@ def validate_training_inputs(cfg: TrainingInputs) -> None:
         raise ValueError(f"Validation data directory does not exist: {cfg.val_data_root}")
     if cfg.resume_from and not Path(cfg.resume_from).is_file():
         raise ValueError(f"Resume checkpoint does not exist: {cfg.resume_from}")
+    if cfg.resume_from:
+        reason = verify_resume_checkpoint(Path(cfg.resume_from))
+        if reason is not None:
+            raise ValueError(f"Resume checkpoint integrity check failed: {reason}")
     if not cfg.smoke and cfg.lpips_enabled and importlib.util.find_spec("lpips") is None:
         raise ValueError(
             "LPIPS is enabled but not installed; install lpips or explicitly "

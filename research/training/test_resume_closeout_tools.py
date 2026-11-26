@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import hashlib
 import json
 import os
 import random
@@ -273,6 +274,8 @@ def _resume_layout(root: Path, run_id: str, step: int) -> tuple[Path, Path, dict
     ckpt = ckpts / f"step_{step:08d}.pt"
     ckpt.write_bytes(b"stub")
     document = _valid_manifest(run_id, step, ckpt.name)
+    document["checkpoint"]["bytes"] = ckpt.stat().st_size
+    document["checkpoint"]["sha256"] = hashlib.sha256(ckpt.read_bytes()).hexdigest()
     manifest = ckpts / f"step_{step:08d}.manifest.json"
     manifest.write_text(json.dumps(document), encoding="utf-8")
     return ckpt, manifest, document
@@ -291,6 +294,22 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
         self.assertEqual(loaded.step, 2_000)
         self.assertEqual(loaded.args, _saved_args())
         self.assertIsNotNone(loaded.optimizer)
+
+    def test_resume_rejects_fractional_step_instead_of_truncating(self) -> None:
+        payload = _quartet_payload()
+        payload["step"] = 2.5
+        with self.assertRaises(ResumeStepsMissing):
+            load_checkpoint_payload(payload)
+
+    def test_resume_rejects_objective_data_and_license_drift(self) -> None:
+        for key, before, after in (
+            ("lpips_enabled", False, True),
+            ("smoke", True, False),
+            ("train_data_root", "/data/a", "/data/b"),
+            ("dataset_license", "research-only", "permissive"),
+        ):
+            with self.subTest(key=key), self.assertRaises(ResumeArgsDrift):
+                assert_args_compatible({key: before}, {key: after})
 
     def test_e1_missing_model_raises_quartet_incomplete_naming_path(self) -> None:
         payload = _quartet_payload()
@@ -603,6 +622,18 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             ckpt, _, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
             self.assertIsNone(verify_resume_checkpoint(ckpt))
 
+    def test_e5_verify_rejects_same_size_checkpoint_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, _, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            ckpt.write_bytes(b"evil")
+            self.assertIn("SHA-256", verify_resume_checkpoint(ckpt))
+
+    def test_e5_verify_rejects_truncated_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt, _, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
+            ckpt.write_bytes(b"x")
+            self.assertIn("byte size", verify_resume_checkpoint(ckpt))
+
     def test_e5_verify_rejects_missing_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ckpt, manifest, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
@@ -643,7 +674,7 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("runId", reason)
 
-    def test_e5_verify_rejects_unparseable_manifest(self) -> None:
+    def test_e5_verify_rejects_unparsable_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ckpt, manifest, _ = _resume_layout(Path(tmp), "tokenizer-run-a", 2_000)
             manifest.write_text("{not json", encoding="utf-8")

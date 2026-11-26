@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 import torch.nn as nn
@@ -22,6 +23,17 @@ if str(_REPO_ROOT) not in sys.path:
 
 from research.training.tokenizer.train import _total_grad_norm  # noqa: E402
 from research.training._shared.eval import codebook_perplexity  # noqa: E402
+
+
+class PreflightStartupTests(unittest.TestCase):
+    def test_missing_data_is_rejected_before_distributed_or_model_initialization(self):
+        from research.training.tokenizer import train as train_mod
+        from research.training.tokenizer.config import TrainConfig
+
+        with patch.object(train_mod, "init_distributed") as init:
+            with self.assertRaisesRegex(ValueError, "--smoke"):
+                train_mod.train(TrainConfig())
+            init.assert_not_called()
 
 
 class TotalGradNormTests(unittest.TestCase):

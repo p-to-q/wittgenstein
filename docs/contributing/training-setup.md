@@ -80,11 +80,15 @@ resume on the selected host:
 
 ```bash
 torchrun --standalone --nproc-per-node 2 -m research.training.tokenizer.train --smoke --out-root artifacts/runs/tokenizer-ddp-smoke
-python -m research.training.tokenizer.train --train-data-root /data/licensed-small/train --resume-from /absolute/path/to/checkpoint.pt --max-steps 40 --batch-size-per-gpu 2 --image-size 64 --num-workers 0 --no-lpips --out-root artifacts/runs/tokenizer-resume
+python -m research.training.tokenizer.train --train-data-root /data/licensed-small/train --resume-from /absolute/path/to/step_00000010.pt --max-steps 20 --batch-size-per-gpu 2 --image-size 64 --num-workers 0 --no-lpips --out-root artifacts/runs/tokenizer-resume
 ```
 
-Keep the resumed run's model, objective, and dataset configuration consistent
-with its checkpoint. Inspect the closeout report and per-step receipts before
+Resume checks the checkpoint's SHA-256, byte size, sibling manifest, and
+math-relevant configuration (including the original total step budget). Old checkpoints without the required configuration
+snapshot are refused. RNG capture is rank-tagged; the loader cursor and every
+rank's state are not a complete restart snapshot, so bit-identical distributed
+continuation is not claimed. Keep the resumed run's model, objective, and dataset
+configuration consistent with its checkpoint. Inspect the closeout report and per-step receipts before
 raising the step budget. Real corpus/storage (#400), measured evaluation
 (#394), and checkpoint release rights remain separate gates. No current
 synthetic smoke proves semantic alignment or establishes a publishable model.
