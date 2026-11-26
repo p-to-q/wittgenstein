@@ -17,6 +17,17 @@ from typing import Any
 from .model import TokenizerConfig
 
 
+# Fields that are DECLARED but read by no code path today (F-3). They stay on
+# the dataclass so config parsing and CLI overrides keep working, and are
+# surfaced in the receipt's provenance block so a reader does not mistake them
+# for knobs that took effect. Prefer an honest declaration over removal.
+UNUSED_CONFIG_FIELDS = (
+    "eval_every",               # eval cadence not wired into the train loop
+    "keep_last_n_checkpoints",  # checkpoint rotation (#181) not implemented
+    "aim_repo",                 # Aim never imported; jsonl tracker is the floor
+)
+
+
 @dataclass
 class OptimConfig:
     lr: float = 1e-4
@@ -59,8 +70,14 @@ class TrainConfig:
     # Schedule
     max_steps: int = 200_000     # ~ a few epochs over ImageNet at bs=1024
     log_every: int = 50
+    # RESERVED / UNUSED (F-3): declared for config compatibility and CLI
+    # overrides, but read by NO code path. Eval runs only once at the final
+    # step; this cadence is not wired into the loop. Snapshotted into the
+    # receipt but listed in UNUSED_CONFIG_FIELDS so a reader is not misled.
     eval_every: int = 5_000      # rFID on val 50k (slow — see eval.py)
     checkpoint_every: int = 5_000
+    # RESERVED / UNUSED (F-3): checkpoint rotation (#181) is not implemented;
+    # kept for config compatibility, listed in UNUSED_CONFIG_FIELDS.
     keep_last_n_checkpoints: int = 3  # rotate to control disk
 
     # GAN
@@ -82,6 +99,9 @@ class TrainConfig:
     # Logging / output
     out_root: str = ""           # required; ends up as research/training/_shared/runs/<run-id>/
     resume_from: str = ""        # optional checkpoint .pt path; loads model weights + step
+    # RESERVED / UNUSED (F-3): Aim is not imported anywhere in this stack (the
+    # jsonl tracker is the floor); kept for config compatibility only and listed
+    # in UNUSED_CONFIG_FIELDS. Also a supply-chain surface with no consumer.
     aim_repo: str = ""           # optional aim tracker repo; "" = disabled
     seed: int = 0
 

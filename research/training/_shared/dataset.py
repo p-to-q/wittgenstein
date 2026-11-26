@@ -64,6 +64,11 @@ class ImageFolderDataset(Dataset):
     Robust to corrupt files: any decoder error returns the previous sample
     (avoids killing a multi-day training run for one bad jpeg). Counts get
     surfaced through `corrupt_count` for the manifest receipt.
+
+    `corrupt_tally`, when given, is a `multiprocessing.Value` the parent shares
+    with DataLoader workers. `corrupt_count` alone is per-process, so with
+    `num_workers > 0` it stays 0 in the parent; the shared tally is the honest
+    worker->parent channel (see `_shared/corrupt_count.py`).
     """
 
     def __init__(
@@ -72,6 +77,7 @@ class ImageFolderDataset(Dataset):
         image_size: int = 256,
         with_labels: bool = False,
         extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png", ".webp"),
+        corrupt_tally: Any = None,
     ):
         self.root = Path(root)
         self.image_size = image_size
@@ -84,6 +90,7 @@ class ImageFolderDataset(Dataset):
         if not self.files:
             raise ValueError(f"No images found under {self.root} (extensions={extensions})")
         self.corrupt_count = 0
+        self.corrupt_tally = corrupt_tally
         if with_labels:
             classes = sorted({p.parent.name for p in self.files})
             self.class_to_idx = {c: i for i, c in enumerate(classes)}
@@ -100,6 +107,9 @@ class ImageFolderDataset(Dataset):
                 img = llamagen_canonical_preprocess(pil, self.image_size)
         except Exception:
             self.corrupt_count += 1
+            if self.corrupt_tally is not None:
+                with self.corrupt_tally.get_lock():
+                    self.corrupt_tally.value += 1
             # Recurse to previous index (deterministic fallback). If idx==0 falls back to a noise tensor.
             if idx > 0:
                 return self.__getitem__(idx - 1)

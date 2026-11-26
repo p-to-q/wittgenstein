@@ -1,55 +1,105 @@
 # Training stack setup
 
-This is the contributor guide for the planned GPU training environment
-that lives in [`research/training/`](../../research/training/README.md).
-The current repository contains only the Phase-1 skeleton and boundary
-guards. If you are running the harness to **generate** artifacts, you do
-not need any of this — `pnpm install` + the Tier 1 path is enough.
+This guide covers the implemented tokenizer trainer in
+[`research/training/`](../../research/training/README.md). The learned MaskGIT
+adapter and LLM head remain placeholders. It is separate from installing the
+TypeScript harness; see [quickstart](../quickstart.md) for that path.
 
-## When to read this
+## Current readiness
 
-You will need this guide when you are:
+| Surface                                    | Repository state                                      | Still needed                                                           |
+| ------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| CPU receipt / input tests                  | Executable without torch or a GPU                     | Run on each change                                                     |
+| Tokenizer loop, optional GAN, resume, eval | Implemented; historical synthetic GPU smoke           | Requalify current environment on the target host                       |
+| Real-data training                         | Explicit input paths; no automatic synthetic fallback | Licensed snapshot, provenance, storage, measured capacity (#396, #400) |
+| Shared experiment tracking                 | Local JSONL receipts implemented                      | Shared service deployment (#399)                                       |
+| Learned adapter / LLM head                 | Planned directories                                   | Implementation and acceptance evidence (#397, #398)                    |
 
-- Training a tokenizer / adapter / LLM head against the Phase-1 program.
-- Reproducing a published checkpoint locally from its training manifest.
-- Adding a new evaluation rung to the Phase-1 eval matrix.
+## CPU checks (no training)
 
-If you are reviewing a PR, fixing a typed bug, or shipping a CLI feature,
-skip this file — the Node tooling is unrelated.
-
-## Hardware floor
-
-- **GPU**: Tokenizer training assumes 8×A100 / H100 class. The adapter
-  subprogram is workable on 4×A100. CPU-only runs will start but are
-  unusably slow.
-- **Disk**: ImageNet (~155 GB), CC12M (filtered ~3–5 TB raw URLs), and
-  COCO eval (~25 GB) live on local NVMe; staging from S3 via DVC is
-  fine.
-- **RAM**: 256 GB+ recommended for parallel dataset prep.
-
-## Environment
-
-The reproducible base is `research/training/Dockerfile` (NGC PyTorch
-24.08). Local venv setup is also supported:
+From the repository root:
 
 ```bash
-cd research/training
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m unittest research.training.tokenizer.test_preflight -v
+python3 -m unittest research.training.test_resume_closeout_tools -v
+python3 bench/gpu/sweep.py --spec bench/gpu/smoke-sweep.yaml
 ```
 
-For planned operational training runs, the Docker path is preferred for
-any receipt you intend to publish. Once implemented, the image SHA will go
-into the training manifest alongside the git SHA of the harness.
+The last command validates synthetic sweep receipts. It is not a GPU benchmark
+or evidence of learned image quality.
+
+## Environment qualification
+
+Create a separate training environment; run module commands from the repository
+root so `research.training` imports resolve:
+
+```bash
+python3 -m venv .venv-training
+source .venv-training/bin/activate
+python -m pip install -r research/training/requirements.txt
+python -m pip check
+mkdir -p artifacts/runs/training-environment
+python -m pip freeze > artifacts/runs/training-environment/requirements.resolved.txt
+python -c 'import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())'
+```
+
+`requirements.txt` has open ranges; the Dockerfile is an unqualified template,
+not a locked environment. Installing its requirements may replace the base
+image's vendor PyTorch/CUDA stack. Retain the actual image digest (if used),
+resolved dependencies, source SHA, and GPU/driver details with qualification
+receipts. This guide does not claim that a fresh Docker build or any particular
+GPU count has passed. Start on one device, measure peak memory and step time,
+then validate two ranks and resume before scaling to a full node.
+
+## Explicit launch sequence (operator-run)
+
+The commands below start training only when an operator executes them. They
+are examples, not completed experiments or permission to spend GPU resources.
+
+First qualify loop / receipt integrity using synthetic data:
+
+```bash
+python -m research.training.tokenizer.train --smoke --out-root artifacts/runs/tokenizer-smoke
+```
+
+Then use a small, licensed ImageFolder subset and a batch that fits its size:
+
+```bash
+python -m research.training.tokenizer.train --train-data-root /data/licensed-small/train --max-steps 20 --batch-size-per-gpu 2 --image-size 64 --num-workers 0 --checkpoint-every 10 --no-lpips --out-root artifacts/runs/tokenizer-small
+```
+
+`--no-lpips` deliberately selects an L2-only objective for this plumbing check;
+it is not a comparable full-recipe result. For the intended LPIPS objective,
+install LPIPS and its required weights on the host and omit that flag. Missing
+LPIPS now fails instead of silently changing the loss. Missing real data fails
+instead of generating synthetic training evidence. A dataset too small for a
+complete per-rank batch also fails before model allocation.
+
+Once one-device qualification passes, test distributed startup and checkpoint
+resume on the selected host:
+
+```bash
+torchrun --standalone --nproc-per-node 2 -m research.training.tokenizer.train --smoke --out-root artifacts/runs/tokenizer-ddp-smoke
+python -m research.training.tokenizer.train --train-data-root /data/licensed-small/train --resume-from /absolute/path/to/step_00000010.pt --max-steps 20 --batch-size-per-gpu 2 --image-size 64 --num-workers 0 --no-lpips --out-root artifacts/runs/tokenizer-resume
+```
+
+Resume checks the checkpoint's SHA-256, byte size, sibling manifest, and
+math-relevant configuration (including the original total step budget). Old checkpoints without the required configuration
+snapshot are refused. RNG capture is rank-tagged; the loader cursor and every
+rank's state are not a complete restart snapshot, so bit-identical distributed
+continuation is not claimed. Keep the resumed run's model, objective, and dataset
+configuration consistent with its checkpoint. Inspect the closeout report and per-step receipts before
+raising the step budget. Real corpus/storage (#400), measured evaluation
+(#394), and checkpoint release rights remain separate gates. No current
+synthetic smoke proves semantic alignment or establishes a publishable model.
 
 ## Training-run manifest + experiment tracking
 
-Each future publishable training run writes a
+The implemented tokenizer writes a
 `witt.training.run-manifest/v0.1` receipt validated by
 `TrainingRunManifestSchema` from `@wittgenstein/schemas`. The receipt lives
 next to the checkpoint in the run artifact directory, for example
-`research/training/_shared/runs/<run-id>/manifest.json`, or in the run's lab
+`<out-root>/<run-id>/ckpts/final.manifest.json`, or in the run's lab
 artifact bundle. It records:
 
 - Dataset hash (DVC-pinned)
@@ -93,11 +143,11 @@ The repo includes the #400 executable smoke floor:
 The smoke file itself is checked in; no DVC pull is required for the stdlib
 smoke sweep. The real lab remote does not exist yet. ImageNet / CC12M / COCO
 pointers, remote-storage choice, and credentials still need model-owner review
-through [#400](https://github.com/p-to-q/wittgenstein/issues/400) and #435. Once
+through [#400](https://github.com/p-to-q/wittgenstein/issues/400) (#435 is a closed routing record, not an outstanding approval). Once
 the lab remote exists, configure it before running real training:
 
 ```bash
-cd research/training
+# Run from the repository root after configuring the real remote.
 dvc pull
 ```
 

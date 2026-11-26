@@ -1,8 +1,8 @@
 # Wittgenstein training image.
 #
-# Reproducible base for the three Phase-1 subprograms (tokenizer/, adapter/,
-# llm-head/). The image is meant for GPU hosts; CPU-only builds will start
-# but training will be unusably slow.
+# Candidate environment template, not a qualified or locked GPU image.
+# tokenizer/ has an entrypoint; adapter/ and llm-head/ remain placeholders.
+# Qualify the resolved environment on the target GPU before a real run.
 #
 # Build:
 #   docker build -t wittgenstein-training:dev -f research/training/Dockerfile .
@@ -10,7 +10,7 @@
 # Run (single-host, all GPUs):
 #   docker run --gpus all -it --rm \
 #     -v "$PWD":/workspace \
-#     -w /workspace/research/training \
+#     -w /workspace \
 #     wittgenstein-training:dev
 
 FROM nvcr.io/nvidia/pytorch:24.08-py3
@@ -23,9 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
-# Python deps installed on top of the NGC PyTorch base. We intentionally
-# do NOT pin torch here — the base image owns that. The training stack
-# requirements skip torch via the `>=` floor.
+# These open requirements can replace the base image's PyTorch/CUDA stack.
+# A tag alone is not reproducibility: retain the built image digest and a
+# resolved pip freeze, run pip check, then qualify the target hardware.
+# See docs/contributing/training-setup.md; no current image is blessed here.
 COPY research/training/requirements.txt /tmp/training-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/training-requirements.txt
 

@@ -4,8 +4,9 @@ This module is the **factory boundary** for the Phase 1.1 tokenizer.
 The underlying VQGAN architecture is vendored MIT-licensed code from
 LlamaGen (see `_shared/_third_party/`); what makes it "Wittgenstein-
 native" is the configuration (D=32 instead of LlamaGen's D=8), the
-training data (ImageNet + CC12M + COCO, ours), and the resulting
-weights (under our Apache-2.0 release).
+planned training recipe, and any resulting weights. Corpus availability and
+checkpoint release rights are not implied by the MIT architecture license;
+real-data checkpoints default to research-only until independently cleared.
 
 Config defaults follow `docs/research/2026-05-13-wittgenstein-research-program.md` §1.1:
 

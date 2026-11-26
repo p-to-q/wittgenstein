@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -89,7 +90,11 @@ jobs:
             research.training._shared.test_data_versioning \
             research.training._shared.test_sweep_manifest \
             research.training._shared.test_sweep_cli \
-            research.training.test_resume_closeout_tools -v
+            research.training.test_resume_closeout_tools \
+            research.training.test_integrity_check \
+            research.training.test_recon_check \
+            research.training._shared.test_training_receipts \
+            research.training.tokenizer.test_preflight -v
 
       - name: Python compile
         run: python -m compileall polyglot-mini/polyglot polyglot-mini/train

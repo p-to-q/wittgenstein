@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import argparse
 import math
+import multiprocessing
 import os
+import random
 import sys
 import time
 from dataclasses import replace
@@ -49,11 +51,14 @@ from research.training._shared.experiment_tracking import (  # noqa: E402
 )
 from research.training._shared.manifest import (  # noqa: E402
     TRAINING_RUN_MANIFEST_SCHEMA_VERSION,
+    UNVERSIONED_DATASET_REVISION,
     TrainingRunManifest,
     TrainingRunEvalDataset,
     TrainingRunEvalMetric,
     TrainingRunEvalSnapshot,
+    build_receipt_provenance,
     capture_dataset_fingerprint,
+    capture_dataset_revision,
     capture_docker_image_sha,
     capture_git_sha,
     capture_hardware,
@@ -74,7 +79,10 @@ from research.training._shared.dataset import (  # noqa: E402
     ImageFolderDataset,
     SyntheticImageDataset,
 )
+from research.training._shared.acceptance import write_acceptance_receipt  # noqa: E402
+from research.training._shared.corrupt_count import resolve_dataset_corrupt_count  # noqa: E402
 from research.training.tokenizer.config import (  # noqa: E402
+    UNUSED_CONFIG_FIELDS,
     OptimConfig,
     TrainConfig,
     smoke_config,
@@ -91,7 +99,17 @@ from research.training.tokenizer.model import (  # noqa: E402
     latent_grid,
     param_count,
 )
-from research.training.tokenizer.resume import resume_start_step  # noqa: E402
+from research.training.tokenizer.preflight import (  # noqa: E402
+    validate_training_batch_count,
+    validate_training_inputs,
+)
+from research.training.tokenizer.resume import (  # noqa: E402
+    build_checkpoint_payload,
+    build_rng_entry,
+    capture_python_rng_state,
+    load_for_resume,
+    restore_rng_state,
+)
 
 
 # ---------- DDP plumbing ----------
@@ -145,6 +163,13 @@ def cleanup_distributed():
 # ---------- Determinism ----------
 
 
+def _cudnn_benchmark_conflict(cfg: TrainConfig) -> bool:
+    """True when the config asks for cuDNN determinism *and* timing-based cuDNN
+    benchmark selection — benchmark picks algorithms by timing, which defeats
+    determinism (PyTorch reproducibility note, "CUDA convolution benchmarking")."""
+    return bool(cfg.cudnn_deterministic and cfg.cudnn_benchmark)
+
+
 def set_determinism(cfg: TrainConfig, rank: int):
     seed = cfg.seed + rank  # different per-rank to avoid duplicate batches
     torch.manual_seed(seed)
@@ -152,7 +177,80 @@ def set_determinism(cfg: TrainConfig, rank: int):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = cfg.cudnn_deterministic
         torch.backends.cudnn.benchmark = cfg.cudnn_benchmark
+        if _cudnn_benchmark_conflict(cfg):
+            print(
+                "[determinism] cfg.cudnn_benchmark=True defeats cudnn.deterministic: "
+                "cuDNN selects algorithms by timing, so the choice is not reproducible; "
+                "set cudnn_benchmark=False for parity.",
+                flush=True,
+            )
+    # Mirror cfg.cudnn_deterministic with use_deterministic_algorithms so the
+    # training side is at least as deterministic as the validation gates
+    # (research/validation/m1b_gate_c_roundtrip.py::configure_determinism). On CPU
+    # this enforces the byte-parity contract; on CUDA it warns only, because known
+    # differentiable GPU paths (e.g. LPIPS/AlexNet AdaptiveAvgPool2d, bilinear
+    # interpolate) lack a deterministic implementation and the repo's contract is
+    # GPU structural-parity, not byte-parity (docs/research/briefs/I_audio_codec_landscape.md §5).
+    if cfg.cudnn_deterministic:
+        if torch.cuda.is_available():
+            # cuBLAS deterministic GEMMs require a fixed workspace configuration.
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(True, warn_only=torch.cuda.is_available())
+    # PYTHONHASHSEED cannot affect this already-started interpreter (Python reads
+    # it once at startup); the main-process seed must be set in the launcher env
+    # (torchrun env / Docker ENV). It still propagates to spawn-based workers.
     os.environ.setdefault("PYTHONHASHSEED", str(seed))
+
+
+def seed_worker(worker_id: int) -> None:
+    """Seed a DataLoader worker's numpy and stdlib RNGs from its torch seed.
+
+    `torch.initial_seed()` is the per-worker torch seed DataLoader already set
+    (`base_seed + worker_id`), so seeding numpy/stdlib from it keeps all three
+    streams a pure function of (base_seed, worker_id). torch >= 2.6 seeds
+    numpy/stdlib itself from a private derivation; re-deriving from the
+    documented `torch.initial_seed()` keeps the worker streams explicit and
+    version-stable. `worker_id` is unused because that seed already encodes it
+    (kept for the hook's required signature).
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    random.seed(worker_seed)
+    numpy_module = _numpy_module()
+    if numpy_module is not None:
+        numpy_module.random.seed(worker_seed)
+
+
+def _current_rank() -> int:
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank()
+    return 0
+
+
+def _numpy_module():
+    try:
+        import numpy
+    except ImportError:
+        return None
+    return numpy
+
+
+def _capture_rng_entry() -> dict:
+    """Snapshot the RNG generators owned by this process, for checkpoint save (E3).
+
+    Torch's CPU generator, and its per-device CUDA generators when CUDA is
+    present, are always captured; stdlib `random` and numpy are captured when
+    available. Tagged with the rank so a resume on another rank refuses the
+    foreign stream (per-rank seed lineages stay distinct) rather than de-syncing.
+    """
+    cuda_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    numpy_module = _numpy_module()
+    return build_rng_entry(
+        python_state=capture_python_rng_state(),
+        torch_state=torch.get_rng_state(),
+        cuda_state=cuda_state,
+        numpy_state=numpy_module.random.get_state() if numpy_module is not None else None,
+        rank=_current_rank(),
+    )
 
 
 # ---------- LR schedule ----------
@@ -177,10 +275,39 @@ def _optimizer_to_device(optimizer, device: torch.device) -> None:
                 state[key] = value.to(device)
 
 
+def _total_grad_norm(parameters) -> float:
+    """Total L2 norm of the current parameter gradients, WITHOUT clipping.
+
+    Used for the D step, which clips nothing: reading the norm through
+    `get_total_norm` keeps the receipt additive (no new clipping side effect),
+    so a grads spike is citable without changing the update.
+    """
+    grads = [p.grad for p in parameters if p.grad is not None]
+    if not grads:
+        return 0.0
+    return float(nn.utils.get_total_norm(grads))
+
+
+def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: int) -> None:
+    """Fail closed when the loader yields zero batches.
+
+    `drop_last=True` drops any unterminated final batch, so fewer than
+    `batch_size` samples (or an empty/synthetic-less data root) produce an empty
+    loader and the step loop would silently train nothing.
+    """
+    if len(train_loader) == 0:
+        raise RuntimeError(
+            "empty train loader: dataset has "
+            f"{dataset_len} samples but batch_size_per_gpu={batch_size} with "
+            "drop_last=True yields 0 batches; add data or lower the batch size"
+        )
+
+
 # ---------- Train loop ----------
 
 
 def train(cfg: TrainConfig) -> dict:
+    validate_training_inputs(cfg)
     rank, world, local_rank, device = init_distributed()
     set_determinism(cfg, rank)
 
@@ -188,17 +315,29 @@ def train(cfg: TrainConfig) -> dict:
         print(f"[init] rank={rank} world={world} device={device} cfg.smoke={cfg.smoke}")
 
     # ---- Data ----
-    if cfg.smoke or not cfg.train_data_root:
+    # Share corrupt-sample counts with data-loader workers when observable.
+    start_method = multiprocessing.get_start_method()
+    if cfg.smoke:
         train_ds = SyntheticImageDataset(n=64, image_size=cfg.image_size, seed=cfg.seed)
         if is_main(rank):
-            print("[data] using SyntheticImageDataset (smoke / no real data)")
+            print("[data] using SyntheticImageDataset (explicit smoke)")
     else:
+        corrupt_tally = None
+        if cfg.num_workers > 0:
+            # Created from the same start method the DataLoader workers use, so a
+            # forked worker inherits this shared Value; under spawn it would not
+            # (and corrupt_count then honestly reports None instead of 0).
+            corrupt_tally = multiprocessing.get_context(start_method).Value("q", 0)
         train_ds = ImageFolderDataset(
-            Path(cfg.train_data_root), image_size=cfg.image_size, with_labels=False
+            Path(cfg.train_data_root),
+            image_size=cfg.image_size,
+            with_labels=False,
+            corrupt_tally=corrupt_tally,
         )
         if is_main(rank):
             print(f"[data] {cfg.train_data_root}: {len(train_ds)} images")
 
+    validate_training_batch_count(len(train_ds), cfg.batch_size_per_gpu, world)
     if world > 1:
         sampler = DistributedSampler(train_ds, num_replicas=world, rank=rank, shuffle=True, seed=cfg.seed)
         shuffle = False
@@ -206,6 +345,12 @@ def train(cfg: TrainConfig) -> dict:
         sampler = None
         shuffle = True
 
+    # An explicit DataLoader generator makes the per-worker base seed a pure
+    # function of (cfg.seed, rank) instead of a draw from the global torch RNG,
+    # so worker streams stay reproducible across an E3 resume (PyTorch
+    # reproducibility note: pair worker_init_fn with generator=).
+    train_generator = torch.Generator()
+    train_generator.manual_seed(cfg.seed + rank)
     train_loader = DataLoader(
         train_ds,
         batch_size=cfg.batch_size_per_gpu,
@@ -215,7 +360,12 @@ def train(cfg: TrainConfig) -> dict:
         pin_memory=device.type == "cuda",
         drop_last=True,
         persistent_workers=cfg.num_workers > 0,
+        worker_init_fn=seed_worker,
+        generator=train_generator,
     )
+    # Fail closed before touching the model: an empty loader would loop forever
+    # without ever consuming a batch.
+    _require_nonempty_train_loader(train_loader, len(train_ds), cfg.batch_size_per_gpu)
 
     # ---- Model ----
     model = build_tokenizer(cfg.tokenizer).to(device)
@@ -231,12 +381,8 @@ def train(cfg: TrainConfig) -> dict:
     # ---- Loss ----
     lpips_mod = None
     if cfg.lpips_enabled and not cfg.smoke:
-        try:
-            import lpips
-            lpips_mod = lpips.LPIPS(net=cfg.lpips_net).to(device)
-        except ImportError:
-            if is_main(rank):
-                print("[loss] lpips not installed; continuing with L2-only")
+        import lpips
+        lpips_mod = lpips.LPIPS(net=cfg.lpips_net).to(device)
     # ---- Discriminator (PatchGAN) ----
     # The reconstruction-only stack (L2+LPIPS+commit) converges soft; the GAN
     # term sharpens texture. Built only when enabled so a reconstruction-only
@@ -271,33 +417,53 @@ def train(cfg: TrainConfig) -> dict:
     )
 
     resumed_step = 0
+    resumed_run_id: str | None = None
     resume_from = Path(cfg.resume_from) if cfg.resume_from else None
     if resume_from is not None:
         if not resume_from.exists():
             raise FileNotFoundError(f"--resume-from checkpoint not found: {resume_from}")
-        ckpt = torch.load(resume_from, map_location="cpu", weights_only=True)
-        model.load_state_dict(ckpt["model"])
-        checkpoint_step = int(ckpt.get("step", 0))
-        resumed_step = resume_start_step(checkpoint_step, resume_from)
-        if "optimizer" in ckpt:
-            optim.load_state_dict(ckpt["optimizer"])
+        # Validate the four-piece payload and reject config drift BEFORE the
+        # loop continues: a legacy checkpoint without `args` raises
+        # RESUME_ARGS_MISSING, a drifted run raises RESUME_ARGS_DRIFT — neither
+        # is a silent pass. run_id carries the original id when recoverable.
+        decision = load_for_resume(resume_from, cfg_to_dict(cfg))
+        loaded = decision.checkpoint
+        model.load_state_dict(loaded.model)
+        checkpoint_step = loaded.step
+        resumed_step = decision.start_step
+        resumed_run_id = decision.run_id
+        if loaded.optimizer is not None:
+            optim.load_state_dict(loaded.optimizer)
             _optimizer_to_device(optim, device)
-        if discriminator is not None and "discriminator" in ckpt:
-            _unwrap(discriminator).load_state_dict(ckpt["discriminator"])
-        if discriminator is not None and d_optim is not None and "disc_optimizer" in ckpt:
-            d_optim.load_state_dict(ckpt["disc_optimizer"])
+        if discriminator is not None and loaded.discriminator is not None:
+            _unwrap(discriminator).load_state_dict(loaded.discriminator)
+        if discriminator is not None and d_optim is not None and loaded.disc_optimizer is not None:
+            d_optim.load_state_dict(loaded.disc_optimizer)
             _optimizer_to_device(d_optim, device)
+        # E3: restore RNG state before the loop's first step so the resumed run
+        # restores the saved rank's generators. This does not restore the data-loader
+        # cursor or promise bit-identical continuation. A legacy checkpoint has no
+        # rng entry (warning below); a state saved by another rank is refused so
+        # the per-rank seed lineages stay distinct.
+        if not loaded.rng.is_empty():
+            for warning in restore_rng_state(
+                loaded.rng, torch_module=torch, numpy_module=_numpy_module(), rank=rank
+            ):
+                print(f"[resume][rank {rank}] rng warning: {warning}", flush=True)
         if is_main(rank):
             restored = ["model", "step"]
-            if "optimizer" in ckpt:
+            if loaded.optimizer is not None:
                 restored.append("optimizer")
-            if discriminator is not None and "discriminator" in ckpt:
+            if discriminator is not None and loaded.discriminator is not None:
                 restored.append("discriminator")
-            if discriminator is not None and "discriminator" not in ckpt:
+            if discriminator is not None and loaded.discriminator is None:
                 print("[resume] checkpoint has no discriminator state; discriminator starts fresh", flush=True)
+            for warning in decision.warnings:
+                print(f"[resume] warning: {warning}", flush=True)
             print(
                 f"[resume] loaded {resume_from} checkpoint_step={checkpoint_step} "
-                f"next_step={resumed_step} ({', '.join(restored)})",
+                f"next_step={resumed_step} run_id={resumed_run_id or '<none>'} "
+                f"({', '.join(restored)})",
                 flush=True,
             )
 
@@ -318,7 +484,10 @@ def train(cfg: TrainConfig) -> dict:
     # on the same run_dir (matters when other ranks want to read the manifest
     # back, e.g. in smoke_test).
     if is_main(rank):
-        run_id = new_run_id("tokenizer")
+        # On resume, carry the original run id (from the checkpoint payload or
+        # its sibling manifest) so a continued run keeps one identity; a fresh
+        # id is minted only when no original id is recoverable (E4).
+        run_id = resumed_run_id or new_run_id("tokenizer")
     else:
         run_id = ""  # will be filled by broadcast below
     if world > 1:
@@ -335,6 +504,9 @@ def train(cfg: TrainConfig) -> dict:
     if is_main(rank):
         started_at = utc_now_iso()
         git_sha = capture_git_sha(_REPO_ROOT)
+        # F-3.2: research/training/requirements.txt is an unpinned ">=" floor, not
+        # a resolved lock. Hash it (deterministic, no subprocess) but label the
+        # provenance in the receipt so `lockfileSha256` is not read as a locked env.
         lockfile_sha = capture_lockfile_sha256(
             _REPO_ROOT / "research" / "training" / "requirements.txt"
         )
@@ -342,30 +514,69 @@ def train(cfg: TrainConfig) -> dict:
         hardware = capture_hardware()
         experiment_tracker = JsonlExperimentTracker(run_dir, run_id)
         experiment_tracker.log_params({"subprogram": "tokenizer", "config": cfg_to_dict(cfg)})
+        # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
+        # corpus is recorded as a typed "unversioned" marker, never a fabricated
+        # "uncommitted". Synthetic smoke data has no rev at all.
+        use_synthetic_data = cfg.smoke
+        if use_synthetic_data:
+            dataset_revision = "synthetic-smoke"
+            dvc_pinned = False
+        else:
+            dataset_revision = capture_dataset_revision()
+            dvc_pinned = dataset_revision != UNVERSIONED_DATASET_REVISION
+            if not dvc_pinned:
+                print(
+                    "[data] WARNING: dataset is not DVC-pinned (WITT_DVC_REV unset); "
+                    f"receipt records dvcRev={dataset_revision!r}",
+                    flush=True,
+                )
         config_payload = cfg_to_dict(cfg)
         config_payload["experimentTracking"] = experiment_tracker.config_reference()
+        # Provenance labels keep the receipt honest where a bare field would
+        # imply more than it holds (F-3.1/F-3.2) or imply an inert knob took
+        # effect (F-3.3).
+        config_payload["receiptProvenance"] = build_receipt_provenance(
+            dataset_revision,
+            dvc_pinned=dvc_pinned,
+            lockfile_source="research/training/requirements.txt",
+            unused_config_fields=UNUSED_CONFIG_FIELDS,
+        )
         config_ref = write_training_config_snapshot(run_dir / "config.json", config_payload)
-        if cfg.smoke or not cfg.train_data_root:
+        if use_synthetic_data:
             dataset_fp = capture_dataset_fingerprint(
-                "synthetic", files=[], revision="synthetic-smoke",
+                "synthetic", files=[], revision=dataset_revision,
                 notes="SyntheticImageDataset; no on-disk files",
             )
         else:
             train_data_root = Path(cfg.train_data_root)
             file_list = train_ds.file_list_for_manifest()
+            # The tokenizer pipeline enumerates every image under the data root
+            # with no seeded sampling (dataset.py), so the source input index and
+            # the selection coincide and requested == written today. The receipt
+            # still carries both digests and both counts so that a future sampler
+            # (or a dropped file) makes the gap visible instead of hiding it
+            # (report 19 F-1: replicate data_manifest.py, do not invent).
             dataset_fp = capture_dataset_fingerprint(
                 train_data_root.name,
                 files=file_list,
-                revision="uncommitted",
+                revision=dataset_revision,
                 notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
                 cache_per_file=True,
                 root=train_data_root,
+                source_input=file_list,
+                selection=file_list,
+                requested_count=len(file_list),
+                written_count=len(file_list),
             )
 
     # ---- Train loop ----
     t0 = time.perf_counter()
     step = resumed_step
     model.train()
+    # DDP: reproduce epoch `step // len(train_loader)`'s shuffle from its start.
+    # DistributedSampler has no mid-epoch cursor, so a mid-epoch resume replays
+    # up to `step % len(train_loader)` already-trained batches (deterministic, no
+    # sample skipped) before the order realigns; world==1 reshuffles instead.
     if world > 1 and sampler is not None:
         sampler.set_epoch(int(step // max(1, len(train_loader))))
     epoch_iter = iter(train_loader)
@@ -379,8 +590,12 @@ def train(cfg: TrainConfig) -> dict:
             "smoke_mode": cfg.smoke,
             "manifest_written": False,
             "final_checkpoint_written": False,
-            "used_synthetic_data": bool(cfg.smoke or not cfg.train_data_root),
-            "dataset_corrupt_count": 0,
+            "used_synthetic_data": bool(cfg.smoke),
+            # None until observed; never claim zero for an unobservable tally.
+            "dataset_corrupt_count": None,
+            "eval_snapshot_count": 0,
+            "eval_failed": False,
+            "eval_failure_reason": None,
         },
     }
 
@@ -425,11 +640,15 @@ def train(cfg: TrainConfig) -> dict:
         # shared graph) which we discard by zero_grad'ing d_optim below.
         optim.zero_grad(set_to_none=True)
         total_loss.backward()
+        core_model = model.module if world > 1 else model
         if cfg.optim.grad_clip_norm > 0:
-            nn.utils.clip_grad_norm_(
-                (model.module if world > 1 else model).parameters(),
-                cfg.optim.grad_clip_norm,
+            # clip_grad_norm_ returns the pre-clip total norm; persist it so a
+            # spike is citable (taming/LlamaGen clip but discard this number).
+            components["grad_norm_g"] = float(
+                nn.utils.clip_grad_norm_(core_model.parameters(), cfg.optim.grad_clip_norm)
             )
+        else:
+            components["grad_norm_g"] = _total_grad_norm(core_model.parameters())
         optim.step()
 
         # Discriminator step (after warmup): train D on real vs. detached recon
@@ -440,6 +659,9 @@ def train(cfg: TrainConfig) -> dict:
             fake_logits = discriminator(recon.detach())
             d_loss = discriminator_loss(real_logits, fake_logits)
             d_loss.backward()
+            # D clips nothing (see `_total_grad_norm`), so record its raw total
+            # norm too — otherwise a D-side grad spike stays invisible in the receipt.
+            components["grad_norm_d"] = _total_grad_norm(discriminator.parameters())
             d_optim.step()
             components["d_loss"] = float(d_loss.detach().cpu())
 
@@ -490,10 +712,31 @@ def train(cfg: TrainConfig) -> dict:
 
     summary["final_step"] = step
 
+    # Corrupt-sample count: reduced across workers AND ranks here so every rank
+    # joins the collective; only rank 0 records it. None means "unknowable",
+    # never a false 0 (see _shared/corrupt_count.py).
+    corrupt_count = resolve_dataset_corrupt_count(
+        train_ds,
+        num_workers=cfg.num_workers,
+        start_method=start_method,
+        world=world,
+        device=device,
+    )
+
     # ---- Final eval (best-effort) + checkpoint + manifest ----
     if is_main(rank):
-        eval_snapshots = _maybe_run_eval(cfg, model, device, step, world)
+        eval_snapshots, eval_failure = _maybe_run_eval(cfg, model, device, step, world)
         summary["acceptance"]["eval_snapshot_count"] = len(eval_snapshots)
+        summary["acceptance"]["eval_failed"] = eval_failure is not None
+        summary["acceptance"]["eval_failure_reason"] = (
+            eval_failure["reason"] if eval_failure else None
+        )
+        if eval_failure:
+            # Best-effort semantics are preserved (the run does not abort), but
+            # an eval that failed must be visible after the fact — record it to
+            # the persisted experiment channel (the acceptance block is in-memory
+            # only).
+            experiment_tracker.log_event("eval_failed", **eval_failure)
         if eval_snapshots:
             summary["final_eval_metrics"] = {
                 m.name: m.value for m in eval_snapshots[0].metrics
@@ -534,9 +777,20 @@ def train(cfg: TrainConfig) -> dict:
         summary["acceptance"]["experiment_metrics_written"] = (
             run_dir / "experiment-metrics.jsonl"
         ).exists()
-        summary["acceptance"]["dataset_corrupt_count"] = int(
-            getattr(train_ds, "corrupt_count", 0)
-        )
+        summary["acceptance"]["dataset_corrupt_count"] = corrupt_count
+        summary["acceptance"]["dataset_corrupt_count_known"] = corrupt_count is not None
+        if corrupt_count is None:
+            print(
+                "[acceptance] dataset_corrupt_count is UNKNOWN (multi-worker gather "
+                "unavailable); it is NOT zero",
+                flush=True,
+            )
+        # Persist the run self-check so it is citable after the fact; it was
+        # computed and discarded at main() before this change. Written only on
+        # rank 0 (the sole rank whose acceptance block is authoritative) so
+        # non-zero ranks never race a partial receipt into run_dir.
+        acceptance_path = write_acceptance_receipt(run_dir, summary["acceptance"], run_id=run_id)
+        summary["acceptance"]["acceptance_receipt_written"] = acceptance_path.exists()
         elapsed = time.perf_counter() - t0
         print(f"[done] step={step} elapsed={elapsed:.1f}s run_dir={run_dir}")
 
@@ -557,6 +811,8 @@ _EVAL_METRIC_META = {
     "rfid": ("fid", False),
     "codebook_used_pct": ("fraction", True),
     "codebook_used_count": ("count", True),
+    # Codebook-usage perplexity (exp of usage entropy): higher = less collapse.
+    "perplexity": ("perplexity", True),
 }
 
 
@@ -580,10 +836,13 @@ def _eval_dataset_sha(ds_name: str, split: str, files=None) -> str:
     return h.hexdigest()
 
 
-def _maybe_run_eval(cfg, model, device, step, world) -> list:
-    """Run reconstruction eval on a val set; return [] on any failure.
+def _maybe_run_eval(cfg, model, device, step, world) -> tuple[list, dict | None]:
+    """Run reconstruction eval on a val set; return (snapshots, failure).
 
-    Eval must never kill a training run, so every path is guarded. Uses
+    Eval must never kill a training run, so every path is guarded. `failure` is
+    None on success and on the deliberate "no val set declared" skip; it is a
+    `{errorType, reason}` dict only when a real error was caught, so the caller
+    can record it without changing the best-effort contract. Uses
     `val_data_root` when set, else a small synthetic set for smoke. Heavy
     metrics (rFID) are left to the eval harness's own dependency degradation.
     """
@@ -596,12 +855,12 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
             split = "val"
             ds_name = Path(cfg.val_data_root).name
             eval_files = val_ds.file_list_for_manifest()
-        elif cfg.smoke or not cfg.train_data_root:
+        elif cfg.smoke:
             val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
             split = "synthetic-val"
             ds_name = "synthetic"
         else:
-            return []  # real training run with no val set declared — skip
+            return [], None  # real training run with no val set declared — skip
 
         loader = DataLoader(
             val_ds,
@@ -641,7 +900,7 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
                 )
             )
         if not metric_objs:
-            return []  # nothing measurable → no snapshot (keeps manifest valid)
+            return [], None  # nothing measurable → no snapshot (keeps manifest valid)
         snapshot = TrainingRunEvalSnapshot(
             modality="image",
             dataset=TrainingRunEvalDataset(
@@ -651,10 +910,29 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
             generatedAt=utc_now_iso(),
             metrics=metric_objs,
         )
-        return [snapshot]
+        return [snapshot], None
     except Exception as exc:  # eval is best-effort; never fail the run
-        print(f"[eval] skipped due to error: {type(exc).__name__}: {exc}")
-        return []
+        reason = f"{type(exc).__name__}: {exc}"
+        print(f"[eval] skipped due to error: {reason}", flush=True)
+        return [], {"errorType": type(exc).__name__, "reason": reason}
+
+
+def _atomic_torch_save(payload, path) -> None:
+    """Save to a sibling temp, fsync, then `os.replace` (atomic on one fs).
+
+    A crash mid-save must not leave a truncated `step_*.pt` that
+    `latest_checkpoint` / `load_for_resume` would pick up as valid. The
+    selectors' `step_*.pt` / `final.pt` globs ignore the `.pt.tmp` sibling.
+    """
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        torch.save(payload, tmp)
+        with open(tmp, "rb") as fh:
+            os.fsync(fh.fileno())  # flush bytes before the rename is visible
+    except BaseException:
+        tmp.unlink(missing_ok=True)  # best-effort: no `.pt.tmp` litter on failure
+        raise
+    os.replace(tmp, path)
 
 
 def _write_checkpoint(
@@ -679,17 +957,21 @@ def _write_checkpoint(
 ):
     ckpt_path = run_dir / "ckpts" / (f"final.pt" if final else f"step_{step:08d}.pt")
     state = _unwrap(model).state_dict()
-    payload = {"model": state, "step": step, "optimizer": optim.state_dict()}
-    if discriminator is not None:
-        payload["discriminator"] = _unwrap(discriminator).state_dict()
-    if d_optim is not None:
-        payload["disc_optimizer"] = d_optim.state_dict()
-    torch.save(payload, ckpt_path)
+    payload = build_checkpoint_payload(
+        model_state=state,
+        step=step,
+        optimizer_state=optim.state_dict(),
+        args=cfg_to_dict(cfg),
+        discriminator=_unwrap(discriminator).state_dict() if discriminator is not None else None,
+        disc_optimizer=d_optim.state_dict() if d_optim is not None else None,
+        rng=_capture_rng_entry(),
+    )
+    _atomic_torch_save(payload, ckpt_path)
     # Smoke / synthetic data has no license encumbrance. For real data, the
     # operator must declare the corpus license; default research-only keeps an
     # undeclared run un-publishable. Anything other than "permissive" is
     # treated as research-only (fail safe).
-    if cfg.smoke or not cfg.train_data_root:
+    if cfg.smoke:
         weights_license = "permissive"
     else:
         weights_license = "permissive" if cfg.dataset_license == "permissive" else "research-only"
@@ -720,7 +1002,7 @@ def _write_checkpoint(
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Train Wittgenstein-native VQGAN tokenizer.")
-    p.add_argument("--train-data-root", default="", help="ImageNet train folder; empty = synthetic")
+    p.add_argument("--train-data-root", default="", help="ImageFolder training directory; required unless --smoke")
     p.add_argument("--out-root", default="", help="Output root (default: research/training/_shared/runs)")
     p.add_argument("--max-steps", type=int, default=200_000)
     p.add_argument("--batch-size-per-gpu", type=int, default=128)
@@ -760,6 +1042,7 @@ def main():
     args = _build_arg_parser().parse_args()
     if args.smoke:
         cfg = smoke_config()
+        cfg.out_root = args.out_root
         cfg.resume_from = args.resume_from
         if args.checkpoint_every is not None:
             cfg.checkpoint_every = args.checkpoint_every
@@ -788,7 +1071,11 @@ def main():
             cfg.gan_enabled = args.gan_enabled
         if args.gan_on_step is not None:
             cfg.gan_on_step = args.gan_on_step
-    train(cfg)
+    # Pass the summary through instead of dropping it: train() already persisted
+    # the acceptance block to acceptance.json on rank 0, and returning it lets a
+    # caller (smoke_test, supervisors) inspect the run self-check.
+    summary = train(cfg)
+    return summary
 
 
 if __name__ == "__main__":

@@ -26,6 +26,11 @@ import sys
 import time
 from pathlib import Path
 
+from research.training.tokenizer.resume import (
+    manifest_path_for,
+    verify_resume_checkpoint,
+)
+
 
 STEP_RE = re.compile(r"step_(\d+)\.pt$")
 
@@ -37,10 +42,27 @@ def checkpoint_step(path: Path) -> int:
     return int(match.group(1))
 
 
+def is_complete_checkpoint(candidate: Path) -> bool:
+    """A checkpoint and its sibling manifest are one unit.
+
+    The manifest is the pair's commit marker: the trainer writes the `.pt`
+    first and the manifest last, so a `.pt` with no manifest is a crash-in-
+    between half-pair, not a usable checkpoint.
+    """
+    return manifest_path_for(candidate).exists()
+
+
 def latest_step_checkpoint(out_root: Path, fallback: Path | None) -> Path | None:
-    candidates = [p for p in out_root.glob("**/ckpts/step_*.pt") if checkpoint_step(p) >= 0]
+    # Only complete pairs are selectable. A crash between the two atomic writes
+    # leaves a dangling `.pt`; skipping it lets selection fall back to the
+    # previous complete pair instead of aborting the supervisor.
+    candidates = [
+        p
+        for p in out_root.glob("**/ckpts/step_*.pt")
+        if checkpoint_step(p) >= 0 and is_complete_checkpoint(p)
+    ]
     if fallback is not None and fallback.exists() and checkpoint_step(fallback) >= 0:
-        candidates.append(fallback)
+        candidates.append(fallback)  # explicit user intent: fail-closed verified by caller
     if not candidates:
         return fallback if fallback is not None and fallback.exists() else None
     return max(candidates, key=lambda p: (checkpoint_step(p), p.stat().st_mtime))
@@ -186,6 +208,14 @@ def main() -> int:
             print(message, file=log, flush=True)
         print(message, file=sys.stderr)
         return 2
+    if initial_resume is not None:
+        reason = verify_resume_checkpoint(initial_resume)
+        if reason is not None:
+            message = f"[supervise] refusing to resume from {initial_resume}: {reason}"
+            with open(log_path, "a", buffering=1) as log:
+                print(message, file=log, flush=True)
+            print(message, file=sys.stderr)
+            return 3
 
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
@@ -206,6 +236,15 @@ def main() -> int:
             attempt += 1
             remain = max(1.0, deadline - time.monotonic())
             resume = latest_step_checkpoint(out_root, fallback)
+            if resume is not None:
+                reason = verify_resume_checkpoint(resume)
+                if reason is not None:
+                    # D3: fail closed rather than hand an unverifiable checkpoint
+                    # to the run (smoke != training success; do not silently continue)
+                    message = f"[supervise] refusing to resume from {resume}: {reason}"
+                    print(message, file=log, flush=True)
+                    print(message, file=sys.stderr)
+                    return 3
             print(
                 f"[supervise] attempt={attempt} remain={remain:.0f}s resume={resume or 'none'}",
                 file=log,
