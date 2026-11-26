@@ -91,6 +91,10 @@ from research.training.tokenizer.model import (  # noqa: E402
     latent_grid,
     param_count,
 )
+from research.training.tokenizer.preflight import (  # noqa: E402
+    validate_training_batch_count,
+    validate_training_inputs,
+)
 from research.training.tokenizer.resume import resume_start_step  # noqa: E402
 
 
@@ -181,6 +185,7 @@ def _optimizer_to_device(optimizer, device: torch.device) -> None:
 
 
 def train(cfg: TrainConfig) -> dict:
+    validate_training_inputs(cfg)
     rank, world, local_rank, device = init_distributed()
     set_determinism(cfg, rank)
 
@@ -188,10 +193,10 @@ def train(cfg: TrainConfig) -> dict:
         print(f"[init] rank={rank} world={world} device={device} cfg.smoke={cfg.smoke}")
 
     # ---- Data ----
-    if cfg.smoke or not cfg.train_data_root:
+    if cfg.smoke:
         train_ds = SyntheticImageDataset(n=64, image_size=cfg.image_size, seed=cfg.seed)
         if is_main(rank):
-            print("[data] using SyntheticImageDataset (smoke / no real data)")
+            print("[data] using SyntheticImageDataset (explicit smoke)")
     else:
         train_ds = ImageFolderDataset(
             Path(cfg.train_data_root), image_size=cfg.image_size, with_labels=False
@@ -199,6 +204,7 @@ def train(cfg: TrainConfig) -> dict:
         if is_main(rank):
             print(f"[data] {cfg.train_data_root}: {len(train_ds)} images")
 
+    validate_training_batch_count(len(train_ds), cfg.batch_size_per_gpu, world)
     if world > 1:
         sampler = DistributedSampler(train_ds, num_replicas=world, rank=rank, shuffle=True, seed=cfg.seed)
         shuffle = False
@@ -231,12 +237,8 @@ def train(cfg: TrainConfig) -> dict:
     # ---- Loss ----
     lpips_mod = None
     if cfg.lpips_enabled and not cfg.smoke:
-        try:
-            import lpips
-            lpips_mod = lpips.LPIPS(net=cfg.lpips_net).to(device)
-        except ImportError:
-            if is_main(rank):
-                print("[loss] lpips not installed; continuing with L2-only")
+        import lpips
+        lpips_mod = lpips.LPIPS(net=cfg.lpips_net).to(device)
     # ---- Discriminator (PatchGAN) ----
     # The reconstruction-only stack (L2+LPIPS+commit) converges soft; the GAN
     # term sharpens texture. Built only when enabled so a reconstruction-only
@@ -345,7 +347,7 @@ def train(cfg: TrainConfig) -> dict:
         config_payload = cfg_to_dict(cfg)
         config_payload["experimentTracking"] = experiment_tracker.config_reference()
         config_ref = write_training_config_snapshot(run_dir / "config.json", config_payload)
-        if cfg.smoke or not cfg.train_data_root:
+        if cfg.smoke:
             dataset_fp = capture_dataset_fingerprint(
                 "synthetic", files=[], revision="synthetic-smoke",
                 notes="SyntheticImageDataset; no on-disk files",
@@ -596,7 +598,7 @@ def _maybe_run_eval(cfg, model, device, step, world) -> list:
             split = "val"
             ds_name = Path(cfg.val_data_root).name
             eval_files = val_ds.file_list_for_manifest()
-        elif cfg.smoke or not cfg.train_data_root:
+        elif cfg.smoke:
             val_ds = SyntheticImageDataset(n=8, image_size=cfg.image_size, seed=cfg.seed + 1)
             split = "synthetic-val"
             ds_name = "synthetic"
@@ -689,7 +691,7 @@ def _write_checkpoint(
     # operator must declare the corpus license; default research-only keeps an
     # undeclared run un-publishable. Anything other than "permissive" is
     # treated as research-only (fail safe).
-    if cfg.smoke or not cfg.train_data_root:
+    if cfg.smoke:
         weights_license = "permissive"
     else:
         weights_license = "permissive" if cfg.dataset_license == "permissive" else "research-only"
@@ -720,7 +722,7 @@ def _write_checkpoint(
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Train Wittgenstein-native VQGAN tokenizer.")
-    p.add_argument("--train-data-root", default="", help="ImageNet train folder; empty = synthetic")
+    p.add_argument("--train-data-root", default="", help="ImageFolder training directory; required unless --smoke")
     p.add_argument("--out-root", default="", help="Output root (default: research/training/_shared/runs)")
     p.add_argument("--max-steps", type=int, default=200_000)
     p.add_argument("--batch-size-per-gpu", type=int, default=128)
@@ -760,6 +762,7 @@ def main():
     args = _build_arg_parser().parse_args()
     if args.smoke:
         cfg = smoke_config()
+        cfg.out_root = args.out_root
         cfg.resume_from = args.resume_from
         if args.checkpoint_every is not None:
             cfg.checkpoint_every = args.checkpoint_every

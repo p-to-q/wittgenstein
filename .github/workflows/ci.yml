@@ -89,7 +89,8 @@ jobs:
             research.training._shared.test_data_versioning \
             research.training._shared.test_sweep_manifest \
             research.training._shared.test_sweep_cli \
-            research.training.test_resume_closeout_tools -v
+            research.training.test_resume_closeout_tools \
+            research.training.tokenizer.test_preflight -v
 
       - name: Python compile
         run: python -m compileall polyglot-mini/polyglot polyglot-mini/train

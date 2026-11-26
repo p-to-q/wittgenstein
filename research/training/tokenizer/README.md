@@ -6,14 +6,17 @@ trained on ImageNet + CC12M, per
 
 ## Status
 
-Scaffold and DDP training loop **shipped and smoke-validated on a
-2× A800-SXM4-80GB node (NCCL 2.18.5, CUDA 12.8, torch
-2.9.1)**. Real-data launch is gated on dataset prep
-([#400](https://github.com/p-to-q/wittgenstein/issues/400) DVC remote)
-and the training-stack re-audit close
-([#441](https://github.com/p-to-q/wittgenstein/issues/441)).
+The tokenizer loop, optional PatchGAN, evaluation helpers, checkpoint resume,
+supervisor, and closeout tooling are implemented. Historical GPU smoke evidence
+is described in the [training receipt closeout](../../../docs/research/2026-05-31-training-stack-re-audit-closeout.md);
+it does not qualify the current dependency resolution or establish image quality.
+The #441 receipt-boundary review is closed. Real corpus snapshots and storage
+remain open in [#400](https://github.com/p-to-q/wittgenstein/issues/400); no
+publishable trained tokenizer is established by these engineering checks.
 
-See receipt files: `_shared/runs/smoke/tokenizer-*/ckpts/*.manifest.json`.
+Run all module commands from the repository root. See the
+[training setup guide](../../../docs/contributing/training-setup.md) for the
+CPU checks, explicit small-data command, and multi-GPU qualification sequence.
 
 ## Layout
 
@@ -50,7 +53,7 @@ python -m research.training.tokenizer.smoke_test
 torchrun --nproc-per-node 2 -m research.training.tokenizer.smoke_test
 ```
 
-Expected: 5 train steps in <30s, `[smoke] PASS` printed, a
+Expected: 5 synthetic train steps (runtime depends on the host), `[smoke] PASS` printed, a
 `final.manifest.json` written under `_shared/runs/smoke/tokenizer-*/`.
 
 ## Minimum acceptance bar
@@ -152,27 +155,21 @@ produced it.
   Wittgenstein-native VQGAN-class image tokenizer on ImageNet + CC12M
 - [#400](https://github.com/p-to-q/wittgenstein/issues/400) — DVC remote
   for dataset hash pinning
-- [#441](https://github.com/p-to-q/wittgenstein/issues/441) — Training-stack re-audit (gate)
+- [#441](https://github.com/p-to-q/wittgenstein/issues/441) — Closed receipt-boundary review (not a training or release approval)
 - [#329](https://github.com/p-to-q/wittgenstein/issues/329) / [#334](https://github.com/p-to-q/wittgenstein/issues/334) / [#335](https://github.com/p-to-q/wittgenstein/issues/335) —
   VQGAN-class audit (baseline reference, all PASS as of `docs/research/2026-05-27-audit-vqgan-class-gates-cd.md`)
 
-## Not in here yet (follow-ups)
+## Implemented and remaining work
 
-- **PatchGAN discriminator** — discriminator architecture + warmup-aware
-  GAN training loop. The losses.py module is already shaped for this.
-- **Eval pass (rFID / PSNR / SSIM / LPIPS / codebook usage on val 50k)** —
-  fills `evalSnapshots` at every `eval_every` step.
-- **Resume-from-checkpoint** — `--resume <ckpt>` flag, restores model +
-  optim + step counter, preserves run_id continuity.
-- **Aim/W&B tracker integration** — tracker links belong in the training config
-  or an issue-owned tracker receipt; they are not freeform top-level manifest
-  fields.
-- **DVC dataset pin** — train script records the dataset SHA in the
-  training manifest; #400 now provides the smoke DVC pointer and sweep receipt
-  shape, while real ImageNet / CC12M / COCO pointers still need model-owner
-  review before full training.
-- **FSDP2 sharding** — only needed if larger tokenizer variants are
-  trained. The current 72M model fits comfortably on one A800.
+- Implemented: optional PatchGAN (`--gan`), evaluation helpers, and
+  `--resume-from` (model, optimizer, step, and discriminator state when present).
+- Implemented: local JSONL experiment receipts and synthetic DVC/sweep fixtures.
+- Pending: real licensed dataset snapshots / remote storage (#400), shared
+  tracker deployment (#399), measured model quality (#394), and release review.
+- Pending: learned MaskGIT adapter (#397) and LLM head (#398); their directories
+  are placeholders, not launchable training programs.
+- GPU capacity and distributed scaling must be measured on the selected
+  machine. The defaults are a recipe, not a qualified capacity claim.
 
 ## Minimal pass list for reviewers
 

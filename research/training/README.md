@@ -62,9 +62,10 @@ See the [training homes placement decision][training-homes-decision] for #519.
 | `llm-head/`  | Native image-emitting LLM head distilled from teacher      |
 | `_shared/`   | Datasets, manifest-spine adapters, eval harness            |
 
-Each subprogram is a self-contained Python project with its own entrypoint.
-Subprograms share dataset loading, eval, and manifest-emission helpers from
-`_shared/` so receipts stay consistent across runs.
+Only `tokenizer/` currently has a training entrypoint. `adapter/` and
+`llm-head/` are planned subprograms. The implemented tokenizer uses dataset,
+evaluation, and manifest helpers from `_shared/`. Start with the
+[setup and launch guide](../../docs/contributing/training-setup.md).
 
 ## What a training run produces
 
