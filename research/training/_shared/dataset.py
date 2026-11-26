@@ -24,7 +24,7 @@ generates deterministic pseudo-random tensors. Used by tokenizer/smoke_test.py.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Literal
 
 import numpy as np
 import torch
@@ -62,8 +62,9 @@ class ImageFolderDataset(Dataset):
     and `with_labels=True`; otherwise the second tuple value is None.
 
     Robust to corrupt files: any decoder error returns the previous sample
-    (avoids killing a multi-day training run for one bad jpeg). Counts get
-    surfaced through `corrupt_count` for the manifest receipt.
+    (avoids killing a multi-day training run for one bad jpeg). Validation
+    must use `corrupt_policy="raise"` to keep its population unchanged. Counts
+    get surfaced through `corrupt_count` for the manifest receipt.
 
     `corrupt_tally`, when given, is a `multiprocessing.Value` the parent shares
     with DataLoader workers. `corrupt_count` alone is per-process, so with
@@ -78,14 +79,18 @@ class ImageFolderDataset(Dataset):
         with_labels: bool = False,
         extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png", ".webp"),
         corrupt_tally: Any = None,
+        corrupt_policy: Literal["replace", "raise"] = "replace",
     ):
+        if corrupt_policy not in ("replace", "raise"):
+            raise ValueError("corrupt_policy must be replace or raise")
+        self.corrupt_policy = corrupt_policy
         self.root = Path(root)
         self.image_size = image_size
         self.with_labels = with_labels
         if not self.root.exists():
             raise FileNotFoundError(f"Dataset root does not exist: {self.root}")
         self.files: list[Path] = sorted(
-            p for p in self.root.rglob("*") if p.suffix.lower() in extensions
+            p for p in self.root.rglob("*") if p.is_file() and p.suffix.lower() in extensions
         )
         if not self.files:
             raise ValueError(f"No images found under {self.root} (extensions={extensions})")
@@ -101,22 +106,25 @@ class ImageFolderDataset(Dataset):
         return len(self.files)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
-        path = self.files[idx]
-        try:
-            with Image.open(path) as pil:
-                img = llamagen_canonical_preprocess(pil, self.image_size)
-        except Exception:
-            self.corrupt_count += 1
-            if self.corrupt_tally is not None:
-                with self.corrupt_tally.get_lock():
-                    self.corrupt_tally.value += 1
-            # Recurse to previous index (deterministic fallback). If idx==0 falls back to a noise tensor.
-            if idx > 0:
-                return self.__getitem__(idx - 1)
-            img = torch.zeros(3, self.image_size, self.image_size)
-        # PyTorch default collate can't handle None in a tuple. Always return
-        # an int label; -1 = "no label available" (used when with_labels=False
-        # or for unknown parent dirs).
+        # Preserve Python's bounds/negative-index behavior before replacement.
+        self.files[idx]
+        idx = idx % len(self.files)
+        for candidate in range(idx, -1, -1):
+            path = self.files[candidate]
+            try:
+                with Image.open(path) as pil:
+                    img = llamagen_canonical_preprocess(pil, self.image_size)
+                break
+            except Exception as exc:
+                self.corrupt_count += 1
+                if self.corrupt_tally is not None:
+                    with self.corrupt_tally.get_lock():
+                        self.corrupt_tally.value += 1
+                if self.corrupt_policy == "raise":
+                    raise ValueError(f"Cannot decode validation image: {path}") from exc
+                # Training keeps the historical previous-sample/zero fallback,
+                # but iteration cannot overflow on a long run of corrupt files.
+                img = torch.zeros(3, self.image_size, self.image_size)
         label = self.class_to_idx.get(path.parent.name, -1) if self.with_labels else -1
         return img, label
 
