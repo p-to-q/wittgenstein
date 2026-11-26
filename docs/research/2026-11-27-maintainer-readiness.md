@@ -25,6 +25,9 @@ not scientific results.
 | [#708](https://github.com/p-to-q/wittgenstein/pull/708) | All image warnings preserved; unknown warning IDs remain visible; unreachable palette warning retired                                                                                           |
 | [#674](https://github.com/p-to-q/wittgenstein/pull/674) | Reconciled setup-node v7 against the current CI graph instead of merging its stale original head                                                                                                |
 | [#681](https://github.com/p-to-q/wittgenstein/pull/681) | Correct official Fabric documentation link                                                                                                                                                      |
+| [#710](https://github.com/p-to-q/wittgenstein/pull/710) | DDP forward/reducer fix, CPU two-rank CI regression, bounded test workers, compute-readiness roadmap and original-branch ledger                                                                 |
+| [#713](https://github.com/p-to-q/wittgenstein/pull/713) | Root TypeScript ESLint stack 8.74.0, reviewed and merged on fresh Linux PR CI                                                                                                                   |
+| [#712](https://github.com/p-to-q/wittgenstein/pull/712) | Site TypeScript ESLint 8.74.0, rebased after #713 and merged only after fresh combined-state Linux CI                                                                                           |
 
 The former Recharts / hookform PRs #700/#701 were superseded after their unused
 site consumers were removed; #682 was superseded by #708. Fork duplicate #702
@@ -57,7 +60,7 @@ uses its separate Python environment, not the stdlib-only system interpreter.
 
 - Fresh archive-based checkout: normal frozen install and local verification
   passed for the install repair. The final working-tree checks separately cover
-  subsequent changes; this does not claim a fresh Linux installation passed.
+  subsequent changes; the separate Linux PR evidence is described below.
 - Typecheck, lint, dependency/publish boundaries, full build, goldens, reviewer
   bench, CLI doctor, maintained formatting, actionlint and typos passed locally.
 - Final `pnpm test:serial` passed in one invocation across all eleven packages:
@@ -71,12 +74,36 @@ uses its separate Python environment, not the stdlib-only system interpreter.
   This proves the local harness/renderer path, not a remote model or a learned
   image decoder. See `local-sensor-verification.json` in the evidence directory.
 
-GitHub Actions dispatch currently returns **HTTP 422, “Actions has been disabled
-for this user.”** The repository-level enabled flag does not negate that actual
-failure. The cause has not been attributed to billing or guessed. There is no
-new green Linux Actions run for this work. Vercel authorization failures and
-CodeRabbit skips are not CI qualification. The dependency automerge workflow
-was disabled and verified; main protection remains an open governance action.
+The earlier `Jah-yee` workflow-dispatch attempt failed with **HTTP 422,
+“Actions has been disabled for this user.”** That failure remains recorded; its
+cause has not been attributed to billing or guessed. Later on 2026-11-27
+(Asia/Shanghai), Dependabot-triggered Linux PR CI completed successfully:
+
+- [Run 45889714337](https://github.com/p-to-q/wittgenstein/actions/runs/45889714337)
+  checked #712 head `48fb52b` against main `14c2299`.
+- [Run 45889848405](https://github.com/p-to-q/wittgenstein/actions/runs/45889848405)
+  checked #713 head `88d8997` against the same base. Its root ESLint update was
+  subsequently merged after reviewing the exact package/lockfile delta.
+- [Run 45892137943](https://github.com/p-to-q/wittgenstein/actions/runs/45892137943)
+  checked rebased #712 head `26230de` against main `4d57d69`, after #713 landed.
+  The combined root/site dependency update passed every job and was merged;
+  the original #712 run was not reused to qualify a different base.
+
+Run/head/base identities, every job and the full logs were inspected and saved
+locally. Lifecycle install, lint/typecheck, full build, package tests, goldens,
+reviewer bench, Python checks, all 87 CPU-torch/gloo training regressions and the
+aggregate `CI gate` passed. This is fresh Linux evidence for the maintenance
+code and those dependency candidates, not proof that the author's dispatch
+access or a current-main push run is restored. A changed dependency combination
+needs its own current-base qualification. CUDA/NCCL, target-host capacity and
+scientific image quality remain unqualified. Vercel and CodeRabbit are not CI
+substitutes.
+
+The dependency automerge workflow remains disabled. Main protection has not
+been activated; proposed governance PR #711 awaits independent formal review.
+The default reviewer account could not be resolved, so review was requested
+from the verified non-author administrator `simonsunyiming`; no approval is
+claimed. Reviewer configuration drift remains tracked in #267.
 
 ## Branch dispositions
 
@@ -101,18 +128,18 @@ working-directory runs. The underlying identity bug remains tracked in #707.
 
 ## Remaining work, with owners by issue
 
-| Issue              | Actual next gate                                                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| #661 / #267        | Actions service restored, new Linux qualification, independent governance review and deliberate main-gate activation; not self-ratified   |
-| #707               | Determine installed-code identity independently of caller metadata; source, compiled and bundled tests before replacing fallback behavior |
-| #400               | Rights-cleared actual data, content verification, DVC remote access/restore and storage; synthetic receipts are only contract tests       |
-| #396               | Target-host environment, measured one-device capacity, two-rank/restart checks, then a bounded real-data pilot                            |
-| #397 / #398        | Missing learned seed-expander / LLM-head implementation; not launch-ready trainers                                                        |
-| #399               | Shared tracking deployment; local JSONL receipts already exist                                                                            |
-| #402 / #403        | Approved exact weights / hosting / release posture, then canonical installer and real end-to-end image qualification                      |
-| #394 / #452 / #70  | Held-out quality, seed-information and text-to-seed evidence under the existing M1B gates                                                 |
-| #392 / #393 / #263 | Deferred CPU latency, seed sweep and sensor measurement evidence                                                                          |
-| #391               | Parked horizon, not immediate compute preparation                                                                                         |
+| Issue              | Actual next gate                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| #661 / #267        | Restore author-triggered Actions access, qualify current-main execution, independent governance review and deliberate main-gate activation |
+| #707               | Determine installed-code identity independently of caller metadata; source, compiled and bundled tests before replacing fallback behavior  |
+| #400               | Rights-cleared actual data, content verification, DVC remote access/restore and storage; synthetic receipts are only contract tests        |
+| #396               | Target-host environment, measured one-device capacity, two-rank/restart checks, then a bounded real-data pilot                             |
+| #397 / #398        | Missing learned seed-expander / LLM-head implementation; not launch-ready trainers                                                         |
+| #399               | Shared tracking deployment; local JSONL receipts already exist                                                                             |
+| #402 / #403        | Approved exact weights / hosting / release posture, then canonical installer and real end-to-end image qualification                       |
+| #394 / #452 / #70  | Held-out quality, seed-information and text-to-seed evidence under the existing M1B gates                                                  |
+| #392 / #393 / #263 | Deferred CPU latency, seed sweep and sensor measurement evidence                                                                           |
+| #391               | Parked horizon, not immediate compute preparation                                                                                          |
 
 The readiness roadmap gives pass/stop/not-run criteria and separates tokenizer
 reconstruction, oracle seed expansion and planner-generated seed utility. Those
