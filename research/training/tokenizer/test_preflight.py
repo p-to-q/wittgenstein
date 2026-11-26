@@ -51,7 +51,24 @@ class TrainingPreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Resume checkpoint integrity"):
                 validate_training_inputs(inputs(train_data_root=tmp, resume_from=str(checkpoint)))
             with patch("research.training.tokenizer.preflight.verify_resume_checkpoint", return_value=None):
-                validate_training_inputs(inputs(train_data_root=tmp, val_data_root=tmp, resume_from=str(checkpoint)))
+                train_root, val_root = Path(tmp) / "train", Path(tmp) / "val"
+                train_root.mkdir(); val_root.mkdir()
+                validate_training_inputs(inputs(train_data_root=str(train_root), val_data_root=str(val_root), resume_from=str(checkpoint)))
+
+    def test_train_validation_roots_cannot_be_identical_nested_or_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            train, val = root / "train", root / "val"
+            train.mkdir(); val.mkdir()
+            nested = train / "val"
+            nested.mkdir()
+            alias = root / "alias"
+            alias.symlink_to(train, target_is_directory=True)
+            for train_root, val_root in ((train, train), (train, nested), (nested, train), (train, alias)):
+                with self.subTest(train=str(train_root), val=str(val_root)):
+                    with self.assertRaisesRegex(ValueError, "disjoint"):
+                        validate_training_inputs(inputs(train_data_root=str(train_root), val_data_root=str(val_root)))
+            validate_training_inputs(inputs(train_data_root=str(train), val_data_root=str(val)))
 
     def test_lpips_never_silently_changes_the_training_objective(self):
         with tempfile.TemporaryDirectory() as tmp:
