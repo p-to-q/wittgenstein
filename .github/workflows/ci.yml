@@ -15,54 +15,8 @@ permissions:
   pull-requests: read
 
 jobs:
-  changes:
-    name: Detect change scope
-    runs-on: ubuntu-latest
-    outputs:
-      code: ${{ steps.filter.outputs.code }}
-      docs_only: ${{ steps.filter.outputs.docs_only }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Path filter
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          # On push to main we always run the full suite (filter base = parent commit).
-          # On PRs the filter compares against the merge base of the target branch.
-          filters: |
-            code:
-              - "packages/**"
-              - "apps/**"
-              - "polyglot-mini/**"
-              - "scripts/**"
-              - "fixtures/**"
-              - "benchmarks/**"
-              - "bench/**"
-              - "examples/**"
-              - "python/**"
-              - "data/image_adapter/**"
-              - "research/**"
-              - "package.json"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "tsconfig.base.json"
-              - ".eslintrc.cjs"
-              - ".prettierrc"
-              - ".github/workflows/ci.yml"
-              - ".github/workflows/codeql.yml"
-              - ".github/workflows/release.yml"
-            docs_only:
-              - "docs/**"
-              - "*.md"
-              - ".github/ISSUE_TEMPLATE/**"
-              - ".github/PULL_REQUEST_TEMPLATE.md"
-              - ".github/CODEOWNERS"
-
   verify-code:
     name: Verify (Node + Python)
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -96,6 +50,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Build (packages and site)
+        run: pnpm build
 
       - name: Test
         run: pnpm test
@@ -170,34 +127,6 @@ jobs:
             echo "Skipping runtime TTS smoke on non-macOS runner"
           fi
 
-  verify-docs:
-    name: Verify (docs)
-    needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.docs_only == 'true' && needs.changes.outputs.code != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 9.12.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22.22.0
-          cache: pnpm
-
-      - name: Install (prettier only)
-        # We only need prettier — but pnpm install resolves the workspace
-        # graph; --frozen-lockfile keeps it deterministic.
-        run: pnpm install --frozen-lockfile
-
-      - name: Format (prettier — config + maintained docs only)
-        run: pnpm format:check
-
   static-checks:
     name: Static checks (spelling + workflow + deps)
     runs-on: ubuntu-latest
@@ -244,3 +173,17 @@ jobs:
         with:
           fail-on-severity: high
           deny-licenses: GPL-3.0, AGPL-3.0
+
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs: [verify-code, static-checks]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every verification job to succeed
+        env:
+          CODE_RESULT: ${{ needs.verify-code.result }}
+          STATIC_RESULT: ${{ needs.static-checks.result }}
+        run: |
+          test "$CODE_RESULT" = success
+          test "$STATIC_RESULT" = success
