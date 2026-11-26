@@ -20,14 +20,14 @@ three different questions. None substitutes for the next.
 
 ## What exists, and what does not
 
-| Surface                                                            | Executable now                                                                                         | Remaining evidence or implementation                                                              |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| TypeScript harness, deterministic reviewer bench, manifests/replay | Yes; local CPU checks                                                                                  | Fresh Linux CI remains externally blocked; canonical learned-image install needs approved weights |
-| `python/image_adapter/`                                            | Narrow scene-spec → latent MLP / parity surface                                                        | Not the learned VSC seed expander; preserve the documented training-home boundary                 |
-| `research/training/tokenizer/`                                     | Native PyTorch loop, optional GAN, input checks, checkpoints, integrity/resume tools, final evaluation | Current target-host qualification, real-data pilot, held-out quality, release eligibility         |
-| `research/training/adapter/`                                       | Documentation only                                                                                     | Dataset/cache builder, seed definition, trainer, export, inference parity, quality gates (#397)   |
-| `research/training/llm-head/`                                      | Documentation only                                                                                     | Teacher/data rights, representation, trainer, validation (#398)                                   |
-| Data / experiment tracking                                         | Snapshot and local JSONL receipt tooling                                                               | Licensed usable corpus, accessible DVC remote (#400); shared service (#399)                       |
+| Surface                                                            | Executable now                                                                                         | Remaining evidence or implementation                                                                                        |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript harness, deterministic reviewer bench, manifests/replay | Yes; local CPU checks                                                                                  | Fresh Dependabot Linux PR CI passed; author/main execution remains unresolved; learned-image install needs approved weights |
+| `python/image_adapter/`                                            | Narrow scene-spec → latent MLP / parity surface                                                        | Not the learned VSC seed expander; preserve the documented training-home boundary                                           |
+| `research/training/tokenizer/`                                     | Native PyTorch loop, optional GAN, input checks, checkpoints, integrity/resume tools, final evaluation | Current target-host qualification, real-data pilot, held-out quality, release eligibility                                   |
+| `research/training/adapter/`                                       | Documentation only                                                                                     | Dataset/cache builder, seed definition, trainer, export, inference parity, quality gates (#397)                             |
+| `research/training/llm-head/`                                      | Documentation only                                                                                     | Teacher/data rights, representation, trainer, validation (#398)                                                             |
+| Data / experiment tracking                                         | Snapshot and local JSONL receipt tooling                                                               | Licensed usable corpus, accessible DVC remote (#400); shared service (#399)                                                 |
 
 The runtime seed expanders labeled placeholder-class are engineering baselines,
 not learned models. Passing their routing tests is not completion of M1B.
@@ -52,10 +52,15 @@ notebook result as qualification.
    a one-parameter test model with opposing rank-local objectives; equal final
    parameters are required, not just two successful exits. It covers generator
    and discriminator wiring without training a research model.
-3. Restore GitHub Actions and obtain a **new** clean Linux qualification for the
-   selected source revision. Local macOS success and an old green PR badge do
-   not establish this. Follow #661 for the separately reviewed governance
-   activation; the dependency automerge workflow remains disabled meanwhile.
+3. Obtain a **new** clean Linux qualification for the selected source revision.
+   Fresh Dependabot PR runs 45889848405 and 45892137943 passed on 2026-11-27
+   (Asia/Shanghai), including the rebased dependency combination and the 87-test
+   CPU-torch/gloo suite; see the
+   [maintainer evidence](2026-11-27-maintainer-readiness.md#validation-evidence-and-limits).
+   The earlier author-dispatch HTTP 422 remains unresolved, and those PR runs
+   do not establish a current-main push run or future dependency combinations.
+   Follow #661 and proposed PR #711 for separately reviewed governance
+   activation; dependency automerge remains disabled meanwhile.
 4. Choose one question, an operator, a target host, a maximum wall time and a
    storage/compute cap. No available host or approved cap means no launch.
 
@@ -186,8 +191,9 @@ this document, a smoke, or a synthetic receipt sweep does not meet those gates.
 
 ## Work queue and dependency order
 
-1. **Now / no allocation:** maintain installation and regression checks; restore
-   Actions (#661); resolve version identity (#707); prepare data/remote evidence
+1. **Now / no allocation:** maintain installation and regression checks; resolve
+   author/main Actions execution and gate activation (#661); resolve version
+   identity (#707); prepare data/remote evidence
    (#400) and select candidate weights (#402). Shared tracking (#399) helps
    collaboration, but local JSONL is already usable for a bounded pilot.
 2. **First qualified allocation:** G2–G3 tokenizer plumbing / capacity / restart;
