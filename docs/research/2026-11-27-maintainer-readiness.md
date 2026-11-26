@@ -124,14 +124,16 @@ backup. No unmerged research branch was forced into main just to reduce a count.
 site migration variants and conflicting stage/ADR proposals also must not be
 represented as current main behavior. The old manifest-version branch was
 rejected as written: requiring a caller's `package.json` breaks legitimate empty
-working-directory runs. The underlying identity bug remains tracked in #707.
+working-directory runs. The underlying identity bug (#707) was subsequently
+fixed in PR #716 with source, compiled-ESM and standalone-bundle regressions;
+see the [robustness-phase closeout](2026-11-27-robustness-closeout.md). The earlier
+branch rejection remains historical; the later code-owned identity fix is landed.
 
 ## Remaining work, with owners by issue
 
 | Issue              | Actual next gate                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | #661 / #267        | Restore author-triggered Actions access, qualify current-main execution, independent governance review and deliberate main-gate activation |
-| #707               | Determine installed-code identity independently of caller metadata; source, compiled and bundled tests before replacing fallback behavior  |
 | #400               | Rights-cleared actual data, content verification, DVC remote access/restore and storage; synthetic receipts are only contract tests        |
 | #396               | Target-host environment, measured one-device capacity, two-rank/restart checks, then a bounded real-data pilot                             |
 | #397 / #398        | Missing learned seed-expander / LLM-head implementation; not launch-ready trainers                                                         |
