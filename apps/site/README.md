@@ -2,6 +2,9 @@
 
 This folder contains the canonical website app for `wittgenstein.wtf`.
 
+The site uses six runtime dependencies; the unused scaffold UI kit and its
+unused dependencies were removed after an import audit (#668).
+
 It is a Vite + React + TypeScript build, migrated from [`Jah-yee/wittgenstein-www`](https://github.com/Jah-yee/wittgenstein-www) into the monorepo so the public site can track the repo's docs, package surface, and release work.
 
 ## What This Site Is For
