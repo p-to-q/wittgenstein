@@ -29,7 +29,7 @@ import os
 import random
 import sys
 import time
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import torch
@@ -105,6 +105,8 @@ from research.training.tokenizer.preflight import (  # noqa: E402
     validate_training_inputs,
 )
 from research.training.tokenizer.resume import (  # noqa: E402
+    ResumeDatasetDrift,
+    assert_resume_dataset_compatible,
     build_checkpoint_payload,
     build_rng_entry,
     capture_python_rng_state,
@@ -329,6 +331,56 @@ def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: i
         )
 
 
+def _capture_training_dataset(cfg, train_ds):
+    """Compute the same rank-0 receipt used by checkpoints, before output writes."""
+    # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
+    # corpus is recorded as a typed "unversioned" marker, never a fabricated
+    # "uncommitted". Synthetic smoke data has no rev at all.
+    use_synthetic_data = cfg.smoke
+    if use_synthetic_data:
+        dataset_revision = "synthetic-smoke"
+        dvc_pinned = False
+    else:
+        dataset_revision = capture_dataset_revision()
+        dvc_pinned = dataset_revision != UNVERSIONED_DATASET_REVISION
+        if not dvc_pinned:
+            print(
+                "[data] WARNING: dataset is not DVC-pinned (WITT_DVC_REV unset); "
+                f"receipt records dvcRev={dataset_revision!r}",
+                flush=True,
+            )
+    if use_synthetic_data:
+        dataset_fp = capture_dataset_fingerprint(
+            "synthetic", files=[], revision=dataset_revision,
+            notes="SyntheticImageDataset; no on-disk files",
+        )
+    else:
+        train_data_root = Path(cfg.train_data_root)
+        file_list = train_ds.file_list_for_manifest()
+        # The tokenizer pipeline enumerates every image under the data root
+        # with no seeded sampling (dataset.py), so the source input index and
+        # the selection coincide and requested == written today. The receipt
+        # still carries both digests and both counts so that a future sampler
+        # (or a dropped file) makes the gap visible instead of hiding it
+        # (report 19 F-1: replicate data_manifest.py, do not invent).
+        dataset_fp = capture_dataset_fingerprint(
+            train_data_root.name,
+            files=file_list,
+            revision=dataset_revision,
+            notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
+            cache_per_file=True,
+            root=train_data_root,
+            source_input=file_list,
+            selection=file_list,
+            requested_count=len(file_list),
+            written_count=len(file_list),
+        )
+
+    if cfg.resume_from:
+        assert_resume_dataset_compatible(cfg.resume_from, asdict(dataset_fp))
+    return dataset_fp, dataset_revision, dvc_pinned
+
+
 # ---------- Train loop ----------
 
 
@@ -392,6 +444,27 @@ def train(cfg: TrainConfig) -> dict:
     # Fail closed before touching the model: an empty loader would loop forever
     # without ever consuming a batch.
     _require_nonempty_train_loader(train_loader, len(train_ds), cfg.batch_size_per_gpu)
+
+    # Rank 0 owns the corpus receipt. Coordinate its refusal before peers enter
+    # DDP/model collectives, and before any existing run evidence is replaced.
+    dataset_error = None
+    if is_main(rank):
+        try:
+            dataset_fp, dataset_revision, dvc_pinned = _capture_training_dataset(cfg, train_ds)
+        except Exception as exc:
+            dataset_error = exc
+    status = [{
+        "message": str(dataset_error),
+        "dataset_drift": isinstance(dataset_error, ResumeDatasetDrift),
+    } if dataset_error is not None else None]
+    if world > 1:
+        dist.broadcast_object_list(status, src=0)
+    if status[0] is not None:
+        if dataset_error is not None:
+            raise dataset_error
+        if status[0]["dataset_drift"]:
+            raise ResumeDatasetDrift(status[0]["message"], path=cfg.resume_from or None)
+        raise RuntimeError(f"Rank-0 dataset fingerprint failed: {status[0]['message']}")
 
     # ---- Model ----
     model = build_tokenizer(cfg.tokenizer).to(device)
@@ -526,7 +599,7 @@ def train(cfg: TrainConfig) -> dict:
         (run_dir / "ckpts").mkdir(parents=True, exist_ok=True)
         print(f"[out] run_dir={run_dir}")
 
-    # ---- Capture once: manifest invariants + dataset fingerprint ----
+    # ---- Capture remaining manifest invariants ----
     if is_main(rank):
         started_at = utc_now_iso()
         git_sha = capture_git_sha(_REPO_ROOT)
@@ -540,22 +613,6 @@ def train(cfg: TrainConfig) -> dict:
         hardware = capture_hardware()
         experiment_tracker = JsonlExperimentTracker(run_dir, run_id)
         experiment_tracker.log_params({"subprogram": "tokenizer", "config": cfg_to_dict(cfg)})
-        # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
-        # corpus is recorded as a typed "unversioned" marker, never a fabricated
-        # "uncommitted". Synthetic smoke data has no rev at all.
-        use_synthetic_data = cfg.smoke
-        if use_synthetic_data:
-            dataset_revision = "synthetic-smoke"
-            dvc_pinned = False
-        else:
-            dataset_revision = capture_dataset_revision()
-            dvc_pinned = dataset_revision != UNVERSIONED_DATASET_REVISION
-            if not dvc_pinned:
-                print(
-                    "[data] WARNING: dataset is not DVC-pinned (WITT_DVC_REV unset); "
-                    f"receipt records dvcRev={dataset_revision!r}",
-                    flush=True,
-                )
         config_payload = cfg_to_dict(cfg)
         config_payload["experimentTracking"] = experiment_tracker.config_reference()
         # Provenance labels keep the receipt honest where a bare field would
@@ -568,32 +625,6 @@ def train(cfg: TrainConfig) -> dict:
             unused_config_fields=UNUSED_CONFIG_FIELDS,
         )
         config_ref = write_training_config_snapshot(run_dir / "config.json", config_payload)
-        if use_synthetic_data:
-            dataset_fp = capture_dataset_fingerprint(
-                "synthetic", files=[], revision=dataset_revision,
-                notes="SyntheticImageDataset; no on-disk files",
-            )
-        else:
-            train_data_root = Path(cfg.train_data_root)
-            file_list = train_ds.file_list_for_manifest()
-            # The tokenizer pipeline enumerates every image under the data root
-            # with no seeded sampling (dataset.py), so the source input index and
-            # the selection coincide and requested == written today. The receipt
-            # still carries both digests and both counts so that a future sampler
-            # (or a dropped file) makes the gap visible instead of hiding it
-            # (report 19 F-1: replicate data_manifest.py, do not invent).
-            dataset_fp = capture_dataset_fingerprint(
-                train_data_root.name,
-                files=file_list,
-                revision=dataset_revision,
-                notes=f"content fingerprint for {len(train_ds)} files; DVC pin pending #400",
-                cache_per_file=True,
-                root=train_data_root,
-                source_input=file_list,
-                selection=file_list,
-                requested_count=len(file_list),
-                written_count=len(file_list),
-            )
 
     # ---- Train loop ----
     t0 = time.perf_counter()

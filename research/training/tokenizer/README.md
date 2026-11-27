@@ -108,6 +108,28 @@ establish bit-identical dataloader/RNG continuation. Run the stdlib regressions
 with `python -m unittest research.training.tokenizer.test_resume_identity -v`;
 install CPU torch to also exercise the real serializer roundtrip.
 
+The trainer also recomputes the rank-0 corpus fingerprint before model loading
+or output writes. Resume requires the content hash and dataset revision to match
+the checkpoint's sibling manifest; newer index/count fields are checked when
+recorded. Replacing, adding, removing or renaming an image at the same root
+raises `ResumeDatasetDrift` (`RESUME_DATASET_DRIFT`), including a final-checkpoint
+resume with zero updates remaining. Changing `WITT_DVC_REV` also requires restoring
+the recorded revision. The original run files are left untouched on refusal;
+there is no new success receipt. DDP peers receive the refusal before entering
+model collectives. Restore the original corpus to resume that experiment.
+
+```sh
+OMP_NUM_THREADS=1 python -m unittest \
+  research.training.tokenizer.test_resume_identity \
+  research.training.tokenizer.test_resume_dataset -v
+```
+
+These generated-pixel/scalar CPU/gloo checks do not establish immutable storage,
+rights, identical rank-local mounts, continuous mutation detection during a run,
+or exact loader/RNG restart. The existing startup content scan is moved earlier,
+not repeated; multi-rank startup adds a status broadcast. Dataset qualification
+and remote-restore evidence remain tracked in #400.
+
 ## Numerical failure evidence
 
 Preflight rejects nonfinite optimizer learning rate, decay, betas and clipping
