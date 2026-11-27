@@ -46,7 +46,7 @@
     "dev:site": "pnpm --filter @wittgenstein/site dev",
     "dev:presentation": "pnpm --filter @wittgenstein/presentation dev",
     "release:check": "node scripts/check-release.mjs",
-    "test:release": "node --test scripts/check-release.test.mjs"
+    "test:release": "node --test scripts/check-release.test.mjs scripts/check-release.integration.test.mjs"
   },
   "pnpm": {
     "overrides": {

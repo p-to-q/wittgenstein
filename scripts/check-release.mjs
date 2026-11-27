@@ -9,6 +9,7 @@ import { parseArgs, promisify } from "node:util";
 import { z } from "zod";
 
 const exec = promisify(execFile);
+const npmRegistry = "https://registry.npmjs.org/";
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const identifier = "(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)";
 const version = z
@@ -127,7 +128,7 @@ async function sourceState() {
   };
 }
 async function publicRegistry() {
-  const response = await fetch("https://registry.npmjs.org/wittgenstein-cli", {
+  const response = await fetch(`${npmRegistry}wittgenstein-cli`, {
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`RELEASE_REGISTRY_UNAVAILABLE: HTTP ${response.status}`);
@@ -232,7 +233,15 @@ export async function checkRelease(options = {}) {
           now.lockfileSha256 !== source.lockfileSha256
         )
           throw new Error("RELEASE_SOURCE_CHANGED: source changed before publication");
-        await command("npm", ["publish", tarball, "--ignore-scripts", "--tag", local.channel]);
+        await command("npm", [
+          "publish",
+          tarball,
+          "--ignore-scripts",
+          "--tag",
+          local.channel,
+          "--registry",
+          npmRegistry,
+        ]);
         receipt.published = assertPublishedArtifact(await publicRegistry(), local);
       }
     } else if (options.requireNpm) {
