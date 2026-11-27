@@ -7,13 +7,24 @@ paths without allocating a model, downloading weights, or starting training.
 from __future__ import annotations
 
 import importlib.util
+import math
 from pathlib import Path
 from typing import Protocol
 
 from .resume import verify_resume_checkpoint
 
 
+class OptimizerInputs(Protocol):
+    lr: float
+    weight_decay: float
+    beta1: float
+    beta2: float
+    grad_clip_norm: float
+    warmup_steps: int
+
+
 class TrainingInputs(Protocol):
+    optim: OptimizerInputs
     smoke: bool
     train_data_root: str
     val_data_root: str
@@ -39,6 +50,17 @@ def validate_training_inputs(cfg: TrainingInputs) -> None:
             raise ValueError(f"{name} must be a positive integer")
     if type(cfg.num_workers) is not int or cfg.num_workers < 0:
         raise ValueError("num_workers must be a nonnegative integer")
+    for name in ("lr", "weight_decay", "beta1", "beta2", "grad_clip_norm"):
+        value = getattr(cfg.optim, name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"optim.{name} must be a finite number")
+        if name in {"lr", "weight_decay"} and value < 0:
+            raise ValueError(f"optim.{name} must be nonnegative")
+        if name in {"beta1", "beta2"} and not 0 <= value < 1:
+            raise ValueError(f"optim.{name} must be in [0, 1)")
+    # Preserve <=0 as the existing explicit no-warmup/no-clipping setting.
+    if type(cfg.optim.warmup_steps) is not int:
+        raise ValueError("optim.warmup_steps must be an integer")
     if not cfg.smoke:
         if not cfg.train_data_root.strip():
             raise ValueError(
