@@ -130,6 +130,30 @@ or exact loader/RNG restart. The existing startup content scan is moved earlier,
 not repeated; multi-rank startup adds a status broadcast. Dataset qualification
 and remote-restore evidence remain tracked in #400.
 
+### Checkpoint/receipt snapshot on resume
+
+The trainer hashes the same open checkpoint descriptor that it passes to
+`torch.load(weights_only=True)`, then rehashes it and checks file metadata after
+loading. It pins one validated sibling receipt for payload run ID, step and
+corpus continuity, and refuses a changed/deleted receipt. Integrity failures
+raise `ResumeIntegrityError` (`RESUME_INTEGRITY_INVALID`) before any model or
+optimizer state load and before output creation/replacement. Rank-local load
+failures are coordinated; ranks must also agree on checkpoint and receipt hashes.
+
+The cheap pre-device check remains stdlib-only. Dataset drift still fails before
+model construction; the actual load repeats that comparison against its pinned
+receipt. Hashing reads at most 1 MiB per chunk and retains no second checkpoint
+copy, but adds two full checkpoint reads at load time. Standalone legacy payload
+readers retain receipt-optional behavior unless `verify_receipt=True` is requested.
+
+This is a consistency guard for ordinary concurrent writers, not authentication
+against an actor able to rewrite all evidence. It does not qualify exact loader
+cursor/per-rank RNG replay, CUDA/NCCL, full models or target-host I/O performance.
+
+```bash
+python -m unittest research.training.tokenizer.test_resume_snapshot -v
+```
+
 ### Optimizer profile on resume
 
 Compatible saved/current args are checked alongside the actual AdamW group

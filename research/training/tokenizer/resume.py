@@ -71,18 +71,17 @@ Design constraints kept deliberately:
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import math
+import os
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from research.training._shared.manifest import (
-    assert_training_run_manifest_shape,
-    sha256_file,
-)
+from research.training._shared.manifest import assert_training_run_manifest_shape
 
 # ---- Upstream-aligned payload keys ----------------------------------------
 
@@ -155,6 +154,12 @@ class ResumeError(RuntimeError):
     def __init__(self, message: str, *, path: str | None = None) -> None:
         super().__init__(message)
         self.path = path
+
+
+class ResumeIntegrityError(ResumeError):
+    """The selected checkpoint/receipt pair cannot be read consistently."""
+
+    code = "RESUME_INTEGRITY_INVALID"
 
 
 class ResumeStepsMissing(ResumeError):
@@ -532,6 +537,7 @@ def assert_optimizer_profile_compatible(
 
 def assert_resume_dataset_compatible(
     checkpoint_path: Path | str, current_dataset: Mapping[str, Any],
+    *, document: Mapping[str, Any] | None = None,
 ) -> None:
     """Compare corpus content/provenance before a resume can replace run evidence.
 
@@ -539,7 +545,8 @@ def assert_resume_dataset_compatible(
     older manifests still have the required content hash and revision. Filenames
     alone cannot establish identity when bytes change at an existing path.
     """
-    document = _read_sibling_manifest(checkpoint_path)
+    if document is None:
+        document = _read_sibling_manifest(checkpoint_path)
     saved = document.get("dataset") if document is not None else None
     if not isinstance(saved, Mapping) or any(not saved.get(key) for key in ("sha256", "dvcRev")):
         raise ResumeDatasetDrift(
@@ -582,6 +589,7 @@ class LoadedCheckpoint:
     run_id: str | None = None
     warnings: tuple[str, ...] = ()
     source: str = ""
+    snapshot_identity: tuple[str, str] | None = None
 
 
 def _coerce_step(raw: Any, source: str) -> int:
@@ -688,15 +696,20 @@ def load_checkpoint(
     require_args: bool = True,
     require_optimizer: bool = True,
     torch_module: Any | None = None,
+    verify_receipt: bool = False,
+    current_dataset: Mapping[str, Any] | None = None,
 ) -> LoadedCheckpoint:
     """Deserialize + validate a checkpoint file (torch imported lazily).
 
     Mirrors upstream's rank-0 `torch.save(checkpoint, path)` (`train_t2i.py`
     L195–L216), loaded with `weights_only=True`. Run-id continuity is filled
     from the sibling manifest when the payload itself carries no run id.
+    Training sets verify_receipt=True: one descriptor is hashed before/after
+    loading, and the pinned receipt supplies identity and dataset checks.
+    Standalone legacy readers keep their receipt-optional default.
     """
     path = Path(path)
-    if not path.exists():
+    if not path.exists() and not verify_receipt:
         raise FileNotFoundError(f"--resume-from checkpoint not found: {path}")
     if torch_module is None:
         try:
@@ -706,7 +719,12 @@ def load_checkpoint(
                 f"cannot load checkpoint {path}: torch is not available "
                 "(pass torch_module= to load in a torch-free process)"
             ) from exc
-    payload = torch_module.load(path, map_location="cpu", weights_only=True)
+    snapshot_identity = None
+    if verify_receipt:
+        payload, document, snapshot_identity = _load_verified_payload(path, torch_module, current_dataset)
+    else:
+        payload = torch_module.load(path, map_location="cpu", weights_only=True)
+        document = _read_sibling_manifest(path)
     loaded = load_checkpoint_payload(
         payload,
         source=str(path),
@@ -715,7 +733,6 @@ def load_checkpoint(
     )
     run_id = loaded.run_id
     warnings = list(loaded.warnings)
-    document = _read_sibling_manifest(path)
     if document is not None:
         manifest_run_id = _checked_run_id(document.get("runId"), source="sibling manifest")
         if run_id is not None and manifest_run_id is not None and run_id != manifest_run_id:
@@ -733,7 +750,9 @@ def load_checkpoint(
         run_id = run_id or manifest_run_id
     if run_id is None:
         warnings.append(WARN_RUN_ID_MISSING)
-    return dataclasses.replace(loaded, run_id=run_id, warnings=tuple(warnings))
+    return dataclasses.replace(
+        loaded, run_id=run_id, warnings=tuple(warnings), snapshot_identity=snapshot_identity,
+    )
 
 
 # ---- Training-loop seams (D1) ----------------------------------------------
@@ -790,6 +809,8 @@ def load_for_resume(
     require_args: bool = True,
     require_optimizer: bool = True,
     torch_module: Any | None = None,
+    verify_receipt: bool = False,
+    current_dataset: Mapping[str, Any] | None = None,
 ) -> ResumeDecision:
     """Load a checkpoint for resume, enforcing the E1/E2/E4 guarantees.
 
@@ -807,6 +828,8 @@ def load_for_resume(
         require_args=require_args,
         require_optimizer=require_optimizer,
         torch_module=torch_module,
+        verify_receipt=verify_receipt,
+        current_dataset=current_dataset,
     )
     if loaded.args is not None:
         assert_args_compatible(loaded.args, current_args, source=loaded.source)
@@ -893,38 +916,36 @@ def resume_start_step(checkpoint_step: int, checkpoint_path: Path) -> int:
         return checkpoint_step + 1
     return checkpoint_step
 
-def verify_resume_checkpoint(checkpoint: Path) -> str | None:
-    """D3: verify the chosen checkpoint against its sibling manifest receipt.
-
-    Returns ``None`` when verified, otherwise a human-readable failure reason.
-    The supervisor is stdlib-only and never imports torch, so the checkpoint
-    payload itself is not read here — the receipt spine (the sibling
-    ``*.manifest.json`` the trainer writes next to every checkpoint) is the
-    verifiable artifact. Fails closed: an absent, malformed, shape-invalid, or
-    disagreeing manifest is a reason, not a warning.
-    """
+def _read_resume_receipt(checkpoint: Path) -> tuple[bytes, Mapping[str, Any]]:
+    """Read one receipt and validate its shape and checkpoint naming identity."""
     manifest_path = manifest_path_for(checkpoint)
-    if not manifest_path.exists():
-        return f"missing sibling manifest {manifest_path.name}"
     try:
-        document = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return f"unreadable sibling manifest {manifest_path.name}: {exc}"
+        raw = manifest_path.read_bytes()
+    except FileNotFoundError as exc:
+        raise ResumeIntegrityError(f"missing sibling manifest {manifest_path.name}", path=str(checkpoint)) from exc
+    except OSError as exc:
+        raise ResumeIntegrityError(f"unreadable sibling manifest {manifest_path.name}: {exc}", path=str(checkpoint)) from exc
+    try:
+        document = json.loads(raw)
+    except (ValueError, UnicodeError) as exc:
+        raise ResumeIntegrityError(f"unreadable sibling manifest {manifest_path.name}: {exc}", path=str(checkpoint)) from exc
     try:
         assert_training_run_manifest_shape(document)
     except (TypeError, ValueError) as exc:
-        return f"sibling manifest {manifest_path.name} failed shape validation: {exc}"
+        raise ResumeIntegrityError(
+            f"sibling manifest {manifest_path.name} failed shape validation: {exc}", path=str(checkpoint),
+        ) from exc
 
     match = re.fullmatch(r"step_(\d+)\.pt", checkpoint.name)
     step = int(match.group(1)) if match else -1
     if step >= 0 and int(document.get("stepCount", -1)) != step:
-        return (
+        raise ResumeIntegrityError(
             f"manifest stepCount={document.get('stepCount')} disagrees with "
             f"checkpoint step {step} ({checkpoint.name})"
         )
     recorded = str((document.get("checkpoint") or {}).get("path", ""))
     if recorded and Path(recorded).name != checkpoint.name:
-        return f"manifest checkpoint.path={recorded!r} disagrees with {checkpoint.name}"
+        raise ResumeIntegrityError(f"manifest checkpoint.path={recorded!r} disagrees with {checkpoint.name}")
     # Run-id continuity: the trainer writes ckpts under <out_root>/<runId>/ckpts/,
     # so the manifest runId must match the run directory. Only checked in that
     # expected layout, so an explicitly rescued out-of-layout checkpoint is not
@@ -932,18 +953,67 @@ def verify_resume_checkpoint(checkpoint: Path) -> str | None:
     try:
         run_id = _checked_run_id(document.get("runId"), source="sibling manifest")
     except ResumeError as exc:
-        return str(exc)
+        raise ResumeIntegrityError(str(exc), path=str(checkpoint)) from exc
     if checkpoint.parent.name == "ckpts":
         run_dir_name = checkpoint.parent.parent.name
         if run_id is None:
-            return f"sibling manifest {manifest_path.name} carries no runId"
+            raise ResumeIntegrityError(f"sibling manifest {manifest_path.name} carries no runId")
         if run_dir_name and run_id != run_dir_name:
-            return f"manifest runId={run_id!r} disagrees with run dir {run_dir_name!r}"
+            raise ResumeIntegrityError(f"manifest runId={run_id!r} disagrees with run dir {run_dir_name!r}")
+    return raw, document
+
+
+def _verify_checkpoint_stream(stream, document, checkpoint: Path) -> None:
+    """Hash the already-open file with bounded memory, then rewind for torch."""
+    if os.fstat(stream.fileno()).st_size != document["checkpoint"]["bytes"]:
+        raise ResumeIntegrityError("checkpoint byte size disagrees with sibling manifest", path=str(checkpoint))
+    stream.seek(0)
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        digest.update(chunk)
+    stream.seek(0)
+    if digest.hexdigest() != document["checkpoint"]["sha256"]:
+        raise ResumeIntegrityError("checkpoint SHA-256 disagrees with sibling manifest", path=str(checkpoint))
+
+
+def _file_signature(stream) -> tuple[int, ...]:
+    info = os.fstat(stream.fileno())
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+
+def _load_verified_payload(checkpoint: Path, torch_module, current_dataset):
+    raw, document = _read_resume_receipt(checkpoint)
+    if current_dataset is not None:
+        assert_resume_dataset_compatible(checkpoint, current_dataset, document=document)
     try:
-        if checkpoint.stat().st_size != document["checkpoint"]["bytes"]:
-            return "checkpoint byte size disagrees with sibling manifest"
-        if sha256_file(checkpoint) != document["checkpoint"]["sha256"]:
-            return "checkpoint SHA-256 disagrees with sibling manifest"
+        with checkpoint.open("rb") as stream:
+            before = _file_signature(stream)
+            _verify_checkpoint_stream(stream, document, checkpoint)
+            # Atomic pathname replacement cannot redirect this open descriptor.
+            try:
+                payload = torch_module.load(stream, map_location="cpu", weights_only=True)
+            except Exception as exc:
+                raise ResumeIntegrityError(f"cannot deserialize verified checkpoint: {exc}", path=str(checkpoint)) from exc
+            # Also reject ordinary in-place writes while the deserializer reads.
+            _verify_checkpoint_stream(stream, document, checkpoint)
+            if _file_signature(stream) != before:
+                raise ResumeIntegrityError("checkpoint changed during deserialization", path=str(checkpoint))
+        if manifest_path_for(checkpoint).read_bytes() != raw:
+            raise ResumeIntegrityError("sibling manifest changed during deserialization", path=str(checkpoint))
+    except OSError as exc:
+        raise ResumeIntegrityError(f"cannot read checkpoint/receipt snapshot: {exc}", path=str(checkpoint)) from exc
+    identity = document["checkpoint"]["sha256"], hashlib.sha256(raw).hexdigest()
+    return payload, document, identity
+
+
+def verify_resume_checkpoint(checkpoint: Path) -> str | None:
+    """Stdlib-only preflight; the trainer rechecks the actual load descriptor."""
+    try:
+        _, document = _read_resume_receipt(checkpoint)
+        with checkpoint.open("rb") as stream:
+            _verify_checkpoint_stream(stream, document, checkpoint)
+    except ResumeIntegrityError as exc:
+        return str(exc)
     except OSError as exc:
         return f"cannot read checkpoint for integrity verification: {exc}"
     return None

@@ -107,6 +107,8 @@ from research.training.tokenizer.preflight import (  # noqa: E402
 )
 from research.training.tokenizer.resume import (  # noqa: E402
     ResumeDatasetDrift,
+    ResumeError,
+    ResumeIntegrityError,
     ResumeOptimizerDrift,
     ResumeOptimizerStateInvalid,
     assert_optimizer_profile_compatible,
@@ -430,6 +432,40 @@ def _validate_resume_optimizer_profiles(loaded, optim, d_optim, cfg, start_step,
             raise error_type(f"rank {rank}: {failure['message']}", path=loaded.source)
 
 
+def _load_training_resume(path, cfg, current_dataset, world):
+    """Coordinate load failures before a peer can enter optimizer/DDP collectives."""
+    decision = None
+    error = None
+    try:
+        decision = load_for_resume(
+            path, cfg_to_dict(cfg), verify_receipt=True, current_dataset=current_dataset,
+        )
+    except Exception as exc:
+        error = exc
+    failure = {"code": getattr(error, "code", "RESUME_ERROR"), "message": str(error)} if error else None
+    failures = [failure]
+    if world > 1:
+        failures = [None] * world
+        dist.all_gather_object(failures, failure)
+    for rank, failure in enumerate(failures):
+        if failure is not None:
+            if error is not None:
+                raise error
+            error_type = {ResumeIntegrityError.code: ResumeIntegrityError, ResumeDatasetDrift.code: ResumeDatasetDrift}.get(
+                failure["code"], ResumeError,
+            )
+            raise error_type(f"rank {rank}: [{failure['code']}] {failure['message']}", path=str(path))
+    return decision
+
+
+def _validate_resume_snapshots(loaded, world):
+    if world > 1:
+        identities = [None] * world
+        dist.all_gather_object(identities, loaded.snapshot_identity)
+        if any(identity != identities[0] for identity in identities[1:]):
+            raise ResumeIntegrityError("ranks loaded different checkpoint/receipt snapshots", path=loaded.source)
+
+
 def _capture_training_dataset(cfg, train_ds):
     """Compute the same rank-0 receipt used by checkpoints, before output writes."""
     # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
@@ -618,17 +654,18 @@ def train(cfg: TrainConfig) -> dict:
     resumed_run_id: str | None = None
     resume_from = Path(cfg.resume_from) if cfg.resume_from else None
     if resume_from is not None:
-        if not resume_from.exists():
-            raise FileNotFoundError(f"--resume-from checkpoint not found: {resume_from}")
         # Validate the four-piece payload and reject config drift BEFORE the
         # loop continues: a legacy checkpoint without `args` raises
         # RESUME_ARGS_MISSING, a drifted run raises RESUME_ARGS_DRIFT — neither
         # is a silent pass. run_id carries the original id when recoverable.
-        decision = load_for_resume(resume_from, cfg_to_dict(cfg))
+        decision = _load_training_resume(
+            resume_from, cfg, asdict(dataset_fp) if is_main(rank) else None, world,
+        )
         loaded = decision.checkpoint
         _validate_resume_optimizer_profiles(
             loaded, optim, d_optim, cfg, decision.start_step, world,
         )
+        _validate_resume_snapshots(loaded, world)
         model.load_state_dict(loaded.model)
         checkpoint_step = loaded.step
         resumed_step = decision.start_step
