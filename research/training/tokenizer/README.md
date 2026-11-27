@@ -154,6 +154,36 @@ OMP_NUM_THREADS=1 python -m unittest \
   research.training.tokenizer.test_resume_optimizer -v
 ```
 
+### Optimizer state on resume
+
+After checking the mathematical profile, the trainer validates AdamW state before
+loading model or optimizer state or replacing run evidence. Invalid state raises
+`RESUME_OPTIMIZER_STATE_INVALID` on every rank, with the originating rank in the
+message. This also applies when the selected checkpoint has already reached
+`max_steps`.
+
+Parameter IDs must be unique integers, with no unreferenced state entries. Each
+initialized entry needs a real singleton update counter and dense floating
+moments matching its mapped parameter's shape; second moments cannot be finite
+negative values. Counters must be integral, nonnegative and no greater than the
+completed updates (for the discriminator, only updates after `gan_on_step`
+count). Unused parameters can retain absent/empty state or smaller counters.
+Consistent opaque ID renumbering and legacy numeric counters remain supported.
+NaN/Inf tensors retain the numerical failure receipt behavior described below.
+
+Restore an intact checkpoint/manifest pair if this guard refuses a resume. Do
+not delete moments, reset counters or rewrite receipts to force continuation.
+Unnamed, same-shaped parameter permutations and erased-but-plausible history
+cannot be authenticated by these checks. This is a structural/mathematical
+consistency guard, not proof of scientific validity or exact replay.
+
+CPU regression, including two-rank gloo refusal (no pretrained downloads):
+
+```bash
+OMP_NUM_THREADS=1 python -m unittest \
+  research.training.tokenizer.test_resume_optimizer_state -v
+```
+
 ## Numerical failure evidence
 
 Preflight rejects nonfinite optimizer learning rate, decay, betas and clipping

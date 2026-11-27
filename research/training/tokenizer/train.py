@@ -29,6 +29,7 @@ import os
 import random
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -107,6 +108,7 @@ from research.training.tokenizer.preflight import (  # noqa: E402
 from research.training.tokenizer.resume import (  # noqa: E402
     ResumeDatasetDrift,
     ResumeOptimizerDrift,
+    ResumeOptimizerStateInvalid,
     assert_optimizer_profile_compatible,
     assert_resume_dataset_compatible,
     build_checkpoint_payload,
@@ -333,8 +335,67 @@ def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: i
         )
 
 
+def _assert_adamw_state_valid(saved, optimizer, *, label, completed_updates):
+    """Validate state by the loader's positional ID-to-parameter association.
+
+    Unused parameters may have absent/empty lazy state or fewer updates. IDs
+    need not be sequential, but must be unique and cover all stored state.
+    Nonfinite numeric state retains the later NONFINITE_TRAINING receipt path.
+    This cannot authenticate permutations of unnamed, same-shaped parameters.
+    """
+    def refuse(detail):
+        raise ResumeOptimizerStateInvalid(
+            f"{ResumeOptimizerStateInvalid.code}: {label} {detail}"
+        )
+
+    state = saved.get("state")
+    if not isinstance(state, Mapping):
+        refuse("state is not a mapping")
+    bindings = []
+    seen = set()
+    # Group counts/sizes have already been validated by the profile guard.
+    for group, live_group in zip(saved["param_groups"], optimizer.param_groups):
+        for key, parameter in zip(group["params"], live_group["params"]):
+            if type(key) is not int or key in seen:
+                refuse("parameter IDs must be unique integers")
+            seen.add(key)
+            bindings.append((key, parameter, group.get("amsgrad", False)))
+    if any(type(key) is not int or key not in seen for key in state):
+        refuse("state contains an unreferenced parameter ID")
+    for key, parameter, amsgrad in bindings:
+        entry = state.get(key, {})
+        if not isinstance(entry, Mapping):
+            refuse(f"parameter {key} state is not a mapping")
+        if not entry:
+            continue  # AdamW initializes only when a parameter first has a grad.
+        fields = ("step", "exp_avg", "exp_avg_sq")
+        if amsgrad:
+            fields += ("max_exp_avg_sq",)
+        missing = [name for name in fields if name not in entry]
+        if missing:
+            refuse(f"parameter {key} missing {', '.join(missing)}")
+        counter = entry["step"]
+        if torch.is_tensor(counter):
+            if (counter.layout != torch.strided or counter.numel() != 1
+                    or counter.dtype == torch.bool or counter.is_complex() or counter.is_quantized):
+                refuse(f"parameter {key} step must be a real singleton")
+            counter = counter.item()
+        if type(counter) not in (int, float):
+            refuse(f"parameter {key} step must be numeric")
+        if type(counter) is int or math.isfinite(counter):
+            if counter < 0 or counter > completed_updates or counter != int(counter):
+                refuse(f"parameter {key} step outside integral range 0..{completed_updates}")
+        for name in fields[1:]:
+            moment = entry[name]
+            if (not torch.is_tensor(moment) or moment.layout != torch.strided
+                    or not moment.is_floating_point() or moment.shape != parameter.shape):
+                refuse(f"parameter {key} {name} must be a dense floating tensor of shape {tuple(parameter.shape)}")
+            if name != "exp_avg" and bool((torch.isfinite(moment) & (moment < 0)).any().item()):
+                refuse(f"parameter {key} {name} contains negative variance")
+
+
 def _validate_resume_optimizer_profiles(loaded, optim, d_optim, cfg, start_step, world):
-    """Refuse any rank's recipe mismatch before state loads or DDP collectives."""
+    """Refuse any rank's invalid optimizer before state loads or DDP collectives."""
     error = None
     try:
         expected = optim.state_dict()
@@ -345,19 +406,28 @@ def _validate_resume_optimizer_profiles(loaded, optim, d_optim, cfg, start_step,
             group["lr"] = last_lr
         if loaded.optimizer is not None:
             assert_optimizer_profile_compatible(loaded.optimizer, expected, label="generator")
+            _assert_adamw_state_valid(
+                loaded.optimizer, optim, label="generator", completed_updates=start_step,
+            )
         if d_optim is not None and loaded.disc_optimizer is not None:
             assert_optimizer_profile_compatible(
                 loaded.disc_optimizer, d_optim.state_dict(), label="discriminator",
             )
-    except ResumeOptimizerDrift as exc:
-        error = str(exc)
+            _assert_adamw_state_valid(
+                loaded.disc_optimizer, d_optim, label="discriminator",
+                completed_updates=max(0, start_step - cfg.gan_on_step),
+            )
+    except (ResumeOptimizerDrift, ResumeOptimizerStateInvalid) as exc:
+        error = {"code": exc.code, "message": str(exc)}
     errors = [error]
     if world > 1:
         errors = [None] * world
         dist.all_gather_object(errors, error)
-    for rank, message in enumerate(errors):
-        if message is not None:
-            raise ResumeOptimizerDrift(f"rank {rank}: {message}", path=loaded.source)
+    for rank, failure in enumerate(errors):
+        if failure is not None:
+            error_type = (ResumeOptimizerDrift if failure["code"] == ResumeOptimizerDrift.code
+                          else ResumeOptimizerStateInvalid)
+            raise error_type(f"rank {rank}: {failure['message']}", path=loaded.source)
 
 
 def _capture_training_dataset(cfg, train_ds):
