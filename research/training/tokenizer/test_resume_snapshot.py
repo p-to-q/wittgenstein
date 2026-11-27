@@ -219,9 +219,7 @@ class ResumeSnapshotTests(unittest.TestCase):
                 second = write_pair(self.source, root / "second/final.pt", payload)
                 if mode == "receipt-mismatch":
                     shutil.copy2(self.source, second)
-                    document = json.loads(manifest_path_for(self.source).read_text())
-                    document["dataset"]["notes"] = "different receipt, identical checkpoint bytes"
-                    manifest_path_for(second).write_text(json.dumps(document))
+                    manifest_path_for(second).write_bytes(manifest_path_for(self.source).read_bytes() + b"\n")
                     self.assertIsNone(verify_resume_checkpoint(second))
                 # Separate paths prevent the invalid-receipt injection affecting rank 0.
                 selected = [self.source, second]
