@@ -8,6 +8,8 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The public CLI release helper now pins npm publication to the same public
+  registry used for verification, even with a custom local npm registry.
 - Candidate `0.3.0-alpha.4`: synchronize the public CLI, packed binary and
   repository release versions; bind tarballs to clean source/lockfile metadata;
   verify public npm integrity/channel before GitHub Release creation. This

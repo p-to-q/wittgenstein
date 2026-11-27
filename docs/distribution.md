@@ -42,19 +42,21 @@ After qualification on the exact clean main commit, an authorized npm publisher
 can run:
 
 ```bash
-npm whoami
-npm access list collaborators wittgenstein-cli --json
+npm whoami --registry=https://registry.npmjs.org/
+npm access list collaborators wittgenstein-cli --json --registry=https://registry.npmjs.org/
 pnpm publish:npm-cli
 pnpm release:check --require-npm
 ```
 
-The helper publishes the checked tarball, using `next` for prereleases and
+The helper explicitly targets `https://registry.npmjs.org/` for both publication
+and verification, regardless of local npm registry settings. It publishes the
+checked tarball, using `next` for prereleases and
 `latest` for stable versions, then reads back the exact public version, channel
 and integrity. It refuses dirty/stale source or conflicting existing artifacts
 and reconciles an already-matching version without republishing it. Login/2FA
 and package write access must belong to the operator; no token is stored in the
 repository. For an account that needs interactive OTP, publish the exact checked
-`.tgz` directly with `npm publish /absolute/path/to/package.tgz --tag next --otp=...`
+`.tgz` directly with `npm publish /absolute/path/to/package.tgz --registry=https://registry.npmjs.org/ --tag next --otp=...`
 (`--tag latest` for a stable release), then run `pnpm release:check --require-npm`.
 If a publish response is uncertain, check the registry first; never blindly retry
 or overwrite a version.
