@@ -64,7 +64,7 @@ uses its separate Python environment, not the stdlib-only system interpreter.
 - Typecheck, lint, dependency/publish boundaries, full build, goldens, reviewer
   bench, CLI doctor, maintained formatting, actionlint and typos passed locally.
 - Final `pnpm test:serial` passed in one invocation across all eleven packages:
-  711 passed, four skipped (`closeout-all-tests.log`). Earlier split rechecks,
+  611 passed, four skipped (`closeout-all-tests.log`). Earlier split rechecks,
   loaded-host process-start/CLI timeouts and the repaired header race remain in
   the evidence directory; they are not erased or called green.
 - Stdlib training/receipt suite: 118 tests, 14 optional-dependency skips. Final
@@ -73,6 +73,10 @@ uses its separate Python environment, not the stdlib-only system interpreter.
   with a run manifest. Sidecar SHA-256 values were checked against the files.
   This proves the local harness/renderer path, not a remote model or a learned
   image decoder. See `local-sensor-verification.json` in the evidence directory.
+
+Count correction (2026-11-27 deeper audit): the eleven package summaries in
+`closeout-all-tests.log` sum to 611 passing tests, not the previously reported 711. The original log is unchanged. See the
+[reconciliation and subsequent checks](2026-11-27-deep-training-audit.md).
 
 The earlier `Jah-yee` workflow-dispatch attempt failed with **HTTP 422,
 “Actions has been disabled for this user.”** That failure remains recorded; its
