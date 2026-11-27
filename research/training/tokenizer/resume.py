@@ -195,6 +195,12 @@ class ResumeOptimizerDrift(ResumeError):
     code = "RESUME_OPTIMIZER_DRIFT"
 
 
+class ResumeOptimizerStateInvalid(ResumeError):
+    """Saved AdamW state cannot represent a valid continuation of this run."""
+
+    code = "RESUME_OPTIMIZER_STATE_INVALID"
+
+
 class ResumeDatasetDrift(ResumeError):
     """The current corpus no longer matches the selected checkpoint's receipt."""
 

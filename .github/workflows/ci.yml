@@ -172,6 +172,7 @@ jobs:
             research.training.tokenizer.test_numerical_safety \
             research.training.tokenizer.test_resume_dataset \
             research.training.tokenizer.test_resume_optimizer \
+            research.training.tokenizer.test_resume_optimizer_state \
             research.training._shared.test_eval_integrity \
             research.training.test_audit_dataset -v
 
