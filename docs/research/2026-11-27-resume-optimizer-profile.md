@@ -21,7 +21,12 @@ Local `optimizer-consistent-before.json` and its log retain these ten successful
 but inconsistent attempts and their scalar checkpoint pairs. Two new real-loop
 regression methods produce 22 failing cases against the original trainer:
 12 final-resume conflicts and ten periodic-resume conflicts. Fixtures also cover
-AMSGrad at zero-update resume. No scientific quality result is inferred.
+AMSGrad at zero-update resume. Two additional actual-update probes resume a
+periodic checkpoint with conflicting betas: both generator and discriminator
+AdamW counters advance from two to three while recorded betas remain
+`[0.9, 0.95]` and actual betas are `[0.5, 0.8]`. Those successful inconsistent
+continuations are retained in `optimizer-actual-update-before.json` and its log.
+No scientific quality result is inferred.
 
 ## Repair
 
