@@ -1,7 +1,7 @@
 {
   "name": "wittgenstein-monorepo",
   "private": true,
-  "version": "0.3.0-alpha.3",
+  "version": "0.3.0-alpha.4",
   "description": "Wittgenstein — harness-first multimodal runtime: text LLMs, typed codecs, traceable artifacts.",
   "license": "Apache-2.0",
   "engines": {
@@ -36,15 +36,17 @@
     "m1b:phase0b-ir-sensitivity": "tsx research/validation/phase0b_semantic_ir_sensitivity.ts",
     "m1b:staging-plan-check": "node scripts/m1b-staging-plan-check.mjs",
     "doctor": "pnpm --filter @wittgenstein/cli exec wittgenstein doctor",
-    "release:npm-cli": "pnpm --filter @wittgenstein/cli run release:npm",
-    "publish:npm-cli": "pnpm run release:npm-cli && npm publish packages/cli/npm-publish",
+    "release:npm-cli": "pnpm --filter @wittgenstein/cli... build && pnpm --filter @wittgenstein/cli run release:npm",
+    "publish:npm-cli": "pnpm run release:npm-cli && node scripts/check-release.mjs --publish-npm",
     "demo:audio": "pnpm --filter @wittgenstein/cli exec wittgenstein audio \"Hackathon launch voiceover with rain ambience\" --dry-run --ambient rain --out artifacts/demo/hackathon-launch.wav",
     "demo:tts": "pnpm --filter @wittgenstein/cli exec wittgenstein tts \"Hackathon voiceover for the Wittgenstein launch\" --dry-run --ambient city --out artifacts/demo/hackathon-tts.wav",
     "demo:sensor": "pnpm --filter @wittgenstein/cli exec wittgenstein sensor \"synthetic ecg trace for loupe dashboard\" --dry-run --out artifacts/demo/hackathon-sensor.json",
     "smoke:cli": "pnpm --filter @wittgenstein/cli run smoke",
     "reviewer-bench": "node --import tsx examples/reviewer-bench/run.ts",
     "dev:site": "pnpm --filter @wittgenstein/site dev",
-    "dev:presentation": "pnpm --filter @wittgenstein/presentation dev"
+    "dev:presentation": "pnpm --filter @wittgenstein/presentation dev",
+    "release:check": "node scripts/check-release.mjs",
+    "test:release": "node --test scripts/check-release.test.mjs"
   },
   "pnpm": {
     "overrides": {
@@ -68,6 +70,7 @@
     "tailwindcss": "^4.2.4",
     "tsx": "^4.23.15",
     "typescript": "^5.6.0",
-    "vitest": "^5.1.1"
+    "vitest": "^5.1.1",
+    "zod": "^3.23.8"
   }
 }

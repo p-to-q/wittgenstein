@@ -1,3 +1,4 @@
+import releasePackage from "../../../package.json" with { type: "json" };
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +20,7 @@ describe("@wittgenstein/cli bin", () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe("0.1.0");
+    expect(result.stdout.trim()).toBe(releasePackage.version);
     expect(result.stderr).toBe("");
   }, 30_000);
 

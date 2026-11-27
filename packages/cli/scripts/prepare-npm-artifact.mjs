@@ -1,7 +1,10 @@
 /**
  * Writes `npm-publish/` — a self-contained package (no workspace:*)
- * suitable for `cd npm-publish && npm publish`.
+ * for the guarded public CLI release flow.
  */
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { promisify } from "node:util";
 import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +17,22 @@ const readmeSrc = resolve(cliRoot, "README.md");
 const optionalPeerSources = [resolve(cliRoot, "../codec-image/package.json")];
 
 const pkg = JSON.parse(await readFile(resolve(cliRoot, "package.json"), "utf8"));
-const version = pkg.version === "0.0.0" ? "0.1.0" : pkg.version;
+const release = JSON.parse(await readFile(resolve(cliRoot, "../../package.json"), "utf8"));
+if (pkg.version !== release.version) {
+  throw new Error(`RELEASE_VERSION_MISMATCH: root ${release.version}, CLI ${pkg.version}`);
+}
+const version = release.version;
+const exec = promisify(execFile);
+const repoRoot = resolve(cliRoot, "../..");
+const { stdout: sourceCommit } = await exec("git", ["rev-parse", "HEAD"], { cwd: repoRoot });
+const { stdout: sourceStatus } = await exec("git", ["status", "--porcelain"], { cwd: repoRoot });
+const wittgensteinBuild = {
+  sourceCommit: sourceCommit.trim(),
+  lockfileSha256: createHash("sha256")
+    .update(await readFile(resolve(repoRoot, "pnpm-lock.yaml")))
+    .digest("hex"),
+  dirty: Boolean(sourceStatus.trim()),
+};
 const optionalPeerContract = await loadOptionalPeerContract(optionalPeerSources);
 
 const binStub = `#!/usr/bin/env node
@@ -31,9 +49,13 @@ process.exit(r.status ?? 1);
 const slim = {
   name: "wittgenstein-cli",
   version,
+  wittgensteinBuild,
   description:
     "Wittgenstein modality harness CLI — codecs, run manifests, Minimax text→ASCII PNG post-process.",
-  license: "Apache-2.0",
+  license: pkg.license,
+  homepage: pkg.homepage,
+  repository: pkg.repository,
+  bugs: pkg.bugs,
   type: "module",
   bin: {
     wittgenstein: "./bin/wittgenstein.mjs",
@@ -61,7 +83,7 @@ try {
 }
 await writeFile(resolve(outDir, "package.json"), `${JSON.stringify(slim, null, 2)}\n`);
 console.log(
-  `Prepared ${outDir} (${slim.name}@${slim.version}). Run: cd npm-publish && npm publish`,
+  `Prepared ${outDir} (${slim.name}@${slim.version}). Validate from the repo root with pnpm release:check`,
 );
 
 async function loadOptionalPeerContract(packageJsonPaths) {

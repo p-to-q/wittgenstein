@@ -1,6 +1,6 @@
 {
   "name": "@wittgenstein/cli",
-  "version": "0.1.0",
+  "version": "0.3.0-alpha.4",
   "type": "module",
   "description": "Wittgenstein modality harness CLI — text-first LLMs emit typed code; deterministic codecs render image, audio, sensor, video artifacts with manifest receipts.",
   "keywords": [

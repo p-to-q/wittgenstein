@@ -49,6 +49,9 @@ jobs:
       - name: Lint publish surface (no research/ leaks)
         run: pnpm lint:publish-surface
 
+      - name: Release identity regression tests
+        run: pnpm test:release
+
       - name: Typecheck
         run: pnpm typecheck
 

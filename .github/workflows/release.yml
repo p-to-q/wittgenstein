@@ -18,6 +18,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.22.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Release identity regression tests
+        run: pnpm test:release
+
+      - name: Build public CLI
+        run: pnpm release:npm-cli
+
+      - name: Verify tag, packed CLI, source and public npm artifact
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+          pnpm release:check --tag "$RELEASE_TAG" --require-npm
+
       - name: Resolve version from tag
         id: version
         run: |
@@ -52,14 +79,6 @@ jobs:
             echo "fallback=true" >> "$GITHUB_OUTPUT"
           else
             echo "fallback=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Sanity-check root package.json version matches tag
-        run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
-            echo "::error::Tag ${{ steps.version.outputs.tag }} does not match package.json version $PKG_VERSION"
-            exit 1
           fi
 
       - name: Create GitHub Release

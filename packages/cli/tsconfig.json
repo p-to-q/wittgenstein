@@ -4,7 +4,7 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "package.json"],
   "references": [
     { "path": "../codec-image" },
     { "path": "../core" },

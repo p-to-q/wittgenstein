@@ -6,6 +6,17 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Candidate `0.3.0-alpha.4`: synchronize the public CLI, packed binary and
+  repository release versions; bind tarballs to clean source/lockfile metadata;
+  verify public npm integrity/channel before GitHub Release creation. This
+  candidate is not publicly released until both services have matching receipts.
+- Tokenizer resume now binds checkpoint deserialization to the verified file
+  descriptor and receipt snapshot, with coordinated rank refusal for snapshot
+  drift (#739 / #740). CPU regressions cover same-size replacement and changed
+  receipts before any restored state or run output can be certified.
+
 ### Added
 
 - Repo-owned HyperFrames-shaped video MP4 renderer: `codec-video` now captures
