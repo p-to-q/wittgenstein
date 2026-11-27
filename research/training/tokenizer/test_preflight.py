@@ -16,6 +16,8 @@ from research.training.tokenizer.preflight import (
 
 def inputs(**overrides):
     values = dict(
+        optim=SimpleNamespace(lr=1e-4, weight_decay=0.05, beta1=0.9, beta2=0.95,
+                              grad_clip_norm=1.0, warmup_steps=5),
         smoke=False, train_data_root="", val_data_root="", resume_from="",
         max_steps=10, batch_size_per_gpu=2, image_size=64, num_workers=0,
         log_every=1, eval_every=10, checkpoint_every=10, lpips_enabled=False,
@@ -24,6 +26,31 @@ def inputs(**overrides):
 
 
 class TrainingPreflightTests(unittest.TestCase):
+    def test_nonfinite_optimizer_numbers_are_rejected_before_launch(self):
+        for name in ("lr", "weight_decay", "beta1", "beta2", "grad_clip_norm"):
+            for value in (float("nan"), float("inf"), -float("inf"), True, "0.1"):
+                cfg = inputs(smoke=True)
+                setattr(cfg.optim, name, value)
+                with self.subTest(name=name, value=value), self.assertRaisesRegex(ValueError, f"optim.{name}"):
+                    validate_training_inputs(cfg)
+
+    def test_optimizer_ranges_match_adamw_and_keep_explicit_disable_values(self):
+        for name, value in (("lr", -1), ("weight_decay", -1), ("beta1", -0.1), ("beta2", 1)):
+            cfg = inputs(smoke=True)
+            setattr(cfg.optim, name, value)
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, f"optim.{name}"):
+                validate_training_inputs(cfg)
+        cfg = inputs(smoke=True)
+        cfg.optim.lr = cfg.optim.weight_decay = 0
+        cfg.optim.beta1 = cfg.optim.beta2 = 0
+        cfg.optim.grad_clip_norm = -1  # existing <=0 means no clipping
+        cfg.optim.warmup_steps = -1  # existing <=0 means no warmup
+        validate_training_inputs(cfg)
+        for value in (True, 1.5, float("nan"), float("inf")):
+            cfg.optim.warmup_steps = value
+            with self.subTest(warmup=value), self.assertRaisesRegex(ValueError, "optim.warmup_steps"):
+                validate_training_inputs(cfg)
+
     def test_real_training_requires_explicit_data(self):
         for root in ("", " "):
             with self.subTest(root=root), self.assertRaisesRegex(ValueError, "--smoke"):

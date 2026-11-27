@@ -110,6 +110,11 @@ install CPU torch to also exercise the real serializer roundtrip.
 
 ## Numerical failure evidence
 
+Preflight rejects nonfinite optimizer learning rate, decay, betas and clipping
+threshold before distributed/device setup. Learning rate and decay retain AdamW's
+nonnegative range (including zero); betas must be in `[0, 1)`. Warmup steps must
+be integers. Existing nonpositive warmup/clipping disable values remain legal.
+
 The loop checks generator and active discriminator losses before backward, then
 gradient norms before their respective optimizer updates. With DDP, every rank
 joins the same finite-status collective; one nonfinite rank stops the attempt

@@ -26,6 +26,18 @@ from research.training._shared.eval import codebook_perplexity  # noqa: E402
 
 
 class PreflightStartupTests(unittest.TestCase):
+    def test_invalid_optimizer_numbers_fail_before_device_initialization(self):
+        from research.training.tokenizer import train as train_mod
+        from research.training.tokenizer.config import smoke_config
+
+        for name in ("lr", "weight_decay", "grad_clip_norm"):
+            cfg = smoke_config()
+            setattr(cfg.optim, name, float("nan"))
+            with self.subTest(name=name), patch.object(train_mod, "init_distributed") as init:
+                with self.assertRaisesRegex(ValueError, f"optim.{name}"):
+                    train_mod.train(cfg)
+                init.assert_not_called()
+
     def test_missing_data_is_rejected_before_distributed_or_model_initialization(self):
         from research.training.tokenizer import train as train_mod
         from research.training.tokenizer.config import TrainConfig
