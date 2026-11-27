@@ -26,6 +26,8 @@ Architecture Decision Records capture decisions that should survive chat history
 - 0020 code/weights license divergence policy — canonical M-phase path requires permissive code AND weights; research-only weights are opt-in via `--allow-research-weights` with manifest disclosure (ratifies the 2026-05-13 governance note opened via #353)
 - 0021 Node 22.22 runtime floor — moves `engines.node` to `>=22.22.0` (Node 20 is EOL; unblocks commander 15 / react-router 8 / undici 8); amends ADR-0002's Node baseline
 
+- 0022 required main CI gate and dependency automerge activation — **Proposed, not ratified or activated**; tracks #661 / #267
+
 ## Lanes
 
 Two separate decision lanes feed into ADRs:
