@@ -289,6 +289,18 @@ def _total_grad_norm(parameters) -> float:
     return float(nn.utils.get_total_norm(grads))
 
 
+def _require_finite_on_all_ranks(value, *, stage: str, step: int, device, world: int) -> None:
+    """All ranks decide together before backward or the affected optimizer update."""
+    if torch.is_tensor(value):
+        invalid = (~torch.isfinite(value.detach()).all()).to(device=device, dtype=torch.int32)
+    else:
+        invalid = torch.tensor(not math.isfinite(value), device=device, dtype=torch.int32)
+    if world > 1:
+        dist.all_reduce(invalid, op=dist.ReduceOp.MAX)
+    if invalid.item():
+        raise FloatingPointError(f"NONFINITE_TRAINING: {stage} at step {step}; update refused")
+
+
 def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: int) -> None:
     """Fail closed when the loader yields zero batches.
 
@@ -600,6 +612,27 @@ def train(cfg: TrainConfig) -> dict:
         },
     }
 
+    def require_finite(value, stage: str) -> None:
+        try:
+            _require_finite_on_all_ranks(value, stage=stage, step=step, device=device, world=world)
+        except FloatingPointError:
+            # No final eval/checkpoint is valid for this failed attempt. Existing
+            # checkpoints remain available; do not serialize the poisoned state.
+            try:
+                if is_main(rank):
+                    summary["acceptance"].update(
+                        training_failed=True, failure_code="NONFINITE_TRAINING",
+                        failure_stage=stage, failure_step=step,
+                    )
+                    experiment_tracker.log_event(
+                        "training_failed", code="NONFINITE_TRAINING", stage=stage, step=step,
+                    )
+                    write_acceptance_receipt(run_dir, summary["acceptance"], run_id=run_id)
+                    experiment_tracker.finish()
+            finally:
+                cleanup_distributed()
+            raise
+
     while step < cfg.max_steps:
         try:
             batch = next(epoch_iter)
@@ -642,6 +675,7 @@ def train(cfg: TrainConfig) -> dict:
         # softplus(-D(recon)); its backward also populates grads on D (via the
         # shared graph) which we discard by zero_grad'ing d_optim below.
         optim.zero_grad(set_to_none=True)
+        require_finite(total_loss, "generator_loss")
         total_loss.backward()
         core_model = model.module if world > 1 else model
         if cfg.optim.grad_clip_norm > 0:
@@ -652,6 +686,7 @@ def train(cfg: TrainConfig) -> dict:
             )
         else:
             components["grad_norm_g"] = _total_grad_norm(core_model.parameters())
+        require_finite(components["grad_norm_g"], "generator_gradients")
         optim.step()
 
         # Discriminator step (after warmup): train D on real vs. detached recon
@@ -661,10 +696,12 @@ def train(cfg: TrainConfig) -> dict:
             real_logits = discriminator(img)
             fake_logits = discriminator(recon.detach())
             d_loss = discriminator_loss(real_logits, fake_logits)
+            require_finite(d_loss, "discriminator_loss")
             d_loss.backward()
             # D clips nothing (see `_total_grad_norm`), so record its raw total
             # norm too — otherwise a D-side grad spike stays invisible in the receipt.
             components["grad_norm_d"] = _total_grad_norm(discriminator.parameters())
+            require_finite(components["grad_norm_d"], "discriminator_gradients")
             d_optim.step()
             components["d_loss"] = float(d_loss.detach().cpu())
 
