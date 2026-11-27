@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -135,5 +144,55 @@ for (const configuration of ["environment", "project"]) {
       published.stderr,
       /Publishing to https:\/\/(environment|private)\.example\.invalid/,
     );
+  });
+}
+
+for (const scenario of [
+  {
+    name: "version mismatch",
+    error: /RELEASE_VERSION_MISMATCH/,
+    change: (root) =>
+      writeFile(join(root, "packages/cli/package.json"), JSON.stringify({ version: "0.1.0" })),
+  },
+  {
+    name: "invalid JSON",
+    error: /JSON/,
+    change: (root) => writeFile(join(root, "packages/cli/package.json"), "{"),
+  },
+  { name: "missing lockfile", error: /ENOENT/, change: (root) => rm(join(root, "pnpm-lock.yaml")) },
+  {
+    name: "dirty source",
+    error: /RELEASE_DIRTY_SOURCE/,
+    change: (root) =>
+      writeFile(join(root, ".npmrc"), "registry=https://changed.example.invalid/\n"),
+  },
+]) {
+  test(`record ${scenario.name} before npm pack runs`, async (t) => {
+    const { root, env } = await fixture(t);
+    await scenario.change(root);
+    let failure;
+    await assert.rejects(
+      exec(process.execPath, ["scripts/check-release.mjs", "--publish-npm"], { cwd: root, env }),
+      (error) => {
+        failure = error;
+        assert.match(error.stderr, scenario.error);
+        return true;
+      },
+    );
+    const runs = join(root, "artifacts/runs");
+    const directories = await readdir(runs);
+    assert.equal(directories.length, 1);
+    const output = join(runs, directories[0]);
+    assert.deepEqual(await readdir(output), ["release.json"]);
+    const receipt = JSON.parse(await readFile(join(output, "release.json"), "utf8"));
+    assert.equal(receipt.status, "failed");
+    assert.match(receipt.error, scenario.error);
+    assert.ok(Number.isFinite(Date.parse(receipt.checkedAt)));
+    assert.ok(
+      failure.stderr.includes(join(output, "release.json")),
+      "print the failed receipt path",
+    );
+    if (scenario.name === "dirty source") assert.equal(receipt.source.dirty, true);
+    else assert.equal(receipt.source, null);
   });
 }
