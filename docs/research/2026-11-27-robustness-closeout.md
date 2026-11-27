@@ -30,7 +30,7 @@ workflow or dependency change is hidden behind that qualification revision.
 | ----------------------------------------------------- | -------------------------------------------------------- |
 | Maintained formatting, full lint, typecheck and build | Passed                                                   |
 | Codec dependency boundaries and npm publish surface   | Passed; no research/weights leakage                      |
-| Full bounded JS suite                                 | 731 passed; four existing optional skips                 |
+| Full bounded JS suite                                 | 631 passed; four existing optional skips                 |
 | Golden suite                                          | 15 passed                                                |
 | Deterministic reviewer bench                          | 8 passed; no failures or skips                           |
 | CI-defined CPU-torch test lane                        | 118 passed; no skips                                     |
@@ -41,6 +41,11 @@ CPU lane includes a real two-process/gloo one-parameter regression. It is not
 scientific training, a CUDA/NCCL test, exact per-rank restart qualification, or a
 measurement of a research model's capacity. No external corpus, paid inference,
 GPU training, pretrained metric download or weights publication was used.
+
+Count correction (2026-11-27 deeper audit): the eleven package summaries in
+`final-js.log` sum to 631 passing tests, not the previously reported 731.
+The original log and historical local status receipt are retained unchanged;
+the [deeper audit](2026-11-27-deep-training-audit.md) records the correction.
 
 Reproduce the relevant software checks from the repository root:
 
