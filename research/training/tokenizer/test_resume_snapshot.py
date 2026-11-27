@@ -53,7 +53,7 @@ def swap_at_load(selected, replacement=None, receipt=None, *, in_place=False):
     return load, injected
 
 
-def refused_worker(rank, rendezvous, cfg, selected, output, mismatch):
+def refused_worker(rank, rendezvous, cfg, selected, output, mode):
     torch.set_num_threads(1)
     dist.init_process_group("gloo", init_method=rendezvous, rank=rank, world_size=2, timeout=timedelta(seconds=30))
     try:
@@ -61,7 +61,7 @@ def refused_worker(rank, rendezvous, cfg, selected, output, mismatch):
         hook, _ = swap_at_load(selected[rank], receipt=b"{")
         with patch.object(TinyTokenizer, "load_state_dict") as load:
             try:
-                if rank == 1 and not mismatch:
+                if rank == 1 and mode == "corrupt-receipt":
                     with patch.object(torch, "load", side_effect=hook):
                         scalar_run(cfg, rank, 2)
                 else:
@@ -210,18 +210,24 @@ class ResumeSnapshotTests(unittest.TestCase):
 
     @unittest.skipUnless(dist.is_available() and dist.is_gloo_available(), "requires CPU gloo")
     def test_rank_local_receipt_change_and_different_valid_pairs_refuse_all(self):
-        for mismatch in (False, True):
-            with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as tmp:
+        for mode in ("corrupt-receipt", "checkpoint-mismatch", "receipt-mismatch"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 payload = torch.load(self.source, weights_only=True)
-                if mismatch:
+                if mode == "checkpoint-mismatch":
                     payload["model"]["scale"].add_(1)
                 second = write_pair(self.source, root / "second/final.pt", payload)
+                if mode == "receipt-mismatch":
+                    shutil.copy2(self.source, second)
+                    document = json.loads(manifest_path_for(self.source).read_text())
+                    document["dataset"]["notes"] = "different receipt, identical checkpoint bytes"
+                    manifest_path_for(second).write_text(json.dumps(document))
+                    self.assertIsNone(verify_resume_checkpoint(second))
                 # Separate paths prevent the invalid-receipt injection affecting rank 0.
                 selected = [self.source, second]
                 cfg = copy.deepcopy(self.cfg)
                 cfg.out_root = str(root / "output")
-                processes = mp.spawn(refused_worker, args=((root / "rendezvous").as_uri(), cfg, selected, tmp, mismatch), nprocs=2, join=False)
+                processes = mp.spawn(refused_worker, args=((root / "rendezvous").as_uri(), cfg, selected, tmp, mode), nprocs=2, join=False)
                 try:
                     deadline = time.monotonic() + 45
                     while not processes.join(timeout=1):
