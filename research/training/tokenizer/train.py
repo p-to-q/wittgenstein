@@ -111,6 +111,7 @@ from research.training.tokenizer.resume import (  # noqa: E402
     ResumeIntegrityError,
     ResumeOptimizerDrift,
     ResumeOptimizerStateInvalid,
+    ResumeQuartetIncomplete,
     assert_optimizer_profile_compatible,
     assert_resume_dataset_compatible,
     build_checkpoint_payload,
@@ -451,9 +452,11 @@ def _load_training_resume(path, cfg, current_dataset, world):
         if failure is not None:
             if error is not None:
                 raise error
-            error_type = {ResumeIntegrityError.code: ResumeIntegrityError, ResumeDatasetDrift.code: ResumeDatasetDrift}.get(
-                failure["code"], ResumeError,
-            )
+            error_type = {
+                ResumeIntegrityError.code: ResumeIntegrityError,
+                ResumeDatasetDrift.code: ResumeDatasetDrift,
+                ResumeQuartetIncomplete.code: ResumeQuartetIncomplete,
+            }.get(failure["code"], ResumeError)
             raise error_type(f"rank {rank}: [{failure['code']}] {failure['message']}", path=str(path))
     return decision
 
@@ -694,8 +697,6 @@ def train(cfg: TrainConfig) -> dict:
                 restored.append("optimizer")
             if discriminator is not None and loaded.discriminator is not None:
                 restored.append("discriminator")
-            if discriminator is not None and loaded.discriminator is None:
-                print("[resume] checkpoint has no discriminator state; discriminator starts fresh", flush=True)
             for warning in decision.warnings:
                 print(f"[resume] warning: {warning}", flush=True)
             print(
