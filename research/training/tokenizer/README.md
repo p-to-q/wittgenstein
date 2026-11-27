@@ -130,6 +130,30 @@ or exact loader/RNG restart. The existing startup content scan is moved earlier,
 not repeated; multi-rank startup adds a status broadcast. Dataset qualification
 and remote-restore evidence remain tracked in #400.
 
+### Optimizer profile on resume
+
+Compatible saved/current args are checked alongside the actual AdamW group
+profile before model or optimizer state is loaded. A mismatch in learning rate,
+betas, weight decay, epsilon, AMSGrad or maximize raises `ResumeOptimizerDrift`
+(`RESUME_OPTIMIZER_DRIFT`); any rank's mismatch stops all ranks before model
+collectives or run-output replacement. Restore a checkpoint consistent with the
+recorded recipe rather than editing its receipt to suppress the error.
+
+The expected generator LR is calculated for the **last completed** warmup step
+using the existing periodic/final checkpoint convention. The discriminator uses
+its actual constructed template, including AdamW's current default decay of
+`0.01` (not the generator's configured decay). This does not change the recipe.
+Older AdamW states can still omit the false-default `amsgrad`/`maximize` flags;
+execution choices such as `foreach`/`fused` are not compared as recipe fields.
+The checks do not authenticate externally supplied checkpoint contents or prove
+exact numerical continuation across implementations/devices.
+
+```sh
+python -m unittest research.training.tokenizer.test_resume_optimizer_profile -v
+OMP_NUM_THREADS=1 python -m unittest \
+  research.training.tokenizer.test_resume_optimizer -v
+```
+
 ## Numerical failure evidence
 
 Preflight rejects nonfinite optimizer learning rate, decay, betas and clipping

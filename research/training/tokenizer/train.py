@@ -106,6 +106,8 @@ from research.training.tokenizer.preflight import (  # noqa: E402
 )
 from research.training.tokenizer.resume import (  # noqa: E402
     ResumeDatasetDrift,
+    ResumeOptimizerDrift,
+    assert_optimizer_profile_compatible,
     assert_resume_dataset_compatible,
     build_checkpoint_payload,
     build_rng_entry,
@@ -331,6 +333,33 @@ def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: i
         )
 
 
+def _validate_resume_optimizer_profiles(loaded, optim, d_optim, cfg, start_step, world):
+    """Refuse any rank's recipe mismatch before state loads or DDP collectives."""
+    error = None
+    try:
+        expected = optim.state_dict()
+        # Periodic step N resumes at N+1; final step N resumes at N. The saved
+        # generator LR belongs to the last completed update, not the base LR.
+        last_lr = warmup_then_constant(start_step - 1, cfg.optim.warmup_steps, cfg.optim.lr)
+        for group in expected["param_groups"]:
+            group["lr"] = last_lr
+        if loaded.optimizer is not None:
+            assert_optimizer_profile_compatible(loaded.optimizer, expected, label="generator")
+        if d_optim is not None and loaded.disc_optimizer is not None:
+            assert_optimizer_profile_compatible(
+                loaded.disc_optimizer, d_optim.state_dict(), label="discriminator",
+            )
+    except ResumeOptimizerDrift as exc:
+        error = str(exc)
+    errors = [error]
+    if world > 1:
+        errors = [None] * world
+        dist.all_gather_object(errors, error)
+    for rank, message in enumerate(errors):
+        if message is not None:
+            raise ResumeOptimizerDrift(f"rank {rank}: {message}", path=loaded.source)
+
+
 def _capture_training_dataset(cfg, train_ds):
     """Compute the same rank-0 receipt used by checkpoints, before output writes."""
     # F-3.1: a real DVC rev comes from WITT_DVC_REV; its absence for a real
@@ -527,6 +556,9 @@ def train(cfg: TrainConfig) -> dict:
         # is a silent pass. run_id carries the original id when recoverable.
         decision = load_for_resume(resume_from, cfg_to_dict(cfg))
         loaded = decision.checkpoint
+        _validate_resume_optimizer_profiles(
+            loaded, optim, d_optim, cfg, decision.start_step, world,
+        )
         model.load_state_dict(loaded.model)
         checkpoint_step = loaded.step
         resumed_step = decision.start_step

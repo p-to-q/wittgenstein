@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -186,6 +187,12 @@ class ResumeArgsDrift(ResumeError):
     def __init__(self, message: str, *, drifted: Mapping[str, tuple[Any, Any]]) -> None:
         super().__init__(message, path=None)
         self.drifted = dict(drifted)
+
+
+class ResumeOptimizerDrift(ResumeError):
+    """Saved AdamW groups contradict the currently configured mathematical profile."""
+
+    code = "RESUME_OPTIMIZER_DRIFT"
 
 
 class ResumeDatasetDrift(ResumeError):
@@ -470,6 +477,51 @@ def _read_sibling_manifest(checkpoint_path: Path | str) -> Mapping[str, Any] | N
     except (OSError, json.JSONDecodeError):
         return None
     return document if isinstance(document, Mapping) else None
+
+
+def assert_optimizer_profile_compatible(
+    saved: Any, expected: Mapping[str, Any], *, label: str,
+) -> None:
+    """Validate AdamW math settings against the trainer's actual fresh template.
+
+    The caller supplies the LR at the last completed step for the scheduled
+    generator. Execution flags (foreach/fused, etc.) are not recipe fields.
+    Older AdamW states can omit False-default amsgrad/maximize, as torch's loader
+    does. This does not authenticate externally supplied checkpoint contents.
+    """
+    groups = saved.get("param_groups") if isinstance(saved, Mapping) else None
+    templates = expected["param_groups"]
+    if not isinstance(groups, (list, tuple)) or len(groups) != len(templates):
+        raise ResumeOptimizerDrift(f"{ResumeOptimizerDrift.code}: {label} param-group count differs")
+    fields = ("lr", "betas", "weight_decay", "eps", "amsgrad", "maximize")
+    for index, (group, template) in enumerate(zip(groups, templates)):
+        if not isinstance(group, Mapping):
+            raise ResumeOptimizerDrift(f"{ResumeOptimizerDrift.code}: {label} group {index} is not a mapping")
+        params = group.get("params")
+        if not isinstance(params, (list, tuple)) or len(params) != len(template["params"]):
+            raise ResumeOptimizerDrift(f"{ResumeOptimizerDrift.code}: {label} group {index} parameter count differs")
+        drifted = []
+        for key in fields:
+            actual = group.get(key, False if key in ("amsgrad", "maximize") else None)
+            wanted = template[key]
+            if key == "betas":
+                valid = isinstance(actual, (list, tuple)) and len(actual) == 2
+                valid = valid and all(
+                    type(value) in (int, float) and (type(value) is int or math.isfinite(value))
+                    for value in actual
+                )
+                if valid:
+                    actual = tuple(actual)
+            elif key in ("amsgrad", "maximize"):
+                valid = type(actual) is bool
+            else:
+                valid = type(actual) in (int, float) and (type(actual) is int or math.isfinite(actual))
+            if not valid or actual != wanted:
+                drifted.append(key)
+        if drifted:
+            raise ResumeOptimizerDrift(
+                f"{ResumeOptimizerDrift.code}: {label} group {index} differs on {', '.join(drifted)}"
+            )
 
 
 def assert_resume_dataset_compatible(
