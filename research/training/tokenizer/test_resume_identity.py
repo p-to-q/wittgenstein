@@ -17,7 +17,9 @@ from research.training.test_resume_closeout_tools import (
 )
 
 from .resume import (
+    ResumeDatasetDrift,
     ResumeError,
+    assert_resume_dataset_compatible,
     load_checkpoint,
     load_checkpoint_payload,
     load_for_resume,
@@ -27,6 +29,36 @@ from .resume import (
 
 
 class ResumeIdentityTests(unittest.TestCase):
+    def test_corpus_guard_compares_content_revision_and_recorded_index_fields(self):
+        current = {
+            "sha256": "a" * 64, "dvcRev": "fixture-rev",
+            "sourceInputSha256": "b" * 64, "canonicalSelectionSha256": "c" * 64,
+            "requestedCount": 2, "writtenCount": 2,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = Path(tmp) / "final.pt"
+            for key in current:
+                saved = dict(current)
+                saved[key] = 3 if key.endswith("Count") else "different"
+                manifest_path_for(checkpoint).write_text(json.dumps({"dataset": saved}))
+                with self.subTest(field=key), self.assertRaisesRegex(ResumeDatasetDrift, key):
+                    assert_resume_dataset_compatible(checkpoint, current)
+            # Additive index fields were absent on older manifests.
+            saved = {key: current[key] for key in ("sha256", "dvcRev")}
+            manifest_path_for(checkpoint).write_text(json.dumps({"dataset": saved}))
+            self.assertIsNone(assert_resume_dataset_compatible(checkpoint, current))
+
+    def test_corpus_guard_refuses_unavailable_checkpoint_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = Path(tmp) / "final.pt"
+            for document in (None, "broken JSON", {"dataset": {}}, {"dataset": {"sha256": "a" * 64}}):
+                if document is not None:
+                    manifest_path_for(checkpoint).write_text(
+                        document if isinstance(document, str) else json.dumps(document)
+                    )
+                with self.subTest(document=document), self.assertRaises(ResumeDatasetDrift):
+                    assert_resume_dataset_compatible(checkpoint, {"sha256": "a" * 64})
+
     def test_payload_run_ids_must_be_safe_single_directory_names(self):
         invalid = ("../outside", "/tmp/outside", "a/b", "a\\b", ".", "..", "C:outside", "bad\x00id", "", 123)
         for run_id in invalid:

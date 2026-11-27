@@ -188,6 +188,12 @@ class ResumeArgsDrift(ResumeError):
         self.drifted = dict(drifted)
 
 
+class ResumeDatasetDrift(ResumeError):
+    """The current corpus no longer matches the selected checkpoint's receipt."""
+
+    code = "RESUME_DATASET_DRIFT"
+
+
 # ---- Warning codes (warning-level signals, never silent) -------------------
 
 WARN_ARGS_MISSING = "RESUME_ARGS_MISSING"
@@ -464,6 +470,32 @@ def _read_sibling_manifest(checkpoint_path: Path | str) -> Mapping[str, Any] | N
     except (OSError, json.JSONDecodeError):
         return None
     return document if isinstance(document, Mapping) else None
+
+
+def assert_resume_dataset_compatible(
+    checkpoint_path: Path | str, current_dataset: Mapping[str, Any],
+) -> None:
+    """Compare corpus content/provenance before a resume can replace run evidence.
+
+    Newer index/count fields are compared when the checkpoint recorded them;
+    older manifests still have the required content hash and revision. Filenames
+    alone cannot establish identity when bytes change at an existing path.
+    """
+    document = _read_sibling_manifest(checkpoint_path)
+    saved = document.get("dataset") if document is not None else None
+    if not isinstance(saved, Mapping) or any(not saved.get(key) for key in ("sha256", "dvcRev")):
+        raise ResumeDatasetDrift(
+            f"{ResumeDatasetDrift.code}: checkpoint dataset identity is missing or unreadable",
+            path=str(checkpoint_path),
+        )
+    keys = ("sha256", "dvcRev", "sourceInputSha256", "canonicalSelectionSha256", "requestedCount", "writtenCount")
+    drifted = [key for key in keys if saved.get(key) is not None and saved[key] != current_dataset.get(key)]
+    if drifted:
+        raise ResumeDatasetDrift(
+            f"{ResumeDatasetDrift.code}: checkpoint dataset differs on {', '.join(drifted)}; "
+            "restore the recorded corpus before resuming",
+            path=str(checkpoint_path),
+        )
 
 
 def run_id_from_sibling_manifest(checkpoint_path: Path | str) -> str | None:
