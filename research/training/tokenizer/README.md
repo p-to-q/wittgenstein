@@ -93,6 +93,21 @@ must be true:
   may run in degraded mode, but the missing metrics must be surfaced in the
   receipt rather than silently dropped.
 
+## Resume identity checks
+
+Before continuing, the loader reconciles any run ID in the checkpoint, its saved
+args, and its sibling manifest. Conflicting IDs or decoded step/sibling
+`stepCount` disagreement raise `ResumeError`; direct and args IDs cannot silently
+override one another. A resumed run ID must be one safe directory name, so it
+cannot select an absolute path or traverse outside `out_root`.
+
+Legacy callers without a usable sibling retain explicit missing-identity warnings.
+The trainer still requires the separate pre-device manifest/byte-integrity check
+and compatible math arguments. These checks preserve provenance; they do not
+establish bit-identical dataloader/RNG continuation. Run the stdlib regressions
+with `python -m unittest research.training.tokenizer.test_resume_identity -v`;
+install CPU torch to also exercise the real serializer roundtrip.
+
 ## Numerical failure evidence
 
 The loop checks generator and active discriminator losses before backward, then
