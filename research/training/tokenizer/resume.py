@@ -78,7 +78,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from research.training._shared.manifest import assert_training_run_manifest_shape, sha256_file
+from research.training._shared.manifest import (
+    assert_training_run_manifest_shape,
+    sha256_file,
+)
 
 # ---- Upstream-aligned payload keys ----------------------------------------
 
@@ -426,17 +429,26 @@ def assert_args_compatible(
 # ---- run-id continuity (E4) ------------------------------------------------
 
 
+def _checked_run_id(value: Any, *, source: str) -> str | None:
+    if value is None:
+        return None
+    if (
+        not isinstance(value, str) or not value.strip() or value in {".", ".."}
+        or any(char in value for char in "/\\:")
+        or any(ord(char) < 32 for char in value)
+    ):
+        raise ResumeError(f"{source} run-id must be a safe single directory name")
+    return value
+
+
 def run_id_from_checkpoint(payload: Mapping[str, Any]) -> str | None:
-    """Return the run id recorded in the payload or its `args`, if any."""
-    direct = payload.get(RUN_ID_KEY)
-    if isinstance(direct, str) and direct:
-        return direct
+    """Reconcile payload and args identity before either can select an output path."""
+    direct = _checked_run_id(payload.get(RUN_ID_KEY), source="checkpoint")
     args = payload.get(ARGS_KEY)
-    if isinstance(args, Mapping):
-        nested = args.get(RUN_ID_KEY)
-        if isinstance(nested, str) and nested:
-            return nested
-    return None
+    nested = _checked_run_id(args.get(RUN_ID_KEY), source="checkpoint args") if isinstance(args, Mapping) else None
+    if direct is not None and nested is not None and direct != nested:
+        raise ResumeError(f"checkpoint run-id {direct!r} disagrees with args run-id {nested!r}")
+    return direct or nested
 
 
 def manifest_path_for(checkpoint_path: Path | str) -> Path:
@@ -445,21 +457,21 @@ def manifest_path_for(checkpoint_path: Path | str) -> Path:
     return path.with_name(path.stem + MANIFEST_SUFFIX)
 
 
-def run_id_from_sibling_manifest(checkpoint_path: Path | str) -> str | None:
-    """Read the original `runId` from the checkpoint's sibling manifest.
-
-    Best-effort: a missing or malformed sibling manifest yields `None` (the
-    caller records a warning) rather than failing the resume.
-    """
+def _read_sibling_manifest(checkpoint_path: Path | str) -> Mapping[str, Any] | None:
     manifest_path = manifest_path_for(checkpoint_path)
     try:
         document = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(document, Mapping):
+    return document if isinstance(document, Mapping) else None
+
+
+def run_id_from_sibling_manifest(checkpoint_path: Path | str) -> str | None:
+    """Read a safe identity; absent/malformed legacy siblings remain unavailable."""
+    document = _read_sibling_manifest(checkpoint_path)
+    if document is None:
         return None
-    run_id = document.get("runId")
-    return run_id if isinstance(run_id, str) and run_id else None
+    return _checked_run_id(document.get("runId"), source="sibling manifest")
 
 
 # ---- Typed loader (E1) -----------------------------------------------------
@@ -613,10 +625,24 @@ def load_checkpoint(
     )
     run_id = loaded.run_id
     warnings = list(loaded.warnings)
+    document = _read_sibling_manifest(path)
+    if document is not None:
+        manifest_run_id = _checked_run_id(document.get("runId"), source="sibling manifest")
+        if run_id is not None and manifest_run_id is not None and run_id != manifest_run_id:
+            raise ResumeError(
+                f"checkpoint run-id {run_id!r} disagrees with sibling run-id {manifest_run_id!r}",
+                path=str(path),
+            )
+        if "stepCount" in document:
+            manifest_step = document["stepCount"]
+            if type(manifest_step) is not int or manifest_step != loaded.step:
+                raise ResumeError(
+                    f"checkpoint step {loaded.step} disagrees with sibling stepCount={manifest_step!r}",
+                    path=str(path),
+                )
+        run_id = run_id or manifest_run_id
     if run_id is None:
-        run_id = run_id_from_sibling_manifest(path)
-        if run_id is None:
-            warnings.append(WARN_RUN_ID_MISSING)
+        warnings.append(WARN_RUN_ID_MISSING)
     return dataclasses.replace(loaded, run_id=run_id, warnings=tuple(warnings))
 
 
@@ -813,8 +839,11 @@ def verify_resume_checkpoint(checkpoint: Path) -> str | None:
     # so the manifest runId must match the run directory. Only checked in that
     # expected layout, so an explicitly rescued out-of-layout checkpoint is not
     # falsely refused.
+    try:
+        run_id = _checked_run_id(document.get("runId"), source="sibling manifest")
+    except ResumeError as exc:
+        return str(exc)
     if checkpoint.parent.name == "ckpts":
-        run_id = run_id_from_sibling_manifest(checkpoint)
         run_dir_name = checkpoint.parent.parent.name
         if run_id is None:
             return f"sibling manifest {manifest_path.name} carries no runId"

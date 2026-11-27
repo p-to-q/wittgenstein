@@ -91,6 +91,7 @@ jobs:
             research.training._shared.test_sweep_manifest \
             research.training._shared.test_sweep_cli \
             research.training.test_resume_closeout_tools \
+            research.training.tokenizer.test_resume_identity \
             research.training.test_integrity_check \
             research.training.test_recon_check \
             research.training._shared.test_training_receipts \
@@ -160,6 +161,7 @@ jobs:
         run: |
           python -m unittest \
             research.training.test_resume_closeout_tools \
+            research.training.tokenizer.test_resume_identity \
             research.training.test_integrity_check \
             research.training.test_recon_check \
             research.training.tokenizer.test_receipt_helpers \
