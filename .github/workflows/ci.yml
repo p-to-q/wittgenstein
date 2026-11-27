@@ -61,6 +61,9 @@ jobs:
       - name: Test (bounded package and file workers)
         run: pnpm test:serial
 
+      - name: Packed public CLI smoke (version and doctor)
+        run: pnpm release:npm-cli && pnpm release:check
+
       - name: Golden tests
         run: pnpm test:golden
 

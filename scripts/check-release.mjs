@@ -202,6 +202,22 @@ export async function checkRelease(options = {}) {
     if (packed.version !== local.root)
       throw new Error("RELEASE_PACK_INVALID: pack receipt version differs");
     Object.assign(receipt, { local, tarball, pack: packed });
+    // --version alone does not exercise module-relative runtime/optional-peer probes.
+    receipt.doctor = z
+      .object({
+        ok: z.literal(true),
+        nodeSatisfied: z.literal(true),
+        imageDecoder: z.object({ status: z.enum(["ready", "blocked", "not-selected"]) }),
+      })
+      .parse(
+        JSON.parse(
+          await command(
+            process.execPath,
+            [join(staging, "package/bin/wittgenstein.mjs"), "doctor"],
+            staging,
+          ),
+        ),
+      );
     await writeFile(join(out, "pack.json"), `${JSON.stringify(packed, null, 2)}\n`);
     if (options.publishNpm) {
       const registry = await publicRegistry();

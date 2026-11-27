@@ -12,6 +12,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
   repository release versions; bind tarballs to clean source/lockfile metadata;
   verify public npm integrity/channel before GitHub Release creation. This
   candidate is not publicly released until both services have matching receipts.
+- The standalone CommonJS CLI now preserves its own module URL so `doctor`
+  can inspect optional ONNX peers without crashing after npm installation.
+  Release validation executes packed `doctor` as well as `--version`.
 - Tokenizer resume now binds checkpoint deserialization to the verified file
   descriptor and receipt snapshot, with coordinated rank refusal for snapshot
   drift (#739 / #740). CPU regressions cover same-size replacement and changed
