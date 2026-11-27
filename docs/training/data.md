@@ -17,6 +17,17 @@ Wittgenstein dataset identity. Each dataset snapshot writes a sibling receipt:
   `outs[]` fields (`path`, `size`, `md5` / `etag` / `checksum`)
 - a Wittgenstein `sha256` over the normalized dataset + DVC receipt payload
 
+Readers and writers recompute this canonical SHA-256 and reject stale or
+inconsistent receipts before a sweep row can reference them. The digest keeps
+the existing definition: sorted-key JSON of the normalized `dataset` and `dvc`
+objects, omitting optional nulls. Snapshot labels, timestamps, and file whitespace
+are outside this identity. `snapshotSha256` separately hashes the exact bytes
+parsed by the reader, including their formatting.
+
+This verifies receipt consistency, not dataset availability, license approval,
+or authentication of the referenced image bytes. DVC fetch/restore and an image
+integrity audit are still required for the actual corpus.
+
 Training runs continue to emit `witt.training.run-manifest/v0.1`; sweep rows
 point at the dataset snapshot receipt and the training-run manifest. The
 training manifest stays strict and does not absorb DVC's full pointer payload.

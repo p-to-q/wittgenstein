@@ -68,6 +68,15 @@ class TrainingSweepManifestTests(unittest.TestCase):
                 experiment_receipt_path=Path(summary["experimentReceiptPath"]),
                 metrics=[{"name": "loss", "value": 0.0, "unit": "loss", "higherIsBetter": False}],
             )
+            stale = json.loads(snapshot_path.read_text())
+            stale["dataset"]["name"] = "different-corpus"
+            snapshot_path.write_text(json.dumps(stale))
+            with self.assertRaisesRegex(ValueError, "SHA-256"):
+                build_passed_sweep_row(
+                    row_id="stale-data", subprogram="tokenizer", command=["python3"],
+                    dataset_snapshot_path=snapshot_path,
+                    training_manifest_path=Path(summary["manifestPath"]),
+                )
             manifest = new_sweep_manifest(
                 sweep_id="phase1-smoke",
                 spec_path=spec_path,

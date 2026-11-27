@@ -16,8 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from .manifest import SHA256_RE, capture_git_sha, sha256_bytes, sha256_file, utc_now_iso
-
+from .manifest import SHA256_RE, capture_git_sha, sha256_bytes, utc_now_iso
 
 TRAINING_DATASET_SNAPSHOT_SCHEMA_VERSION = "witt.training.dataset-snapshot/v0.1"
 DATASET_ROLES = {"train", "validation", "eval", "smoke"}
@@ -148,7 +147,7 @@ def build_dataset_snapshot_from_dvc(
     if "remote" in payload["dvc"]:
         payload["dvc"]["remote"] = _drop_none(payload["dvc"]["remote"])
     payload["dvc"]["outs"] = [_drop_none(out) for out in payload["dvc"]["outs"]]
-    digest = sha256_bytes(json.dumps(payload, sort_keys=True).encode("utf-8"))
+    digest = _dataset_identity(payload)
     snapshot = TrainingDatasetSnapshot(
         schemaVersion=TRAINING_DATASET_SNAPSHOT_SCHEMA_VERSION,
         snapshotId=snapshot_id,
@@ -190,6 +189,8 @@ def assert_training_dataset_snapshot_shape(
     _require_sha256(payload["sha256"], "sha256")
     _validate_dataset_descriptor(payload["dataset"])
     _validate_dvc_reference(payload["dvc"])
+    if payload["sha256"] != _dataset_identity(payload):
+        raise ValueError("dataset snapshot SHA-256 does not match normalized dataset and DVC content")
 
 
 def write_training_dataset_snapshot(snapshot: TrainingDatasetSnapshot, out_path: Path) -> None:
@@ -204,14 +205,20 @@ def write_training_dataset_snapshot(snapshot: TrainingDatasetSnapshot, out_path:
 
 
 def dataset_snapshot_reference(snapshot_path: Path) -> dict[str, str]:
-    payload = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    raw = snapshot_path.read_bytes()
+    payload = json.loads(raw.decode("utf-8"))
     assert_training_dataset_snapshot_shape(payload)
     return {
         "snapshotId": payload["snapshotId"],
         "snapshotPath": snapshot_path.as_posix(),
-        "snapshotSha256": sha256_file(snapshot_path),
+        "snapshotSha256": sha256_bytes(raw),
         "datasetSha256": payload["sha256"],
     }
+
+
+def _dataset_identity(payload: dict[str, Any]) -> str:
+    identity = {"dataset": payload["dataset"], "dvc": payload["dvc"]}
+    return sha256_bytes(json.dumps(identity, sort_keys=True).encode("utf-8"))
 
 
 def _load_yamlish(path: Path) -> dict[str, Any]:
