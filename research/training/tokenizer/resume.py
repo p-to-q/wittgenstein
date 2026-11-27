@@ -126,6 +126,11 @@ MATH_RELEVANT_ARGS: tuple[str, ...] = (
     "tokenizer.codebook_size",
     "tokenizer.codebook_embed_dim",
     "tokenizer.codebook_l2_norm",
+    "tokenizer.codebook_show_usage",
+    "tokenizer.encoder_ch_mult",
+    "tokenizer.decoder_ch_mult",
+    "tokenizer.z_channels",
+    "tokenizer.dropout_p",
     "tokenizer.image_size",
     "tokenizer.commit_loss_beta",
     "tokenizer.entropy_loss_ratio",
@@ -439,6 +444,10 @@ def assert_args_compatible(
     for key in MATH_RELEVANT_ARGS:
         old = saved.get(key, ABSENT)
         new = current.get(key, ABSENT)
+        if key in ("tokenizer.encoder_ch_mult", "tokenizer.decoder_ch_mult"):
+            # The model constructor consumes both containers as the same list.
+            old = tuple(old) if isinstance(old, (list, tuple)) else old
+            new = tuple(new) if isinstance(new, (list, tuple)) else new
         if old != new:
             drifted[key] = (old, new)
     if drifted:

@@ -8,6 +8,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Tokenizer resume now rejects changes to dropout, channel layout, latent
+  channels and codebook-usage tracking before restoring weights; equivalent
+  list/tuple channel layouts remain compatible.
 - Release preflight refusals now preserve their failure receipts and print the
   receipt path, including invalid manifests, version drift and dirty source.
 - The public CLI release helper now pins npm publication to the same public
