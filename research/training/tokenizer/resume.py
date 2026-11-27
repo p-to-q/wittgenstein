@@ -175,7 +175,7 @@ class ResumeArgsMissing(ResumeError):
 
 
 class ResumeQuartetIncomplete(ResumeError):
-    """The four-piece set {model, optimizer, step, args} is incomplete."""
+    """Required model/optimizer state is missing or is not a mapping."""
 
     code = "RESUME_QUARTET_INCOMPLETE"
 
@@ -624,9 +624,11 @@ def load_checkpoint_payload(
 
     Fails closed: a missing step raises `RESUME_STEPS_MISSING` (never parsed
     from the filename), a missing `args` raises `RESUME_ARGS_MISSING` when
-    required, and a missing model/optimizer raises `RESUME_QUARTET_INCOMPLETE`
-    naming the path and every missing key. Opting out of `args`/`optimizer`
-    records a warning instead, so nothing is ever silently dropped.
+    required, and missing/null/non-mapping required state raises
+    `RESUME_QUARTET_INCOMPLETE`, naming the path and every invalid key. Strict
+    GAN resume also requires discriminator weights and optimizer state, even
+    during warmup. `require_optimizer=False` is the explicit legacy-inspection
+    opt-out; an absent/null generator optimizer then records a warning.
     """
     if not isinstance(payload, Mapping):
         raise ResumeError(
@@ -657,18 +659,21 @@ def load_checkpoint_payload(
     else:
         args = _args_to_mapping(payload[ARGS_KEY])
 
-    missing: list[str] = []
-    if MODEL_KEY not in payload:
-        missing.append(MODEL_KEY)
-    if require_optimizer and OPTIMIZER_KEY not in payload:
-        missing.append(OPTIMIZER_KEY)
+    required_state = [MODEL_KEY]
+    if require_optimizer:
+        required_state.append(OPTIMIZER_KEY)
+        if args is not None and args.get("gan_enabled"):
+            # The writer saves both mappings even before the first GAN update.
+            # Missing history is a different experiment, not strict continuation.
+            required_state.extend((DISCRIMINATOR_KEY, DISC_OPTIMIZER_KEY))
+    missing = [key for key in required_state if not isinstance(payload.get(key), Mapping)]
     if missing:
         raise ResumeQuartetIncomplete(
-            f"checkpoint {source} is missing required four-piece key(s): {sorted(missing)}",
+            f"checkpoint {source} has missing or invalid required state mapping(s): {sorted(missing)}",
             path=source,
             missing=missing,
         )
-    if not require_optimizer and OPTIMIZER_KEY not in payload:
+    if not require_optimizer and payload.get(OPTIMIZER_KEY) is None:
         warnings.append(WARN_OPTIMIZER_MISSING)
 
     rng = rng_state_from_checkpoint(payload)
