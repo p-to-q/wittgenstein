@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import { Command } from "commander";
 import { printCliError } from "./cli-errors.js";
 import { registerInitCommand } from "./commands/init.js";
@@ -16,7 +17,10 @@ import { registerReplayCommand } from "./commands/replay.js";
 export function createProgram(): Command {
   const program = new Command();
 
-  program.name("wittgenstein").description("Wittgenstein modality harness CLI").version("0.1.0");
+  program
+    .name("wittgenstein")
+    .description("Wittgenstein modality harness CLI")
+    .version(packageJson.version);
 
   registerInitCommand(program);
   registerImageCommand(program);

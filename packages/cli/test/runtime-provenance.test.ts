@@ -1,5 +1,14 @@
 import { execFile } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -53,6 +62,38 @@ afterAll(async () => {
 });
 
 describe("code-owned provenance across packaging", () => {
+  it.each([false, true])(
+    "standalone CJS doctor resolves optional peers relative to its bundle (installed: %s)",
+    async (installed) => {
+      const distribution = await mkdtemp(join(tmp, "doctor-distribution-"));
+      const entry = join(distribution, "bundle.cjs");
+      await copyFile(bundle, entry);
+      const peer = join(distribution, "node_modules/onnxruntime-node");
+      await mkdir(peer, { recursive: true });
+      // Mask the compiled-ESM fixture's ancestor node_modules link in the missing case.
+      await writeFile(
+        join(peer, "package.json"),
+        JSON.stringify({
+          name: "onnxruntime-node",
+          exports: installed ? "./index.js" : "./missing.js",
+        }),
+      );
+      if (installed) await writeFile(join(peer, "index.js"), "module.exports = {};\n");
+      const cwd = await mkdtemp(join(tmp, "doctor-caller-"));
+      const { stdout, stderr } = await exec(process.execPath, [entry, "doctor"], {
+        cwd,
+        timeout: 30_000,
+      });
+      const doctor = JSON.parse(stdout);
+      expect(stderr).toBe("");
+      expect(doctor.ok).toBe(true);
+      expect(doctor.imageDecoder.onnxRuntime.status).toBe(installed ? "ok" : "missing");
+      if (installed)
+        expect(doctor.imageDecoder.onnxRuntime.path).toBe(await realpath(join(peer, "index.js")));
+    },
+    45_000,
+  );
+
   it.each(callerPackages)("compiled ESM ignores caller metadata %s", async (metadata) => {
     const cwd = await mkdtemp(join(tmp, "caller-"));
     if (metadata !== null) await writeFile(join(cwd, "package.json"), metadata);

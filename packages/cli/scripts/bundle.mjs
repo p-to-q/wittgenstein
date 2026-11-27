@@ -17,6 +17,8 @@ await esbuild.build({
   platform: "node",
   target: "node20",
   format: "cjs",
+  // Preserve module-relative optional-peer resolution in the installed CJS bundle.
+  define: { "import.meta.url": "__wittgensteinBundleUrl" },
   outfile: out,
   external: ["onnxruntime-node"],
   plugins: [
@@ -35,7 +37,9 @@ await esbuild.build({
       },
     },
   ],
-  banner: { js: "#!/usr/bin/env node\n" },
+  banner: {
+    js: '#!/usr/bin/env node\nvar __wittgensteinBundleUrl = require("node:url").pathToFileURL(__filename).href;',
+  },
   logLevel: "info",
 });
 

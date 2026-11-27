@@ -49,6 +49,9 @@ jobs:
       - name: Lint publish surface (no research/ leaks)
         run: pnpm lint:publish-surface
 
+      - name: Release identity regression tests
+        run: pnpm test:release
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -57,6 +60,9 @@ jobs:
 
       - name: Test (bounded package and file workers)
         run: pnpm test:serial
+
+      - name: Packed public CLI smoke (version and doctor)
+        run: pnpm release:npm-cli && pnpm release:check
 
       - name: Golden tests
         run: pnpm test:golden

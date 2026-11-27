@@ -16,20 +16,64 @@ Maintainers:
 
 **Do not run `npm publish` from the repo root** — the root package is `private` and you will get `EPRIVATE`, and npm may try to pack the whole tree.
 
-From the **monorepo root**:
+The repository root release version, workspace CLI manifest, bundled public
+package, packed binary `--version` and GitHub tag are checked together. Private
+workspace implementation packages retain their own versions. Build metadata in
+the tarball records the source commit, lockfile SHA-256 and dirty status; a public
+release check requires the exact clean source. Historical release labels are not
+moved or reused for today's code.
+
+From the **monorepo root**, first build and inspect without publishing:
 
 ```bash
-pnpm run release:npm-cli
-npm publish packages/cli/npm-publish
+pnpm install --frozen-lockfile
+pnpm test:release
+pnpm release:npm-cli
+pnpm release:check --tag "v$(node -p 'require("./package.json").version')"
 ```
 
-Or step by step:
+The check packs the CLI, verifies its SHA-512 integrity, extracts it into an
+isolated consumer directory and executes its `--version` and `doctor`. It writes a source-bound
+receipt and tarball under `artifacts/runs/release-*/`. This is local validation,
+not publication. Rebuild after source/lockfile changes. The npm surface excludes
+training code, data and weights.
+
+After qualification on the exact clean main commit, an authorized npm publisher
+can run:
 
 ```bash
-cd packages/cli && pnpm run release:npm && cd npm-publish && npm publish
+npm whoami
+npm access list collaborators wittgenstein-cli --json
+pnpm publish:npm-cli
+pnpm release:check --require-npm
 ```
 
-Requires `npm login` (or a publish token) on that machine. The published name is **`wittgenstein-cli`**; install with `npm install -g wittgenstein-cli`. If npm reports that **OTP / 2FA** is required for publish, append `--otp=…` to the `npm publish` command for that account only.
+The helper publishes the checked tarball, using `next` for prereleases and
+`latest` for stable versions, then reads back the exact public version, channel
+and integrity. It refuses dirty/stale source or conflicting existing artifacts
+and reconciles an already-matching version without republishing it. Login/2FA
+and package write access must belong to the operator; no token is stored in the
+repository. For an account that needs interactive OTP, publish the exact checked
+`.tgz` directly with `npm publish /absolute/path/to/package.tgz --tag next --otp=...`
+(`--tag latest` for a stable release), then run `pnpm release:check --require-npm`.
+If a publish response is uncertain, check the registry first; never blindly retry
+or overwrite a version.
+
+Only after the public check succeeds, create the matching immutable Git tag on
+that exact qualified main commit and push it to `upstream`. The Release workflow
+rebuilds from the tag and refuses a missing/mismatching npm version, channel or
+tarball before creating a public GitHub Release. If Actions is unavailable, keep
+the GitHub release a draft until the same checks have succeeded; manually
+publishing a draft does not execute this workflow guard. A draft does not count
+as a released npm/GitHub pair.
+
+Public install name: **`wittgenstein-cli`**. Use
+`npm install -g wittgenstein-cli@next` for a verified published prerelease;
+`npm install -g wittgenstein-cli` follows the stable `latest` channel. The scoped
+workspace package `@wittgenstein/cli` is not the public install target. The
+`0.3.0-alpha.4` source is a release candidate: until the publication handoff
+records success, the registry may have no `next` tag and the newest GitHub
+prerelease remains historical. See the [candidate handoff](release/0.3.0-alpha.4-candidate.md).
 
 - `scripts/install.sh` is the future `curl | sh` seam
 - `AGENTS.md` is the short agent primer; `packages/agent-contact-text/` holds extended narrative primers (00–03) for coding agents
