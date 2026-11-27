@@ -119,17 +119,28 @@ The loop checks generator and active discriminator losses before backward, then
 gradient norms before their respective optimizer updates. With DDP, every rank
 joins the same finite-status collective; one nonfinite rank stops the attempt
 on all ranks. This covers finite forward losses with nonfinite backward gradients
-as well as NaN/Inf loss values.
+as well as NaN/Inf loss values. After each optimizer update it also checks the
+model's parameters/buffers and AdamW tensor state (including moments), before
+continuing or writing a checkpoint. Finite inputs alone do not prevent update or
+moment overflow. A resumed state is checked even if `max_steps` is already reached
+and no new update will run; matching checkpoint hashes do not establish numerical
+validity.
 
 A detected failure raises `FloatingPointError` with `NONFINITE_TRAINING` and the
-zero-based attempted step/stage. Rank 0 records a `training_failed` JSONL event
-and a failed `acceptance.json` (`failure_code`, `failure_stage`, `failure_step`),
+stage and zero-based attempted step (or the next step while checking restored
+state). Rank 0 records a `training_failed` JSONL event and a failed `acceptance.json` (`failure_code`, `failure_stage`, `failure_step`),
 then finalizes the experiment log hash without a success-manifest reference.
 Final evaluation/checkpoint writing is skipped; previous valid checkpoint pairs
 remain available. A discriminator failure may follow a generator update in the
 same attempted step; that partial in-memory step is never checkpointed as final.
-The guard does not prove convergence, detect every possible optimizer-state
-failure, or establish exact restart equivalence.
+A `generator_state` or `discriminator_state` failure is detected **after** an
+update (or while checking restored state), so it does not roll back in-memory
+parameters. Earlier valid checkpoint pairs remain the recovery point. These
+checks scan model state and AdamW tensor state on every update and add one
+rank-coordination collective per active optimizer; target-host memory/throughput
+must be measured with the checks enabled. The guard does not prove convergence,
+detect finite-but-incorrect updates or every possible optimizer failure, or
+establish exact restart equivalence.
 
 Run the bounded scalar-model regressions without a GPU or pretrained downloads:
 

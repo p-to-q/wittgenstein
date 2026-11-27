@@ -290,15 +290,28 @@ def _total_grad_norm(parameters) -> float:
 
 
 def _require_finite_on_all_ranks(value, *, stage: str, step: int, device, world: int) -> None:
-    """All ranks decide together before backward or the affected optimizer update."""
-    if torch.is_tensor(value):
-        invalid = (~torch.isfinite(value.detach()).all()).to(device=device, dtype=torch.int32)
-    else:
+    """Coordinate scalar/tensor checks, including iterated post-update state."""
+    if isinstance(value, (int, float)):
         invalid = torch.tensor(not math.isfinite(value), device=device, dtype=torch.int32)
+    else:
+        tensors = (value,) if torch.is_tensor(value) else value
+        invalid = torch.zeros((), device=device, dtype=torch.int32)
+        for tensor in tensors:
+            flag = (~torch.isfinite(tensor.detach()).all()).to(device=device, dtype=torch.int32)
+            invalid.bitwise_or_(flag)
     if world > 1:
         dist.all_reduce(invalid, op=dist.ReduceOp.MAX)
     if invalid.item():
-        raise FloatingPointError(f"NONFINITE_TRAINING: {stage} at step {step}; update refused")
+        raise FloatingPointError(f"NONFINITE_TRAINING: {stage} at step {step}; training stopped")
+
+
+def _updated_state_tensors(model, optimizer):
+    """Include buffers and AdamW moments: finite parameters alone are insufficient."""
+    yield from _unwrap(model).state_dict().values()
+    for state in optimizer.state.values():
+        for value in state.values():
+            if torch.is_tensor(value):
+                yield value
 
 
 def _require_nonempty_train_loader(train_loader, dataset_len: int, batch_size: int) -> None:
@@ -633,6 +646,13 @@ def train(cfg: TrainConfig) -> dict:
                 cleanup_distributed()
             raise
 
+    # A completed-run resume may execute zero updates. Inspect loaded state
+    # before any evaluation/save can certify it again, including optimizer moments.
+    if resume_from is not None:
+        require_finite(_updated_state_tensors(model, optim), "generator_state")
+        if discriminator is not None:
+            require_finite(_updated_state_tensors(discriminator, d_optim), "discriminator_state")
+
     while step < cfg.max_steps:
         try:
             batch = next(epoch_iter)
@@ -688,6 +708,7 @@ def train(cfg: TrainConfig) -> dict:
             components["grad_norm_g"] = _total_grad_norm(core_model.parameters())
         require_finite(components["grad_norm_g"], "generator_gradients")
         optim.step()
+        require_finite(_updated_state_tensors(model, optim), "generator_state")
 
         # Discriminator step (after warmup): train D on real vs. detached recon
         # so D's update doesn't flow back into the generator.
@@ -703,6 +724,7 @@ def train(cfg: TrainConfig) -> dict:
             components["grad_norm_d"] = _total_grad_norm(discriminator.parameters())
             require_finite(components["grad_norm_d"], "discriminator_gradients")
             d_optim.step()
+            require_finite(_updated_state_tensors(discriminator, d_optim), "discriminator_state")
             components["d_loss"] = float(d_loss.detach().cpu())
 
         # Log
