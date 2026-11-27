@@ -136,22 +136,23 @@ async function publicRegistry() {
 }
 
 export async function checkRelease(options = {}) {
-  const root = packageVersion.parse(await json(join(repository, "package.json")));
-  const cli = packageVersion.parse(await json(join(repository, "packages/cli/package.json")));
-  if (root.version !== cli.version)
-    throw new Error(`RELEASE_VERSION_MISMATCH: root ${root.version}, CLI ${cli.version}`);
-  const source = await sourceState();
-  if (options.publishNpm && source.dirty)
-    throw new Error("RELEASE_DIRTY_SOURCE: commit changes before publishing");
   const out = join(
     repository,
     "artifacts/runs",
-    `release-${root.version}-${Date.now()}-${randomUUID().slice(0, 8)}`,
+    `release-${Date.now()}-${randomUUID().slice(0, 8)}`,
   );
   await mkdir(out, { recursive: true });
-  const receipt = { source, checkedAt: new Date().toISOString(), status: "checking" };
+  const receipt = { source: null, checkedAt: new Date().toISOString(), status: "checking" };
   let staging;
   try {
+    const root = packageVersion.parse(await json(join(repository, "package.json")));
+    const cli = packageVersion.parse(await json(join(repository, "packages/cli/package.json")));
+    if (root.version !== cli.version)
+      throw new Error(`RELEASE_VERSION_MISMATCH: root ${root.version}, CLI ${cli.version}`);
+    const source = await sourceState();
+    receipt.source = source;
+    if (options.publishNpm && source.dirty)
+      throw new Error("RELEASE_DIRTY_SOURCE: commit changes before publishing");
     const packed = packedSchema.parse(
       JSON.parse(
         await command("npm", [
@@ -252,6 +253,7 @@ export async function checkRelease(options = {}) {
   } catch (error) {
     receipt.status = "failed";
     receipt.error = error.message;
+    error.receipt = join(out, "release.json");
     throw error;
   } finally {
     await writeFile(join(out, "release.json"), `${JSON.stringify(receipt, null, 2)}\n`);
@@ -281,6 +283,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     );
   } catch (error) {
     console.error(error.message);
+    if (error.receipt) console.error(`Release receipt: ${error.receipt}`);
     process.exitCode = 1;
   }
 }

@@ -34,7 +34,10 @@ pnpm release:check --tag "v$(node -p 'require("./package.json").version')"
 
 The check packs the CLI, verifies its SHA-512 integrity, extracts it into an
 isolated consumer directory and executes its `--version` and `doctor`. It writes a source-bound
-receipt and tarball under `artifacts/runs/release-*/`. This is local validation,
+receipt and tarball under `artifacts/runs/release-*/`. Operational preflight
+failures (including CLI manifest/version, Git/lockfile and dirty-source refusals) also
+write a failed receipt, and stderr identifies its path. Source identity remains
+`null` if preflight cannot read it. This is local validation,
 not publication. Rebuild after source/lockfile changes. The npm surface excludes
 training code, data and weights.
 
