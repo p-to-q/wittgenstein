@@ -93,6 +93,30 @@ must be true:
   may run in degraded mode, but the missing metrics must be surfaced in the
   receipt rather than silently dropped.
 
+## Numerical failure evidence
+
+The loop checks generator and active discriminator losses before backward, then
+gradient norms before their respective optimizer updates. With DDP, every rank
+joins the same finite-status collective; one nonfinite rank stops the attempt
+on all ranks. This covers finite forward losses with nonfinite backward gradients
+as well as NaN/Inf loss values.
+
+A detected failure raises `FloatingPointError` with `NONFINITE_TRAINING` and the
+zero-based attempted step/stage. Rank 0 records a `training_failed` JSONL event
+and a failed `acceptance.json` (`failure_code`, `failure_stage`, `failure_step`),
+then finalizes the experiment log hash without a success-manifest reference.
+Final evaluation/checkpoint writing is skipped; previous valid checkpoint pairs
+remain available. A discriminator failure may follow a generator update in the
+same attempted step; that partial in-memory step is never checkpointed as final.
+The guard does not prove convergence, detect every possible optimizer-state
+failure, or establish exact restart equivalence.
+
+Run the bounded scalar-model regressions without a GPU or pretrained downloads:
+
+```sh
+OMP_NUM_THREADS=1 python -m unittest research.training.tokenizer.test_numerical_safety -v
+```
+
 ## Real-data qualification before a full launch
 
 Use the [staged launch guide](../../../docs/contributing/training-setup.md)
