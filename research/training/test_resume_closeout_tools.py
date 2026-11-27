@@ -311,6 +311,41 @@ class TokenizerResumeHardeningTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ResumeArgsDrift):
                 assert_args_compatible({key: before}, {key: after})
 
+    def test_resume_rejects_model_behavior_and_topology_drift(self) -> None:
+        for key, before, after in (
+            ("dropout_p", 0.0, 0.5),
+            ("encoder_ch_mult", (1, 1, 2, 2, 4), (1, 2, 2, 2, 4)),
+            ("decoder_ch_mult", (1, 1, 2, 2, 4), (1, 2, 2, 2, 4)),
+            ("z_channels", 256, 128),
+            ("codebook_show_usage", True, False),
+        ):
+            with self.subTest(key=key):
+                with self.assertRaises(ResumeArgsDrift) as caught:
+                    assert_args_compatible(
+                        {"tokenizer": {key: before}}, {"tokenizer": {key: after}},
+                    )
+                self.assertEqual(set(caught.exception.drifted), {f"tokenizer.{key}"})
+
+    def test_resume_channel_multipliers_accept_equivalent_list_and_tuple(self) -> None:
+        for key in ("encoder_ch_mult", "decoder_ch_mult"):
+            for before, after in (((1, 2, 4), [1, 2, 4]), ([1, 2, 4], (1, 2, 4))):
+                with self.subTest(key=key, before=before):
+                    assert_args_compatible(
+                        {"tokenizer": {key: before}}, {"tokenizer": {key: after}},
+                    )
+        with self.assertRaises(ResumeArgsDrift):
+            assert_args_compatible(
+                {"tokenizer": {"encoder_ch_mult": (1, 2, 4)}},
+                {"tokenizer": {"encoder_ch_mult": [1, 4, 2]}},
+            )
+
+    def test_resume_cannot_verify_an_unrecorded_model_setting(self) -> None:
+        with self.assertRaises(ResumeArgsDrift) as caught:
+            assert_args_compatible(
+                {"tokenizer": {}}, {"tokenizer": {"dropout_p": 0.0}},
+            )
+        self.assertEqual(set(caught.exception.drifted), {"tokenizer.dropout_p"})
+
     def test_e1_missing_model_raises_quartet_incomplete_naming_path(self) -> None:
         payload = _quartet_payload()
         del payload["model"]

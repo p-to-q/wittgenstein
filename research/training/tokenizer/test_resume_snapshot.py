@@ -18,6 +18,7 @@ import torch.multiprocessing as mp
 
 from . import train as trainer
 from .resume import (
+    ResumeArgsDrift,
     ResumeDatasetDrift,
     ResumeError,
     ResumeIntegrityError,
@@ -120,6 +121,18 @@ class ResumeSnapshotTests(unittest.TestCase):
         self.assertFalse(Path(self.cfg.out_root).exists())
         self.assertEqual(snapshot(self.source.parent.parent), self.original)
         return caught.exception
+
+    def test_changed_dropout_is_refused_before_restore_or_output_writes(self):
+        self.cfg.tokenizer.dropout_p = 0.5
+        input_before = snapshot(self.selected.parent)
+        with patch.object(TinyTokenizer, "load_state_dict") as load:
+            with self.assertRaises(ResumeArgsDrift) as caught:
+                scalar_run(self.cfg)
+            load.assert_not_called()
+        self.assertEqual(set(caught.exception.drifted), {"tokenizer.dropout_p"})
+        self.assertFalse(Path(self.cfg.out_root).exists())
+        self.assertEqual(snapshot(self.selected.parent), input_before)
+        self.assertEqual(snapshot(self.source.parent.parent), self.original)
 
     def test_same_size_atomic_checkpoint_swap_cannot_recertify_replacement(self):
         replacement = self.replacement()

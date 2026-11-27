@@ -103,10 +103,23 @@ cannot select an absolute path or traverse outside `out_root`.
 
 Legacy callers without a usable sibling retain explicit missing-identity warnings.
 The trainer still requires the separate pre-device manifest/byte-integrity check
-and compatible math arguments. These checks preserve provenance; they do not
-establish bit-identical dataloader/RNG continuation. Run the stdlib regressions
-with `python -m unittest research.training.tokenizer.test_resume_identity -v`;
-install CPU torch to also exercise the real serializer roundtrip.
+and compatible math arguments, including dropout, encoder/decoder channel
+multipliers, latent channel count, and codebook-usage tracking. A strict weight
+load cannot detect every behavior change: dropout has no checkpoint tensors.
+Equivalent list/tuple channel multipliers remain compatible; reordered values
+or missing saved settings cannot establish the same model configuration and are
+refused. Restore the original settings or start a distinct experiment rather
+than modifying the checkpoint's configuration snapshot. These checks preserve
+provenance; they do not establish bit-identical dataloader/RNG continuation.
+Run the stdlib regressions with:
+
+```sh
+python -m unittest research.training.test_resume_closeout_tools research.training.tokenizer.test_resume_identity -v
+```
+
+Install CPU torch to also exercise the real serializer roundtrip and run
+`python -m unittest research.training.tokenizer.test_resume_snapshot -v` for
+refusal before weight restoration or output writes.
 
 The trainer also recomputes the rank-0 corpus fingerprint before model loading
 or output writes. Resume requires the content hash and dataset revision to match
