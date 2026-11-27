@@ -92,6 +92,7 @@ jobs:
             research.training._shared.test_sweep_cli \
             research.training.test_resume_closeout_tools \
             research.training.tokenizer.test_resume_identity \
+            research.training.tokenizer.test_resume_optimizer_profile \
             research.training.test_integrity_check \
             research.training.test_recon_check \
             research.training._shared.test_training_receipts \
@@ -162,6 +163,7 @@ jobs:
           python -m unittest \
             research.training.test_resume_closeout_tools \
             research.training.tokenizer.test_resume_identity \
+            research.training.tokenizer.test_resume_optimizer_profile \
             research.training.test_integrity_check \
             research.training.test_recon_check \
             research.training.tokenizer.test_receipt_helpers \
@@ -169,6 +171,7 @@ jobs:
             research.training.tokenizer.test_distributed_forward \
             research.training.tokenizer.test_numerical_safety \
             research.training.tokenizer.test_resume_dataset \
+            research.training.tokenizer.test_resume_optimizer \
             research.training._shared.test_eval_integrity \
             research.training.test_audit_dataset -v
 
